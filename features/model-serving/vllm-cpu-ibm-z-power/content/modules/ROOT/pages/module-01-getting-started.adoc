@@ -147,7 +147,6 @@ CPU and Memory requests and limits in the *Customize resource requests and limit
 this is where all of your model server compute comes from.
 ====
 
-// TODO: capture screenshot
 image::01-deploy-model-wizard.png[Deploy a model wizard with the vLLM CPU ServingRuntime for KServe selected,link=self,window=blank,width=700]
 
 === Verify

@@ -95,11 +95,11 @@ spec:
   - secretRef:
       name: mlflow-s3-credentials
 ----
-*`replicas`* — the scaling knob for production deployments. High availability requires remote storage because PVC-backed storage does not support multiple concurrent writers.
-*`backendStoreUriFrom`* — a secret reference for the backend database URI; use it instead of `backendStoreUri` so database credentials are not stored in the MLflow CR.
-*`artifactsDestination`* — an S3-compatible URI for artifact storage.
-*`serveArtifacts`* — clients log and retrieve artifacts through the MLflow server REST API via the `mlflow-artifacts:/` proxy scheme.
-*`envFrom`* — injects the S3 credentials secret (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) into the MLflow pods.
+<1> *`replicas`* — the scaling knob for production deployments. High availability requires remote storage because PVC-backed storage does not support multiple concurrent writers.
+<2> *`backendStoreUriFrom`* — a secret reference for the backend database URI; use it instead of `backendStoreUri` so database credentials are not stored in the MLflow CR.
+<3> *`artifactsDestination`* — an S3-compatible URI for artifact storage.
+<4> *`serveArtifacts`* — clients log and retrieve artifacts through the MLflow server REST API via the `mlflow-artifacts:/` proxy scheme.
+<5> *`envFrom`* — injects the S3 credentials secret (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) into the MLflow pods.
 
 . Save the CR as `mlflow.yaml` and apply it:
 +
@@ -323,6 +323,10 @@ From the RHOAI dashboard, select your project ({guid}-{user}) from the
 see the *Runs* table with `demo-run`, then click the run name to review the
 logged parameters (`model_type`, `feature_count`), the accuracy and loss
 metric charts, and system metrics.
+
+image::02-experiments-list.png[The Experiments (MLflow) page listing demo-experiment,link=self,window=blank,width=700]
+
+image::02-experiment-overview.png[The demo-experiment overview page with its run statistics,link=self,window=blank,width=700]
 
 == Module summary
 

@@ -31,7 +31,7 @@ key, secret key, endpoint, optional region, and bucket name. If you use the
 connections API instead of the dashboard, create a Secret with the
 `opendatahub.io/connection-type-protocol: "s3"` annotation:
 +
-[source,yaml,subs="attributes"]
+[source,yaml,subs="attributes,callouts"]
 ----
 apiVersion: v1
 kind: Secret
@@ -80,7 +80,7 @@ oc apply -f mlflowconfig.yaml -n {guid}-{user}
 notebook (repeat the SDK exercise from module 2 with a new experiment name).
 . Confirm the new run's artifacts resolve under your bucket: in the MLflow UI
 or the dashboard *Experiments (MLflow)* page, inspect the run's artifact URI
-— it should point to `s3://<your_bucket>/mlflow-artifacts/...` rather than the
+— it should point to `s3://{s3_bucket}/mlflow-artifacts/...` rather than the
 default `workspaces/<project_name>` path.
 
 If artifacts keep going to the default storage location, the `MLflowConfig`
@@ -138,8 +138,10 @@ oc apply -f mlflow.yaml
 ----
 
 . Optional: to allow specific experiments to use a retention period longer
-than the server default, add experiment IDs to the
-`longRetentionAllowlist` field (up to 64 IDs):
+than the server default, replace `<experiment_id_1>` and `<experiment_id_2>`
+with the numeric IDs of your experiments and add them to the
+`longRetentionAllowlist` field (up to 64 IDs). You can find an experiment's
+numeric ID in the MLflow UI or the dashboard *Experiments (MLflow)* page:
 +
 [source,yaml]
 ----

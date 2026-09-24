@@ -98,8 +98,10 @@ workloads, provide your own PostgreSQL instance as in Module 02.
 
 === Verify
 
-The three `vector_io.query()` calls complete without errors, and you can articulate the precision
-versus recall tradeoff between the keyword, vector, and hybrid results for your corpus.
+Each `vector_io.query()` call returns chunks from the ingested report: the keyword results match the
+literal term `FRBNY`, while the vector and hybrid results can also return semantically related
+passages that do not contain the term. Compare which chunks each mode ranks first and articulate the
+precision versus recall tradeoff between the three result sets.
 
 With retrieval tuned, configure the OGX server itself to survive failures and scale under load.
 

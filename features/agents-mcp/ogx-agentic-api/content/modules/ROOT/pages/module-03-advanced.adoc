@@ -178,7 +178,9 @@ OGX's built-in guardrails use a `moderation_endpoint` configuration pointing at 
 OpenAI-compatible `/v1/moderations` endpoint. The configuration lives on the *responses provider*,
 not at the CRD level, and is set by the platform administrator.
 
-Clients opt in per-request by setting `guardrails: true` on the Responses API request:
+Clients opt in per-request by setting `guardrails: true` on the Responses API request. Replace
+`<model-id>` with a model ID from your OGX server, such as the `model_id` you selected in
+Module 02:
 
 [source,bash,role="execute",subs="attributes"]
 ----

@@ -66,7 +66,7 @@ spec:
 
 <1> **Runtime configuration:** the `spec.runtime` section holds the workload settings the operator applies to the provisioned `Deployment`.
 <2> **Replicas:** the number of pods the operator runs for this server (see Exercise 2).
-<3> **Service account:** only present when the catalog entry requires one; set from the deployment dialog in Module 01.
+<3> **Service account:** replace `<service_account_name>` with a `ServiceAccount` that exists in your namespace; only present when the catalog entry requires one (set from the deployment dialog in Module 01).
 <4> **Stateless flag:** controls the `SessionAffinity` the operator configures on the `Service` (see Exercise 2).
 
 . View the full field inventory for the installed CRD version:

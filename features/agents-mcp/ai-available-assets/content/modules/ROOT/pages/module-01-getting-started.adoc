@@ -107,6 +107,8 @@ Back in the RHOAI dashboard, open *Gen AI studio → AI asset endpoints* and
 select a project: the GitHub MCP server now appears in the *MCP servers* tab
 and is available for use in playground sessions.
 
+image::01-mcp-servers-tab.png[The AI asset endpoints page MCP servers tab showing the published MCP server,link=self,window=blank,width=700]
+
 == Module summary
 
 **What you accomplished:**

@@ -137,14 +137,19 @@ OpenShift AI Operator; you do not need to replace it with a registry URL.
 
 === Verify
 
-. Check that the custom resource was created and the server pods are running:
+. Check that the custom resource became ready and the server pods are running:
 +
 
 [source,bash,role="execute",subs="attributes"]
 ----
 oc get ogxserver -n {guid}-{user}
+oc wait --for=jsonpath='{.status.phase}'=Ready ogxserver/ogx-custom-server -n {guid}-{user} --timeout=300s
 oc get pods -n {guid}-{user} | grep ogx-custom-server
 ----
++
+Expected output: `oc get ogxserver` lists `ogx-custom-server`, the `oc wait` command prints
+`condition met` once `.status.phase` is `Ready`, and the pod listing shows the `ogx-custom-server`
+pods with `STATUS` `Running`.
 
 . Check the server logs for startup output:
 +
@@ -179,7 +184,7 @@ IMPORTANT: For RAG you need a remote embedding model reachable from the cluster,
 `nomic-embed-text-v1-5` served through a vLLM embedding endpoint. RAG queries without ingested
 content return empty or non-contextual responses.
 
-. Create a secret that contains the inference model and remote embedding environment variables, replacing `<token-identifier>` and `<embedding-token>` with your workshop's token and embedding values:
+. Create a secret that contains the inference model and remote embedding environment variables, replacing `<token-identifier>` with the API token for your vLLM inference service and `<embedding-token>` with the API token for your embedding endpoint:
 +
 
 [source,bash,role="execute",subs="attributes"]
@@ -447,9 +452,9 @@ print(query_result)
 
 === Verify
 
-* The call to `client.vector_stores.files.create()` succeeds and returns metadata for the ingested file, and the vector store contains indexed chunks associated with the uploaded document.
-* The notebook returns a context-aware response when `file_search` is enabled, and answers outside the document content are declined.
-* `client.vector_io.query()` returns indexed chunks from the pgvector store without errors.
+* `client.vector_stores.files.create()` returns a file object with `status` `completed`, confirming the PDF was chunked and indexed into `my_pgvector_store`.
+* `print(response.output_text)` outputs a summary grounded in the report content, and a question about a topic the document does not cover returns a statement that no relevant information was found.
+* `client.vector_io.query()` returns the ingested report chunks matching `key findings`, confirming the pgvector store holds indexed content.
 
 You now have a working RAG loop. Before scaling it up, test the underlying model endpoints directly
 from the CLI.
@@ -465,7 +470,8 @@ unsecured route unless you configure authentication. Avoid exposing endpoints wi
 controls.
 
 . Log in to the cluster from the CLI. In the upper-right corner of the web console, click your
-user name, select *Copy login command*, then *Display token*, and paste the token command:
+user name, select *Copy login command*, then *Display Token*, and copy the displayed command,
+replacing `<token>` with the API token shown on that page:
 +
 [source,bash,role="execute",subs="attributes"]
 ----

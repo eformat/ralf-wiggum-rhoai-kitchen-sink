@@ -27,6 +27,8 @@ Connectivity Link consists of four Operators bundled into a single catalog:
 * The *Limitador Operator* manages rate limiting
 * The *DNS Operator* manages multi-cluster DNS
 
+image::01-installed-operators-kuadrant.png[The Installed Operators view for the kuadrant-system namespace showing the Connectivity Link operators,link=self,window=blank,width=700]
+
 The Connectivity Link Operator declares the other three as dependencies through
 Operator Lifecycle Manager (OLM), so updates are automatic. Each policy CR maps to a
 backing component:
@@ -106,11 +108,11 @@ oc get pods -n ${KUADRANT_SYSTEM_NS}
 
 .Example output
 ----
-NAME                                                 READY   STATUS    RESTARTS   AGE
-authorino-operator-controller-manager-<hash>         2/2     Running   0          5m
-dns-operator-controller-manager-<hash>               2/2     Running   0          5m
-kuadrant-operator-controller-manager-<hash>          2/2     Running   0          7m
-limitador-operator-controller-manager-<hash>         2/2     Running   0          5m
+NAME                                                      READY   STATUS    RESTARTS   AGE
+authorino-operator-controller-manager-5f5b8f9c4d-x2p7v    2/2     Running   0          5m
+dns-operator-controller-manager-7d6c9b8f5a-k4m9w          2/2     Running   0          5m
+kuadrant-operator-controller-manager-6b9d7c5f8e-p2r4t     2/2     Running   0          7m
+limitador-operator-controller-manager-8c4f2d9b7e-n6v3s    2/2     Running   0          5m
 ----
 
 For reference, these are the manifests your facilitator applied. *Do not run them unless

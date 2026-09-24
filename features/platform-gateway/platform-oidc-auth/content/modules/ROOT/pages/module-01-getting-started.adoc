@@ -93,8 +93,9 @@ The gateway needs three values from your external IdP: the issuer URL, the
 client ID, and a client secret. The secret is stored as a Kubernetes Secret in
 the `openshift-ingress` namespace, and the `GatewayConfig` CR references it.
 
-. Define environment variables from your IdP details, replacing the
-  placeholder values with your actual values:
+. Define environment variables from your IdP details. Replace
+  `<your-client-secret>` with the actual client secret from your OIDC
+  provider, and adjust the other values to match your IdP if they differ:
 +
 [source,bash,role="execute",subs="attributes"]
 ----
@@ -120,25 +121,28 @@ oc create secret generic idp-client-secret \
 
 . Patch the `default-gateway` GatewayConfig to enable OIDC authentication:
 +
-[source,bash,role="execute",subs="attributes,callouts"]
+[source,bash,role="execute",subs="attributes"]
 ----
 oc patch gatewayconfig default-gateway --type='merge' -p='{
   "spec": {
     "oidc": {
-      "issuerURL": "'$IDP_ISSUER_URL'", <1>
-      "clientID": "'$IDP_CLIENT_ID'", <2>
+      "issuerURL": "'$IDP_ISSUER_URL'",
+      "clientID": "'$IDP_CLIENT_ID'",
       "clientSecretRef": {
-        "name": "idp-client-secret", <3>
-        "key": "clientSecret" <4>
+        "name": "idp-client-secret",
+        "key": "clientSecret"
       }
     }
   }
 }'
 ----
-<1> *issuerURL:* The OIDC issuer URL from your external IdP — for Keycloak, `https://{idp_domain}/realms/{idp_realm}`.
-<2> *clientID:* The OIDC client ID that the gateway presents to the IdP.
-<3> *name:* The Secret in the `openshift-ingress` namespace that holds the client secret.
-<4> *key:* The key inside that Secret which contains the secret value.
+
+The patch sets the following fields on the GatewayConfig:
+
+* *issuerURL:* The OIDC issuer URL from your external IdP — for Keycloak, `https://{idp_domain}/realms/{idp_realm}`.
+* *clientID:* The OIDC client ID that the gateway presents to the IdP.
+* *clientSecretRef.name:* The Secret in the `openshift-ingress` namespace that holds the client secret.
+* *clientSecretRef.key:* The key inside that Secret which contains the secret value.
 
 After the patch, the Operator reconciles the `GatewayConfig` and configures the
 `kube-auth-proxy` deployment that fronts your RHOAI services.

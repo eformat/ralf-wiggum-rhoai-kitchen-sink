@@ -146,7 +146,9 @@ oc whoami --show-token
 ----
 
 In your workbench, define your training function, configure authentication, and
-submit the training job:
+submit the training job. Replace `%token%` with the token from `oc whoami
+--show-token`; `{openshift_api_url}` is substituted with your API server URL
+automatically:
 
 [source,python,subs="attributes"]
 ----
@@ -280,12 +282,14 @@ job = trainer_client.get_job(job_name)
 print("Status: " + str(job.status))
 ----
 
-Then confirm the training pods are running from the CLI, using the job name
-printed when you submitted the job:
+Then confirm the training pods are running from the CLI. The `JOB_NAME`
+variable resolves the name of the `TrainJob` you submitted in the previous
+step — the name the SDK printed when you submitted the job:
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc get pods -n {guid}-{user} -l job-name=<job-name>
+JOB_NAME=$(oc get trainjob -n {guid}-{user} -o jsonpath='{.items[0].metadata.name}')
+oc get pods -n {guid}-{user} -l job-name=$JOB_NAME
 ----
 
 One pod per training node is listed, each in `Running` state. (Optional) Open
@@ -437,7 +441,7 @@ training parameters with FSDP configuration
 Qwen2.5 1.5B, 7B, and 14B models on 4x NVIDIA A100/80GB. If you use AMD
 accelerators, change `nvidia.com/gpu` to `amd.com/gpu` in
 `resources_per_node`. If you use a gated Hugging Face model, add
-`"HF_TOKEN": "<your-token>"` to the `env` dictionary.
+`"HF_TOKEN": "<your Hugging Face access token>"` to the `env` dictionary.
 
 When you no longer need the fine-tuning job, delete it to release the resources
 with `client.delete_job(name=job_name)`.

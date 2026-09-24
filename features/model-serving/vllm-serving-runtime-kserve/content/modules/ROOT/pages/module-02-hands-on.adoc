@@ -130,6 +130,8 @@ CPU node (GPUs are not required for this path).
 Confirm that the deployed model is shown on the *Deployments* tab for the
 project with a checkmark in the *Status* column. From the CLI:
 
+image::02-deployments-granite-vllm.png[The project Deployments tab showing the deployed model with a Ready status,link=self,window=blank,width=700]
+
 [source,bash,role="execute",subs="attributes"]
 ----
 oc get inferenceservice -n {guid}-{user}

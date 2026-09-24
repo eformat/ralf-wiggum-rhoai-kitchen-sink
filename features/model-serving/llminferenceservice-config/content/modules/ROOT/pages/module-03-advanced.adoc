@@ -192,11 +192,12 @@ Confirm the scheduler picked up the separate profiles (the EPP pod follows the p
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc get pods -n {guid}-{user} | grep router-scheduler
-oc logs <epp-pod-name> -n {guid}-{user} | grep -i "profile\|disagg"
+EPP_POD=$(oc get pods -n {guid}-{user} -o name | grep router-scheduler)
+oc logs $EPP_POD -n {guid}-{user} | grep -i "profile\|disagg"
 ----
 
-Replace `<epp-pod-name>` with the pod name from the previous step.
+The first command stores the EPP pod name in the `EPP_POD` shell variable; the
+second streams its logs.
 
 The `grep` output includes initialization lines for the disaggregated profile handler and
 lists separate `prefill` and `decode` scheduler profiles by name — the automatic

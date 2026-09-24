@@ -113,7 +113,7 @@ You should see at least one pod in `Running` status, for example:
 
 ----
 NAME                                          READY   STATUS    RESTARTS   AGE
-mcp-lifecycle-operator-<id>                   1/1     Running   0          2m
+mcp-lifecycle-operator-7c9d6b5f4d-xk2vq       1/1     Running   0          2m
 ----
 
 Confirm that the component is reported as installed in the `DataScienceCluster` status:
@@ -156,7 +156,8 @@ enabled on the cluster. Recheck Exercise 1 if the button is greyed out.
 
 . In the deployment dialog, review the YAML configuration field. If the MCP server
 requires a service account, set the `serviceAccountName` field under `runtime:` and
-`security:`:
+`security:`, replacing `<service_account_name>` with the name of an existing
+`ServiceAccount` in your project:
 +
 [source,yaml]
 ----
@@ -175,8 +176,7 @@ custom resource in your namespace and provisions the required `Deployment` and
 
 === Verify
 
-Confirm that the `MCPServer` custom resource shows a `READY` status of `True`. Replace
-`{mcp_server_name}` with the name of the server you deployed:
+Confirm that the `MCPServer` custom resource shows a `READY` status of `True`:
 
 [source,bash,role="execute",subs="attributes"]
 ----

@@ -58,6 +58,8 @@ Back in the dashboard, open *Gen AI studio → AI asset endpoints*, select
 on the *Models* tab. Models with vision or audio transcription capabilities
 display badge labels in the table and the playground model selector.
 
+image::02-models-tab.png[The AI asset endpoints page Models tab showing the deployed model,link=self,window=blank,width=700]
+
 With the model published as an asset, you can now consume it from the same page
 without any further configuration.
 

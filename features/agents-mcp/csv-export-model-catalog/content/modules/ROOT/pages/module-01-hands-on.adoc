@@ -51,7 +51,6 @@ Each model entry in the catalog carries metadata — description, provider, labe
 information, and performance metrics for validated models — plus any custom properties. All of
 this is the data the CSV export packages.
 
-// TODO: capture screenshot
 image::01-model-catalog-page.png[Model catalog page in the AI hub,link=self,window=blank,width=700]
 
 === Verify
@@ -98,7 +97,10 @@ Model Catalog* guide.
 python3 <export-script>.py --source <catalog-source> --limit <count> --header <authorization-header>
 ----
 +
-The script supports filtering by source with `--source`, limiting the output count with `--limit`,
+Replace `<export-script>` with the script name from the installation step, `<catalog-source>` with
+a catalog source name, `<count>` with the number of models to export, and `<authorization-header>`
+with the authorization header value from the *CSV Exporter for Model Catalog* guide. The script
+supports filtering by source with `--source`, limiting the output count with `--limit`,
 and setting authorization headers with `--header` to authenticate against the Model Catalog REST
 API. Omit any option you do not need; with no options the script exports the full catalog result
 set.

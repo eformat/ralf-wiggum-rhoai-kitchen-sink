@@ -64,8 +64,9 @@ cd sdg_hub/examples/agentic/mcp_distillation_evaluation
 pip install -r requirements.txt
 ----
 
-. Create a `.env` file with your frontier LLM credentials (add `.env` to your
-`.gitignore` — never commit it):
+. Create a `.env` file with your frontier LLM credentials, replacing
+`<your_api_key>` with the API key for your frontier LLM endpoint (add `.env` to
+your `.gitignore` — never commit it):
 +
 [source,bash]
 ----
@@ -162,7 +163,7 @@ where:
 +
 * *model_name_1, model_name_2* — name of each candidate model; the defaults are models with confirmed tool-calling support from the Red Hat AI validated models catalog.
 * *model_endpoint_url_1, model_endpoint_url_2* — OpenAI API-compatible endpoint URL for each model; the defaults point at in-cluster vLLM services in your working project, so replace them if your candidates are served elsewhere.
-* *model_api_key_1, model_api_key_2* — API key for each model endpoint; replace the placeholders with your endpoint keys.
+* *model_api_key_1, model_api_key_2* — API key for each model endpoint; replace `<model_api_key_1>` with the API key for the first model and `<model_api_key_2>` with the API key for the second.
 +
 Each candidate is scored through the same LangGraph agent harness used for data
 generation; the underlying LLM is swapped while the agent stack stays identical.

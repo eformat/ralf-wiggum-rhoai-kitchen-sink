@@ -81,6 +81,8 @@ KServe* with a version badge (for example, `0.6.1`). A version badge with no
 *Limited support* badge indicates full GA support, which is the recommended
 configuration for production workloads.
 
+image::01-serving-runtimes-page.png[The Serving runtimes page listing the pre-installed vLLM ServingRuntimes with version badges,link=self,window=blank,width=700]
+
 With the runtime enabled, the next step is to look inside the `ServingRuntime`
 template that KServe will use for your deployments.
 

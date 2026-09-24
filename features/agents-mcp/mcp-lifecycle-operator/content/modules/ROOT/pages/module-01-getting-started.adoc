@@ -88,7 +88,7 @@ Expect at least one pod in `Running` status, for example:
 
 ----
 NAME                                          READY   STATUS    RESTARTS   AGE
-mcp-lifecycle-operator-<id>                   1/1     Running   0          2m
+mcp-lifecycle-operator-7d9f8b6c5-xk2mp        1/1     Running   0          2m
 ----
 
 Confirm that the `mcplifecycleoperator` component is reported as installed in
@@ -118,6 +118,10 @@ yaml | grep -A2 mcplifecycleoperator`.
 
 With the operator enabled, the next step is to browse the catalog and deploy
 your first MCP server.
+
+image::01-mcp-catalog.png[The AI hub MCP servers catalog listing available MCP servers,link=self,window=blank,width=700]
+
+image::02-mcp-deployments.png[The MCP servers Deployments tab for the working project,link=self,window=blank,width=700]
 
 == Exercise 2: Browse the AI Hub MCP Catalog
 
@@ -185,7 +189,7 @@ spec:
 ----
 
 <1> **Runtime section:** the runtime configuration of the server presented in the deployment dialog.
-<2> **Service account:** the name of the `ServiceAccount` resource that exists in your namespace.
+<2> **Service account:** replace `<service_account_name>` with the name of a `ServiceAccount` resource that exists in your working project.
 
 You can omit the `serviceAccountName` field when the server needs no service
 account, as with most catalog entries.

@@ -123,6 +123,8 @@ certificate is available — the TLSPolicy fixes that.
 
 The Gateway reports `Resource accepted` and `Resource programmed, assigned to service(s)`.
 
+image::02-gateways-status.png[The Gateways view showing the created Gateway with its status,link=self,window=blank,width=700]
+
 Now that the Gateway object exists, you will secure its HTTPS listener with a certificate issuer and a TLSPolicy.
 
 == Exercise 3: Secure the Gateway with TLS
