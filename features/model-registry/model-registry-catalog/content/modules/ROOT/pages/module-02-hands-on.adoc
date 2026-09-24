@@ -92,6 +92,8 @@ Expected output lists `workshop-registry`, whose resource name matches the
 registry name by default. If
 this resource type is not available in your deployment, verify the registry
 from the dashboard's *Model registry settings* page instead.
++
+image::01-model-registry-settings.png[The Model registry settings page showing the `workshop-registry` registry row with its status and Manage permissions link,link=self,window=blank,width=700]
 
 The model registry operator uses OpenShift RBAC: for each registry instance it
 creates a `registry-users-<registry-name>` role and a

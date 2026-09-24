@@ -55,6 +55,8 @@ documentation.
 . In the RHOAI dashboard, click *Settings* and then *llm-d routing
 configurations*. This page is visible to administrators only. Any
 latency-aware router configuration your administrator created appears here.
++
+image::01-llmd-routing-configurations.png[The Settings > llm-d routing configurations page in an empty state, with no router configurations created yet,link=self,window=blank,width=700]
 
 . If a router config exists, open the action menu (⋮) next to it and click
 *Edit* to inspect the YAML. Compare the plugin list you see with the example

@@ -104,7 +104,10 @@ a configuration guide.
 In the RHOAI dashboard, under *Settings*, an administrator sees *llm-d routing
 configurations* and *llm-d topology configurations* pages. If you have
 administrator access, open both pages now and note the columns shown — you
-will walk the advanced routing workflow in the next module.
+will walk the advanced routing workflow in the next module. The llm-d routing
+configurations page shows an empty state when no router
+`LLMInferenceServiceConfig` resources have been created yet:
+image::01-llmd-routing-configurations.png[The Settings > llm-d routing configurations page in its empty state, with no router configurations created yet in the workshop cluster,link=self,window=blank,width=700]
 
 Now that you know where adapter-aware routing decisions happen, you will confirm
 the llm-d serving stack is ready in your cluster.

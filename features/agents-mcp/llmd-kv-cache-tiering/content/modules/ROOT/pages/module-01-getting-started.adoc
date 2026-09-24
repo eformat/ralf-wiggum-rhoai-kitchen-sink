@@ -102,6 +102,8 @@ configurations* and *llm-d topology configurations* pages. If you have
 administrator access, open both pages now and note the columns shown — you will
 work with router configurations in the next module.
 
+image::01-llmd-topology-configurations.png[The Settings > llm-d topology configurations page in an empty state, with no configurations created yet,link=self,window=blank,width=700]
+
 Now that you have mapped the Endpoint Picker layers and scorer profile, you will confirm the llm-d serving stack is present in your cluster.
 
 == Exercise 3: Confirm your environment is ready

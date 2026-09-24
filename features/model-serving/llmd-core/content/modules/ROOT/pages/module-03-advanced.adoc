@@ -104,7 +104,10 @@ deployment patterns and routing behavior. Users can then select them in the wiza
 . Create a topology configuration template:
 .. In the RHOAI dashboard, click *Settings*.
 .. Click *llm-d topology configurations*. The page displays a table with *Name*,
-*Topology type*, *Enabled*, *Pre-installed*, and *Actions* columns.
+*Topology type*, *Enabled*, *Pre-installed*, and *Actions* columns. In the workshop
+cluster no topology templates exist yet, so the table is empty.
++
+image::03-llmd-topology-configurations.png[The Settings > llm-d topology configurations page in its empty state, with no topology configuration templates created yet,link=self,window=blank,width=700]
 .. Click *Add*.
 .. From the *Topology type* list, select the deployment pattern to configure — for example
 *Multi-node data-parallel* for request-level parallelism across workers.

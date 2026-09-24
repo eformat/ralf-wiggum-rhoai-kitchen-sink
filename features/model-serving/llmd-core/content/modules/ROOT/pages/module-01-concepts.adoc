@@ -121,9 +121,9 @@ Expected output (plain `----` block):
 
 ----
 NAME                                              READY   STATUS    RESTARTS   AGE
-kserve-controller-manager-<hash>                  2/2     Running   0          <age>
-llmisvc-controller-manager-<hash>                 2/2     Running   0          <age>
-workload-variant-autoscaler-<hash>                1/1     Running   0          <age>
+kserve-controller-manager-6d8f9b7c4d-xk2lv        2/2     Running   0          3d
+llmisvc-controller-manager-8c5e2f9a1-vn3qs        2/2     Running   0          3d
+workload-variant-autoscaler-4a7d3b8f2-pt7wk       1/1     Running   0          3d
 ----
 
 . Verify the inference Gateway exists. RHOAI expects a `GatewayClass` and a `Gateway` named

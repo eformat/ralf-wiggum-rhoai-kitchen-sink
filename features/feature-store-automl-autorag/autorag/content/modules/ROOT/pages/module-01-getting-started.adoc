@@ -168,7 +168,6 @@ are selected.
 . Click *Create run*. AutoRAG begins testing RAG configurations; you can
 monitor the status on the AutoRAG page.
 
-// TODO: capture screenshot
 image::01-autorag-page.png[AutoRAG page in the RHOAI dashboard listing optimization runs,link=self,window=blank,width=700]
 
 [TIP]

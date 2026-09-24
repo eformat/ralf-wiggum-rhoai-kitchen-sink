@@ -44,10 +44,11 @@ oc get pods -n {guid}-{user} | grep router-scheduler
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc logs <epp_pod_name> -n {guid}-{user} | grep -i "scheduler\|config"
+EPP_POD=$(oc get pods -n {guid}-{user} -o name | grep router-scheduler)
+oc logs $EPP_POD -n {guid}-{user} | grep -i "scheduler\|config"
 ----
 
-Replace `<epp_pod_name>` with the pod name from the previous step.
+The first command stores the EPP pod name in the `EPP_POD` shell variable; the second streams its logs.
 
 === Verify
 

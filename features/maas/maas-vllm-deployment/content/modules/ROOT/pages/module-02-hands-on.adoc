@@ -26,7 +26,6 @@ integrates with the MaaS gateway for subscription-based quota enforcement. The
 legacy deployment method uses traditional KServe `InferenceService` resources with
 serving runtimes and cannot be published to MaaS.
 
-// TODO: capture screenshot
 image::02-deploy-model-wizard.png[The model deployment wizard with the vLLM deployment resource selected,link=self,window=blank,width=700]
 
 . Log in to the OpenShift AI dashboard and click *Projects* in the left navigation menu.
