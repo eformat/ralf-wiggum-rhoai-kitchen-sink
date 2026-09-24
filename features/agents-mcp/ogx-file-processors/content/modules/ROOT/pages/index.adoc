@@ -1,0 +1,44 @@
+= Welcome to the OGX File Processors API Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+The *OGX File Processors API* is a Developer Preview API in RHOAI 3.5 that
+converts documents and files into vector-ready chunks using configurable
+extraction backends. It is exposed by the OGX server at the
+`/v1alpha/file-processors` endpoint and is powered by pluggable providers such
+as Docling, MarkItDown, and PyPDF, making it the document-ingestion step of
+retrieval-augmented generation (RAG) workflows built on OGX.
+
+**What you will learn:**
+
+* What the File Processors API does, where its `/v1alpha/file-processors` endpoint lives, and what Developer Preview means for it
+* Which extraction-backend providers power the API (inline::auto, inline::docling, inline::markitdown, inline::pypdf, remote::docling-serve) and how each is enabled
+* How a document flows from upload to vector-ready chunks in a RAG workflow
+* Verify the OGX components in your cluster and tour the documented document-processing paths: the OpenAI-compatible Files + Vector Stores flow and the Docling pipeline
+
+== Prerequisites
+
+* RHOAI operator installed
+* OGX enabled
+* An OpenShift cluster with RHOAI 3.5 installed
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Tour the File Processors API]
+* xref:module-02-hands-on.adoc[Walk the document-processing path]
+* xref:conclusion.adoc[Conclusion]

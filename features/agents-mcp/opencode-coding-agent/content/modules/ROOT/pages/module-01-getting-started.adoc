@@ -1,0 +1,115 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will learn what OpenCode coding-agent deployment is in
+RHOAI 3.5, what its Technology Preview validation covers, and how to verify that
+your workshop cluster is ready to support a coding-agent workload.
+
+**Learning objectives:**
+
+* Explain what OpenCode is and what the 3.5 validation provides
+* Describe the onboarding pattern established by OpenClaw that OpenCode follows
+* Verify that the RHOAI operator is installed and an LLM serving endpoint is available
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: OpenCode coding-agent deployment is a *Technology Preview* feature in
+RHOAI 3.5. Technology Preview features are not supported with Red Hat production
+service-level agreements (SLAs) and might not be functionally complete. The
+container images, operator-managed deployment manifests, and inference backend
+integrations described here may change between releases.
+endif::[]
+
+== Exercise 1: Understand the OpenCode feature and its validation
+
+OpenCode is an open-source, terminal-based coding agent. In RHOAI 3.5 it is the
+first coding agent validated to follow the onboarding pattern established by
+OpenClaw. The validation confirms that three building blocks generalize to
+coding-specific workloads:
+
+* *Agent platform operators* manage the agent deployment lifecycle
+* *vLLM and OGX (formerly Llama Stack) inference backends* serve the model that powers the agent
+* *MLflow tracing integration* captures the agent's model calls and tool executions
+
+According to the RHOAI 3.5 release notes, this validation provides the following
+for running OpenCode on your OpenShift AI deployments:
+
+* Supported container images
+* Operator-managed deployment manifests
+* Verified inference backend interoperability
+* MLflow tracing integration
+
+IMPORTANT: Because OpenCode is a Technology Preview feature, the downloaded
+RHOAI 3.5 documentation covers it only at the release-notes level. There is no
+step-by-step deployment procedure in the 3.5 documentation set. Do not invent
+deployment commands: when the detailed starter-kit documentation becomes
+available, follow it exactly.
+
+. Review the building blocks above and locate the corresponding components in
+your cluster plan: which project will host the agent, which inference backend
+serves its model, and where MLflow traces will land.
+. Note that the validation pattern comes from the OpenClaw agent starter kit:
+deploy the agent from validated Kustomize manifests, connect it to self-hosted
+models through vLLM by using the OGX inference gateway with an OpenAI-compatible
+API, and capture model calls, tool executions, and context assembly spans in
+MLflow through OpenTelemetry tracing.
+
+=== Verify
+
+You can state which three building blocks the OpenCode validation covers
+(agent platform operators, vLLM and OGX inference backends, MLflow tracing
+integration) and which four deliverables the validation provides. If you cannot,
+re-read the release notes summary before continuing.
+
+== Exercise 2: Verify that your environment is ready
+
+Before deploying any agent, confirm that the two prerequisites of this workshop
+hold: the RHOAI operator is installed, and an LLM serving endpoint is available.
+
+. Confirm that the RHOAI operator ClusterServiceVersion (CSV) is installed and
+reconciled:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get csv -n redhat-ods-operator
+----
+
+. Inspect the output for a `rhods-operator` CSV in the `Succeeded` phase.
+. Confirm that your working project is still the active namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc project
+----
+
+=== Verify
+
+The CSV listing includes a `rhods-operator.{rhoai_version}` entry whose `PHASE`
+is `Succeeded`, and `oc project` shows your `{guid}-{user}` namespace as the
+current project. If the CSV is missing, ask your facilitator to complete the
+RHOAI installation before continuing.
+
+NOTE: If your facilitator provides an inference endpoint inside the cluster
+(vLLM or OGX), note its service route now — you will probe it with the
+OpenAI-compatible API pattern in Module 02.
+
+Now that your environment is verified, continue to the next module to explore
+the inference backend and console surfaces that back a coding agent.
+
+== Module summary
+
+**What you accomplished:**
+
+* Reviewed the OpenCode Technology Preview validation and its four deliverables
+* Traced the onboarding pattern from OpenClaw: Kustomize manifests, vLLM/OGX inference, MLflow tracing
+* Verified the RHOAI operator CSV and your working project on the cluster
+
+**Key takeaways:**
+
+* OpenCode is a terminal-based coding agent validated on the OpenClaw onboarding pattern in RHOAI 3.5
+* Technology Preview features are documented at the release-notes level and may change between releases
+* Environment readiness checks (operator CSV, active project) precede any agent deployment
+
+**Next steps:**
+
+Continue to Module 02, where you probe an OpenAI-compatible inference endpoint
+and explore the console surfaces that a coding agent depends on.

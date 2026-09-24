@@ -1,0 +1,12 @@
+---
+# Strategic-merge patch enabling the MCP Lifecycle Operator. Defaults to
+# Removed — all MCP catalog labs are blocked until it is Managed.
+apiVersion: datasciencecluster.opendatahub.io/v2
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+  namespace: redhat-ods-operator
+spec:
+  components:
+    mcplifecycleoperator:
+      managementState: Managed

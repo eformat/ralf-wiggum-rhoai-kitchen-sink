@@ -1,0 +1,190 @@
+= Module 01: Core Concepts
+:navtitle: Module 01: Core Concepts
+
+In this module you will understand what Distributed Inference with llm-d is, how its serving
+stack fits into Red Hat OpenShift AI, and which custom resources back it.
+
+**Learning objectives:**
+
+* Explain how llm-d fits into the unified generative model serving entry point in RHOAI 3.5
+* Describe the four validated deployment topology patterns and when to use each
+* Inspect the `LLMInferenceService`, `LLMInferenceServiceConfig`, and Gateway API resources
+that back the feature in your cluster
+
+== Exercise 1: Where Distributed Inference with llm-d fits
+
+*Distributed Inference with llm-d* deploys and serves large language models (LLMs) at scale on
+Red Hat OpenShift AI. It is built on the llm-d project and replaces the single-model serving
+platform's one-pod-per-model KServe flow with a distributed inference stack: a Gateway API
+gateway routes requests through an inference scheduler (the endpoint picker) to vLLM workers
+that can run as single pods or as multi-node LeaderWorkerSets.
+
+In RHOAI 3.5, all generative AI models deploy through a single *Deploy model* entry point.
+When you select *Generative AI* or *Distributed inference with llm-d* from the model framework
+radio button options, the deployment wizard guides you through:
+
+* Selecting a deployment topology appropriate for your model size and hardware constraints
+* Configuring hardware profiles and accelerator resources (for single-node deployments)
+* Optionally applying advanced routing configurations for production workloads
+* Deploying the model with validated configuration templates
+
+This template-based approach reduces YAML errors and enables self-service deployment for data
+scientists who do not have deep Kubernetes expertise, while platform administrators retain
+control over available topologies through `LLMInferenceServiceConfig` template management.
+Non-single-node topologies are disabled in the wizard until an administrator creates the
+required configuration templates.
+
+The four validated deployment topology patterns:
+
+[cols="1,2,2"]
+|===
+|Pattern |What it does |Use when
+
+|*Single-node*
+|All model components on a single GPU or set of GPUs within one pod
+|The model fits in the GPUs of a single node; development, testing, and production for
+models up to about 30B parameters
+
+|*Multi-node data-parallel*
+|Replicates the complete model across many worker nodes
+|High request throughput for mid-size models (7B-70B); request-level parallelism
+
+|*Single-node prefill/decode disaggregate*
+|Separates prompt processing (prefill) from token generation (decode) on different GPUs
+within one node
+|Latency optimization for 30B+ models with at least 2 GPUs and RDMA-capable networking
+
+|*Multi-node prefill/decode disaggregate*
+|Distributes prefill and decode phases across many nodes
+|Largest models (70B+) requiring 8+ GPUs across nodes with InfiniBand or RoCE v2
+networking
+|===
+
+A fifth pattern, *Wide expert parallelism (WideEP)*, distributes Mixture of Experts model
+experts across GPU nodes for very large MoE models such as DeepSeek-R1. It is a Developer
+Preview feature in RHOAI 3.5.
+
+Each `LLMInferenceService` deployment creates a *per-namespace inference stack* consisting of:
+
+* An `HTTPRoute` for gateway traffic
+* An `InferencePool` and a scheduler deployment that reconciles it
+* A decode workload variant, deployed as a Deployment or a LeaderWorkerSet
+* For prefill/decode disaggregation, an additional prefill workload variant
+* ServiceMonitor resources for prefill and decode monitoring
+
+The Gateway itself is shared across inference stacks (or omitted in gatewayless
+deployments). A namespace can contain only one inference stack.
+
+. Locate the feature in the RHOAI dashboard: open *Red Hat OpenShift AI*, then click
+*Data Science Projects*.
+. Select your project and click the *Models* tab.
+. Click *Deploy model* and observe the *Deployment method* radio buttons: *Distributed
+inference with llm-d* appears alongside the single-model serving platform option. Do not
+deploy yet — you will complete the wizard in the next module.
+
+=== Verify
+
+You can name the four validated topology patterns, the model-size band each serves, and where
+the *Distributed inference with llm-d* deployment method appears in the RHOAI dashboard.
+
+Now that you know where the feature lives, inspect the custom resources and operators that
+back it in your cluster.
+
+== Exercise 2: Inspect the cluster
+
+The feature is backed by custom resources from three API groups: `LLMInferenceService` and
+`LLMInferenceServiceConfig` from `serving.kserve.io`, and Gateway API resources
+(`GatewayClass`, `Gateway`, `HTTPRoute`) from `gateway.networking.k8s.io`. The
+`llmisvc-controller-manager` and `kserve-controller-manager` controllers, enabled through the
+`kserve` component of the `DataScienceCluster` CR, reconcile them.
+
+. Confirm the KServe and LLMISVC controller managers are enabled in the
+`DataScienceCluster` resource:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get datasciencecluster default-dsc -o jsonpath='{.spec.components.kserve.managementState}'
+----
+
+The command returns `Managed`.
+
+. Verify the controller pods are running. The controller managers run in the
+`redhat-ods-applications` namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n redhat-ods-applications \
+  -l 'app.kubernetes.io/name in (kserve-controller-manager, llmisvc-controller-manager, workload-variant-autoscaler)'
+----
+
+Expected output (plain `----` block):
+
+----
+NAME                                              READY   STATUS    RESTARTS   AGE
+kserve-controller-manager-<hash>                  2/2     Running   0          <age>
+llmisvc-controller-manager-<hash>                 2/2     Running   0          <age>
+workload-variant-autoscaler-<hash>                1/1     Running   0          <age>
+----
+
+. Verify the inference Gateway exists. RHOAI expects a `GatewayClass` and a `Gateway` named
+`openshift-ai-inference` in the `openshift-ingress` namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get gatewayclass openshift-ai-inference
+oc get gateway openshift-ai-inference -n openshift-ingress -o wide
+----
+
+Wait until `PROGRAMMED` shows `True` for the Gateway.
+
+. List any `LLMInferenceService` deployments already on the cluster:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llminferenceservice -A
+----
+
+. List the `LLMInferenceServiceConfig` templates that back the wizard's *Topology
+configuration* list:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llminferenceserviceconfigs -A
+----
+
+Each template carries an `opendatahub.io/config-type` label that categorizes it by topology
+type: `workload-single-node`, `workload-multi-node-data-parallel`,
+`workload-single-node-pd`, or `workload-multi-node-data-parallel-pd`. Router templates use
+the value `router` and declare compatible topologies through the
+`opendatahub.io/supported-topologies` annotation.
+
+You can also view the templates in the RHOAI dashboard as an administrator under *Settings*
+-> *llm-d topology configurations*.
+
+=== Verify
+
+The `kserve` component reports `Managed`, the controller pods are `Running`, and the
+`openshift-ai-inference` Gateway shows `PROGRAMMED: True`. If the Gateway is missing or not
+programmed, ask your facilitator to complete the cluster setup before continuing.
+
+== Module summary
+
+**What you accomplished:**
+
+* Mapped the llm-d serving stack to RHOAI's unified generative model serving entry point
+* Compared the four validated deployment topology patterns and their hardware requirements
+* Verified the KServe and LLMISVC controllers, the inference Gateway, and the serving CRDs
+
+**Key takeaways:**
+
+* `LLMInferenceService` deploys a model; `LLMInferenceServiceConfig` templates define the
+topologies and routers the wizard exposes
+* Single-node topology is always available; every other pattern needs an
+administrator-created template and RDMA-class hardware for disaggregation
+* A namespace holds one inference stack, and the Gateway is shared across stacks
+
+**Next steps:**
+
+In the next module you deploy a model with the llm-d topology selector from the dashboard,
+then repeat the deployment from the CLI with a real `LLMInferenceService` manifest and send
+authenticated inference requests to it.

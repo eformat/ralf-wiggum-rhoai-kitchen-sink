@@ -1,0 +1,192 @@
+= Module 01: Configure OIDC for the platform gateway
+:navtitle: Module 01: Configure OIDC for the platform gateway
+
+In this module you verify that OpenShift is configured for direct authentication
+with an external OIDC identity provider, and then enable OIDC authentication for
+the Red Hat OpenShift AI centralized authentication service by patching the
+`GatewayConfig` custom resource (CR).
+
+The centralized authentication service routes ingress traffic for all RHOAI
+services behind a single domain. Instead of every backend service talking to the
+identity provider, a single authentication service requires only one client ID
+and secret from your external OIDC identity provider (IdP). Backend services
+assume all incoming traffic is authenticated, and still handle *authorization*
+at the service or pod level with sidecars such as `kube-rbac-proxy`. Traffic
+from the gateway to backend services is fully encrypted with TLS. The service is
+based on Gateway API support in OpenShift Container Platform (OCP) 4.19.9 or
+later, and you manage it through the `GatewayConfig` CR.
+
+IMPORTANT: You must configure the OpenShift cluster for direct authentication
+with an external OIDC identity provider *before* configuring the central
+authentication service. OpenShift and the gateway must use the same OIDC
+provider.
+
+**Learning objectives:**
+
+* Explain what the centralized authentication service does and how the `GatewayConfig` CR configures it
+* Verify the OpenShift direct-OIDC prerequisites from the CLI
+* Enable OIDC authentication for the platform gateway with a client secret and a `GatewayConfig` patch
+
+== Exercise 1: Verify the OpenShift direct-OIDC prerequisites
+
+Three checks confirm the cluster is ready for the central authentication
+service: the OpenShift authentication type, the configured OIDC providers, and
+the `kube-apiserver` rollout.
+
+. Verify the OpenShift authentication type:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get authentication.config/cluster -o jsonpath='{.spec.type}'
+----
+Expected output:
+----
+OIDC
+----
+
+. Verify that your OIDC provider is configured as expected:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get authentication.config/cluster -o jsonpath='{.spec.oidcProviders[*].name}'
+----
+Expected output — your provider name, for example:
+----
+keycloak
+----
+
+. Verify that the `kube-apiserver` has rolled out the direct-OIDC configuration:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get co kube-apiserver
+----
+Expected output:
+----
+NAME             VERSION   AVAILABLE   PROGRESSING   DEGRADED   SINCE
+kube-apiserver   4.19.9    True        False         False      1d
+----
+
+NOTE: The rollout can take 20 minutes or more. Wait until all nodes have the
+new revision before proceeding. You can continue when
+`oc get authentication.config/cluster` shows `type: OIDC`, the
+`kube-apiserver` rollout is complete, and you can successfully authenticate to
+OpenShift with OIDC credentials.
+
+If the cluster is not yet configured for direct authentication, follow the
+OpenShift documentation *Enabling direct authentication with an external OIDC
+identity provider* — or, for Red Hat OpenShift Service on AWS (ROSA), *Creating
+an OpenID Connect configuration*.
+
+=== Verify
+
+All three checks pass: the authentication type is `OIDC`, your provider name
+appears under `.spec.oidcProviders`, and `kube-apiserver` reports
+`AVAILABLE True` with `PROGRESSING False` and `DEGRADED False`.
+
+With the cluster-side prerequisites confirmed, the next step is to hand the
+gateway your IdP credentials.
+
+== Exercise 2: Enable OIDC on the GatewayConfig CR
+
+The gateway needs three values from your external IdP: the issuer URL, the
+client ID, and a client secret. The secret is stored as a Kubernetes Secret in
+the `openshift-ingress` namespace, and the `GatewayConfig` CR references it.
+
+. Define environment variables from your IdP details, replacing the
+  placeholder values with your actual values:
++
+[source,bash,role="execute"]
+----
+# Replace with your actual values
+IDP_DOMAIN="<keycloak.example.com>"
+IDP_REALM="<your-realm>"
+IDP_CLIENT_ID="<your-client-id>"
+IDP_CLIENT_SECRET="<your-client-secret>"
+IDP_ISSUER_URL="https://keycloak.example.com/realms/your-realm"
+----
+
+NOTE: Store OIDC client secrets securely and rotate them regularly. Never
+commit real secret values to source control.
+
+. Create the client secret in the `openshift-ingress` namespace:
++
+[source,bash,role="execute"]
+----
+oc create secret generic idp-client-secret \
+  --from-literal=clientSecret=$IDP_CLIENT_SECRET \
+  -n openshift-ingress
+----
+
+. Patch the `default-gateway` GatewayConfig to enable OIDC authentication:
++
+[source,bash,role="execute",subs="attributes,callouts"]
+----
+oc patch gatewayconfig default-gateway --type='merge' -p='{
+  "spec": {
+    "oidc": {
+      "issuerURL": "'$IDP_ISSUER_URL'" <1>,
+      "clientID": "'$IDP_CLIENT_ID'" <2>,
+      "clientSecretRef": {
+        "name": "idp-client-secret" <3>,
+        "key": "clientSecret" <4>
+      }
+    }
+  }
+}'
+----
+<1> *issuerURL:* The OIDC issuer URL from your external IdP — for Keycloak, `https://<idp-domain>/realms/<realm>`.
+<2> *clientID:* The OIDC client ID that the gateway presents to the IdP.
+<3> *name:* The Secret in the `openshift-ingress` namespace that holds the client secret.
+<4> *key:* The key inside that Secret which contains the secret value.
+
+After the patch, the Operator reconciles the `GatewayConfig` and configures the
+`kube-auth-proxy` deployment that fronts your RHOAI services.
+
+=== Verify
+
+Confirm the client secret exists and that the GatewayConfig carries the OIDC
+configuration:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get secret idp-client-secret -n openshift-ingress
+oc get gatewayconfig default-gateway -o jsonpath='{.spec.oidc}'
+----
+
+Expected output for the secret:
+
+----
+NAME                TYPE      DATA   AGE
+idp-client-secret   Opaque    1      2m
+----
+
+Expected output for the GatewayConfig:
+
+----
+{"clientID":"your-client-id","clientSecretRef":{"key":"clientSecret","name":"idp-client-secret"},"issuerURL":"https://keycloak.example.com/realms/your-realm"}
+----
+
+The `.spec.oidc` block matches your IdP values. In the next module you watch
+the rollout end to end — the gateway, the auth proxy, and a real console login
+through your identity provider.
+
+== Module summary
+
+**What you accomplished:**
+
+* Verified the OpenShift authentication type is `OIDC` and that your provider is configured
+* Created the `idp-client-secret` Secret in the `openshift-ingress` namespace
+* Patched the `default-gateway` GatewayConfig CR with your issuer URL, client ID, and client secret reference
+
+**Key takeaways:**
+
+* The centralized authentication service needs only one client ID and secret from the external OIDC IdP
+* OpenShift direct-OIDC authentication must be configured before — and with the same provider as — the gateway
+* The `GatewayConfig` CR is the single control point for platform-wide OIDC authentication in RHOAI
+
+**Next steps:**
+
+With OIDC configured on the GatewayConfig, the next module verifies the rollout
+end to end, maps your IdP groups to OpenShift roles, and walks through
+troubleshooting when the gateway is not ready.

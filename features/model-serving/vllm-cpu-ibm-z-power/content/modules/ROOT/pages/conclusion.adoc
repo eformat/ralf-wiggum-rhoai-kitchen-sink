@@ -1,0 +1,25 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the vLLM CPU ServingRuntime on IBM Z / Power workshop.
+
+== What you covered
+
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/deploying_models/deploying-models-on-the-model-serving-platform[Deploying models on the model serving platform — the *Deploy a model* wizard this workshop follows]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/deploying_models/making-inference-requests-to-deployed-models[Making inference requests to deployed models — accessing the authentication token and inference endpoint]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/deploying_models/index[Deploying models — RHOAI 3.5 guide]
+* link:https://access.redhat.com/articles/rhoai-supported-configs-3.x[Red Hat OpenShift AI: Supported Configurations for 3.x] — RHOAI support on IBM Z (s390x) and IBM Power (ppc64le) and the standard-deployment-mode constraint for the vLLM CPU ServingRuntime for KServe
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5[RHOAI 3.5 documentation]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:vllm-serving-runtime-kserve::index.adoc[vLLM ServingRuntime for KServe]

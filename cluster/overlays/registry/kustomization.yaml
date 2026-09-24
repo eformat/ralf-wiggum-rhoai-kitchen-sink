@@ -1,0 +1,16 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Model Registry + Model Catalog. Labs mapped here: model-registry-catalog,
+# csv-export-model-catalog (catalog source ConfigMap), automl, and
+# validated-tool-calling-config.
+#
+# NOTE: default-on for new 3.5 installs; explicit here so it holds after
+# upgrades too. The catalog source ConfigMap (model-catalog-sources in
+# rhoai-model-registries) is a cluster-admin step documented in the
+# model-registry-catalog lab.
+resources:
+  - ../../base
+patches:
+  - path: dsc-patch.yaml

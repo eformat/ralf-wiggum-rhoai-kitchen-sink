@@ -1,0 +1,129 @@
+= Module 01: Discover AI assets in the dashboard
+:navtitle: Module 01: Discover AI assets in the dashboard
+
+In this module you will learn what the AI Available Assets page shows, how it
+organizes the AI resources in your project, and how platform-level
+configuration such as MCP servers flows into the page.
+
+**Learning objectives:**
+
+* Explain the role of the AI Available Assets page in RHOAI 3.5
+* Navigate to the AI asset endpoints page and identify its asset categories
+* Publish an MCP server into the available assets with a ConfigMap
+
+== Exercise 1: Tour the AI asset endpoints page
+
+The AI Available Assets page — shown in the dashboard as *AI asset endpoints* —
+is a central view of the generative AI assets that are available for you to use
+within your project. It organizes assets into two categories:
+
+* *Models* — lists generative AI models available in your project from these sources:
+  ** Models deployed in your project namespace that were designated as available assets (by selecting *Add as AI asset endpoint* when deploying).
+  ** Custom endpoints created from models in other namespaces on the same cluster or from external third-party providers (available when a platform engineer enables the feature).
+  ** MaaS models provided through the Models-as-a-Service platform.
+* *Model Context Protocol (MCP) Server* — lists all MCP servers configured for the cluster in the `gen-ai-aa-mcp-servers` ConfigMap.
+
+Navigate to the page and inspect what your project exposes:
+
+. From the RHOAI dashboard side navigation, click *Gen AI studio → AI asset endpoints*.
+. Select your working project, `{guid}-{user}`, from the *Project* drop-down list.
+. Browse the *Models* tab and the *MCP servers* tab.
+
+IMPORTANT: Assets listed on the AI asset endpoints page are scoped to your
+currently selected project. You only see models and servers that are deployed
+and available within that specific project.
+
+// TODO: capture screenshot
+image::01-ai-asset-endpoints-page.png[AI asset endpoints page in the RHOAI dashboard,link=self,window=blank,width=700]
+
+=== Verify
+
+The AI asset endpoints page opens and shows the two asset categories. The
+*Models* tab lists models deployed in `{guid}-{user}` that were designated as
+available assets, and the *MCP servers* tab lists any MCP servers configured at
+the platform level. An empty page is a valid starting state — the next exercise
+populates the MCP server category.
+
+With the page oriented, the next step is to make a real asset appear on it by
+publishing an MCP server at the platform level.
+
+== Exercise 2: Publish an MCP server into the available assets
+
+A cluster administrator configures and enables MCP servers at the platform
+level by creating a ConfigMap named `gen-ai-aa-mcp-servers` in the
+`redhat-ods-applications` namespace. The dashboard reads this ConfigMap and
+lists every server entry on the AI asset endpoints page.
+
+. Create a file named `gen-ai-aa-mcp-servers.yaml` with the following content.
+  You can add multiple server entries under the `data:` field:
++
+
+[source,bash,role="execute"]
+----
+cat > gen-ai-aa-mcp-servers.yaml <<'EOF'
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: gen-ai-aa-mcp-servers
+  namespace: redhat-ods-applications
+data:
+  GitHub-MCP-Server: |
+    {
+      "url": "https://api.githubcopilot.com/mcp/x/repos/readonly",
+      "description": "The GitHub MCP server enables exploration and interaction with repositories, code, and developer resources on GitHub. It provides programmatic access to repositories, issues, pull requests, and related project data, allowing automation and integration within development workflows."
+    }
+EOF
+oc apply -f gen-ai-aa-mcp-servers.yaml -n redhat-ods-applications
+----
+
+*name:* The dashboard only reads the MCP server list from this exact ConfigMap name.
+*namespace:* The ConfigMap must live in the `redhat-ods-applications` namespace, where the dashboard looks for it.
+*ConfigMap key:* The MCP server display name; it is case-sensitive and must be unique.
+*url:* The MCP server endpoint URL that clients connect to.
+*description:* Free-form text describing the server's purpose; the content under the key must be valid JSON.
+
+. Apply the ConfigMap to the cluster:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f gen-ai-aa-mcp-servers.yaml
+----
+
+=== Verify
+
+Confirm that the ConfigMap was successfully applied:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get configmap gen-ai-aa-mcp-servers -n redhat-ods-applications -o yaml | grep GitHub-MCP-Server
+----
+
+The output should contain the key name, confirming its successful creation:
+
+----
+GitHub-MCP-Server: |
+----
+
+Back in the RHOAI dashboard, open *Gen AI studio → AI asset endpoints* and
+select a project: the GitHub MCP server now appears in the *MCP servers* tab
+and is available for use in playground sessions.
+
+== Module summary
+
+**What you accomplished:**
+
+* Located the AI Available Assets page in the dashboard under *Gen AI studio → AI asset endpoints*
+* Identified the Models and MCP server asset categories and their project scoping
+* Published the GitHub MCP server to the available assets with the `gen-ai-aa-mcp-servers` ConfigMap
+
+**Key takeaways:**
+
+* The AI Available Assets page is the single discovery point for models, custom endpoints, MaaS models, and MCP servers in your project
+* Asset listings are scoped to the selected project, so the page only shows what is available within that namespace
+* MCP servers become available assets purely through platform-level configuration — no per-project setup
+
+**Next steps:**
+
+In the next module you deploy a generative AI model as an AI asset endpoint and
+consume it from the AI Available Assets page by launching a playground.

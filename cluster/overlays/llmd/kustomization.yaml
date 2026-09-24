@@ -1,0 +1,27 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Distributed Inference with llm-d: the inference Gateway (openshift-ai-inference
+# in openshift-ingress) + the serving-path operators (JobSet, LWS) that
+# LLMInferenceService pods need.
+#
+# DEPENDS ON: overlays/serving (the kserve component enables the llm-d
+# controllers). Apply serving first, then this overlay.
+#
+# TWO-STEP: the LWS/JobSet activation CRs (activation/) must be applied AFTER
+# their operator CSVs reach Succeeded:
+#   oc apply -k cluster/overlays/llmd
+#   # wait for CSVs: oc get csv -n openshift-lws-operator -n openshift-jobset-operator
+#   oc apply -k cluster/overlays/llmd/activation
+#
+# Kubeflow Trainer v2 and text-mode-multimodal-training labs also need the
+# JobSet operator from here (see overlays/distributed/README.md).
+resources:
+  - ../../base
+  - gatewayclass.yaml
+  - gateway-config.yaml
+  - gateway.yaml
+  - route.yaml
+  - serving-operators
+patches: []

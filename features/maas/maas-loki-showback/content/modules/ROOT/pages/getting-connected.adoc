@@ -1,0 +1,63 @@
+= Getting Connected
+:navtitle: Getting Connected
+
+Before starting the Loki-based showback and user-scoped usage dashboards (MaaS) workshop, connect to your OpenShift environment.
+
+== Exercise 1: Log in to the OpenShift cluster
+
+. Get the API server URL and credentials from your workshop facilitator.
+. Log in from a terminal:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc login {openshift_api_url} --username {user} --password {password}
+----
+
+=== Verify
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc whoami
+----
+
+You should see your workshop username.
+
+== Exercise 2: Create your working project
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc new-project {guid}-{user}
+----
+
+=== Verify
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc project
+----
+
+The output shows your new project as the current namespace.
+
+== Exercise 3: Open the OpenShift console
+
+Navigate to the OpenShift console and sign in with your workshop credentials.
+Locate *Red Hat OpenShift AI* in the application launcher grid; the RHOAI
+dashboard opens in a new tab.
+
+== Module summary
+
+**What you accomplished:**
+
+* Logged in to the OpenShift cluster with the `oc` CLI
+* Created a personal working project
+* Opened the RHOAI dashboard from the console
+
+**Key takeaways:**
+
+* `oc login` authenticates you against the cluster API server
+* Each workshop user works in an isolated project
+* The RHOAI dashboard is reachable from the console application launcher
+
+**Next steps:**
+
+Continue to the first module of this workshop.

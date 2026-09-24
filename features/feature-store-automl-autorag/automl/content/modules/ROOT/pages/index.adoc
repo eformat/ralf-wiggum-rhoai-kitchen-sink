@@ -1,0 +1,48 @@
+= Welcome to the AutoML Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+*AutoML* is an automated machine learning system in Red Hat OpenShift AI that
+finds the best model for your prediction task. You provide training data in CSV
+format and select a task type. AutoML trains and evaluates multiple models,
+ranks them on a leaderboard, and produces notebooks that you can use to run
+predictions with the best-performing model.
+
+**What you will learn:**
+
+* What AutoML does, its workflow, and its Technology Preview limitations
+* How to enable AutoML in the dashboard configuration and on your pipeline server
+* How to create an AutoML optimization run with CSV training data from S3
+* How to evaluate the leaderboard and model details, and register a model or save a notebook
+* How to run predictions in a workbench and deploy a model with the AutoGluon serving runtime
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI 3.5 installed (RHOAI operator installed)
+* Editor access to a project in OpenShift AI
+* A pipeline server configured in your project, with AutoML pipelines enabled
+* A cluster administrator has set `spec.dashboardConfig.automl` to `true`
+* Training data in CSV format (UTF-8 encoding, comma delimiters, header row) in an
+  S3-compatible bucket
+* At least 4 CPUs and 16 GiB memory available for scheduling
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

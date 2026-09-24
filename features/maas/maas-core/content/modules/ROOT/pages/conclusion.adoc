@@ -1,0 +1,25 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the Models-as-a-Service (MaaS) core: access model and token mechanism workshop.
+
+== What you covered
+
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:module-03-advanced.adoc[Advanced Usage]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/govern_llm_access_with_models-as-a-service[Govern LLM access with Models-as-a-Service — RHOAI 3.5] — the full guide covering *Deploy and manage Models-as-a-Service* (subscriptions, authorization policies, API keys, CLI) and *Use models through Models-as-a-Service* (tokens, API calls, troubleshooting)
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5[RHOAI 3.5 documentation]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:maas-oidc-auth::index.adoc[MaaS-specific external OIDC user authentication]
+* xref:maas-vllm-deployment::index.adoc[vLLM model deployment directly through MaaS]
+* xref:maas-loki-showback::index.adoc[Loki-based showback and user-scoped usage dashboards (MaaS)]

@@ -1,0 +1,238 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will run a Ray-based distributed workload end to end: create a
+workbench, download the CodeFlare SDK demo notebooks, configure a Ray cluster with
+Kueue queueing, and verify the cluster becomes Active.
+
+**Learning objectives:**
+
+* Create a workbench with a CodeFlare SDK image for distributed training
+* Create a Ray cluster from a Jupyter notebook with the CodeFlare SDK
+* Verify the Ray cluster from the notebook, the CLI, and the Ray dashboard
+
+IMPORTANT: This module assumes the cluster administrator has configured the
+distributed workloads components (`ray` and `kueue`), and that your project has a
+local queue. If no local queue exists, you must set `local_queue` explicitly in the
+cluster configuration — see the "Default Local Queue not found" troubleshooting in
+Module 03.
+
+== Exercise 1: Create a workbench for distributed training
+
+. Log in to the {openshift_console_url} and open the OpenShift AI dashboard.
+. To use an existing project, open it from *Data science projects*. To create a new
+  project: in the left navigation pane click *Data science projects* and click *Create
+  project*, enter a name, and click *Create*.
+. On the project details page, click the *Workbenches* tab and click *Create workbench*.
+. Enter a workbench name. In the *Workbench image* section, select an image that
+  contains the CodeFlare SDK, for example the *Standard Data Science* image.
+. In the *Deployment size* section, select a suitable *Hardware profile*. The hardware
+  profile sets the guaranteed minimum (request) and maximum (limit) for CPU and memory.
+. In the *Cluster storage* section, attach existing storage or create storage so that
+  you can share data between the workbench and training runs.
+. Review the configuration and click *Create workbench*.
+
+=== Verify
+
+On the *Workbenches* tab, the workbench status changes from *Starting* to *Running*.
+Open the workbench and log in to JupyterLab.
+
+== Exercise 2: Download the demo notebooks
+
+The demo Jupyter notebooks from the CodeFlare SDK provide guidelines on how to use
+the CodeFlare stack in your own notebooks.
+
+. In the JupyterLab interface, click *File* > *New* > *Notebook*. Specify your
+  preferred Python version and click *Select*.
+. Add the following code to a cell and run it:
+
+[source,python,role="execute"]
+----
+from codeflare_sdk import copy_demo_nbs
+copy_demo_nbs()
+----
+
+After a few seconds, the function copies the demo notebooks packaged with the
+installed CodeFlare SDK version into the `demo-notebooks` folder.
+
+. In the left navigation pane, delete the throwaway notebook you created for this step.
+
+=== Verify
+
+In the JupyterLab left navigation pane:
+
+* Double-click `demo-notebooks` > `additional-demos` and confirm it contains several
+  demo notebooks.
+* Click `demo-notebooks` > `guided-demos` and confirm it contains several demo
+  notebooks, including `2_basic_interactive.ipynb`.
+
+== Exercise 3: Configure and start a Ray cluster
+
+You now update the guided demos with your environment details and start a Ray cluster.
+
+. Check whether your cluster administrator defined a default local queue. You can run
+  `codeflare_sdk.list_local_queues()` in a notebook cell, or use the {openshift_console_url}:
+  select your project from the *Project* list, click *Search*, and from the *Resources*
+  list select *LocalQueue*. If the queue YAML has the
+  `kueue.x-k8s.io/default-queue: 'true'` annotation, it is the default local queue.
+. Open the notebooks in `demo-notebooks/guided-demos` and ensure each import section
+  includes:
+
+[source,python]
+----
+from codeflare_sdk import Cluster, ClusterConfiguration, TokenAuthentication
+----
+
+. Update the `TokenAuthentication` section in each notebook with your credentials:
+
+[source,python]
+----
+auth = TokenAuthentication(
+    token = "%token%",
+    server = "%server%",
+    skip_tls=False
+)
+auth.login()
+----
+
+Get the token and server values from the OpenShift Console: click your user name >
+*Copy login command* > *Display Token*. The token is the text after `--token=`, the
+server is the text after `--server=`. Do not save them in Git; they expire after 24 hours.
+
+. Update the cluster configuration section with your project and queue:
+
+[source,python,subs="callouts"]
+----
+cluster = Cluster(
+    ClusterConfiguration(
+        name="raytest",                                        <1>
+        namespace="my_project",                                <2>
+        num_workers=1,                                         <3>
+        head_cpu_requests="500m",
+        head_cpu_limits="500m",
+        worker_memory_requests=1,
+        worker_memory_limits=1,
+        image="quay.io/modh/ray:2.47.1-py311-cu121",           <4>
+        local_queue="local_queue_name",                        <5>
+    )
+)
+cluster.up()
+cluster.wait_ready()
+print(cluster.status())
+print(cluster.details())
+----
+<1> The Ray cluster name. Replace these example values with the values for your Ray cluster.
+<2> Optional: the project where the Ray cluster is created. If you omit this line, the cluster is created in the current project.
+<3> The number of Ray worker pods. Start with 1 for the workshop.
+<4> The Ray cluster image. Its Python version must match the workbench Python version. If omitted, a default CUDA image is chosen from the detected Python version (Python 3.11: `quay.io/modh/ray:2.47.1-py311-cu121`; Python 3.9: `quay.io/modh/ray:2.35.0-py39-cu121`).
+<5> The local queue to which the Ray cluster is submitted. Omit this line only if a default local queue is configured.
+
+. In `2_basic_interactive.ipynb`, ensure the Ray cluster authentication code is
+  included after the cluster creation section:
+
+[source,python]
+----
+from codeflare_sdk import generate_cert
+generate_cert.generate_tls_cert(cluster.config.name, cluster.config.namespace)
+generate_cert.export_env(cluster.config.name, cluster.config.namespace)
+----
+
+NOTE: Mutual TLS (mTLS) is enabled by default in the Ray component in OpenShift AI.
+You must include this code so the Ray client in the notebook can connect to the
+secure, mTLS-enabled Ray cluster.
+
+. Run the notebooks in the order indicated by the file-name prefix (`0_`, `1_`, `2_`).
+  If a cell errors, review the output for the corrective action (for example, replace
+  deprecated parameters).
+
+=== Verify
+
+* The notebooks run to completion without errors.
+* The output from `cluster.status()` or `cluster.details()` indicates the Ray cluster
+  is `Active`.
+* From your terminal, confirm the KubeRay Operator created the cluster and Kueue
+  admitted it as a workload:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get rayclusters -n {user}
+oc get workloads -n {user}
+----
+
+Expected output (names derive from your cluster name; status is `ready` once the
+head and workers are up):
+
+----
+NAME      DESIRED WORKERS   AVAILABLE WORKERS   STATUS   AGE
+raytest   1                 1                   ready    2m
+
+NAME      QUEUE              ADMITTED   AGE
+raytest   local_queue_name   True       2m
+----
+
+* Click the Ray dashboard link printed by the notebooks (from
+  `cluster.cluster_dashboard_uri()`) and confirm the dashboard opens and shows the
+  submitted jobs.
+
+Bridging from the basic workflow: you can also manage clusters without leaving the
+notebook, which you try next.
+
+== Exercise 4: Manage clusters with interactive notebook controls
+
+The CodeFlare SDK ships interactive browser controls that mirror the CLI commands.
+
+. When you run a cell that defines the cluster configuration, the notebook
+  automatically shows controls for starting or deleting the cluster: *Cluster Up*
+  (equivalent to `cluster.up()`), *Cluster Down* (equivalent to `cluster.down()`,
+  deletes immediately without confirmation), and *Wait for Cluster* (equivalent to
+  `cluster.wait_ready()`).
+. Create a new notebook, `manage_ray_clusters.ipynb`, to manage Ray clusters across
+  your project:
+
+[source,python,role="execute"]
+----
+from codeflare_sdk import TokenAuthentication, view_clusters
+
+auth = TokenAuthentication(
+    token = "%token%",
+    server = "%server%",
+    skip_tls=False
+)
+auth.login()
+view_clusters()
+----
+
+`view_clusters()` lists the Ray clusters you can access and shows cluster status and
+allocated resources without switching to the console or Ray dashboard. To list
+clusters in another project you can access, pass the project name:
+`view_clusters("my_second_project")`.
+
+WARNING: *Cluster Down* and the *Delete cluster* button delete the Ray cluster
+immediately; you are not prompted to confirm.
+
+=== Verify
+
+* The cell with `view_clusters()` shows either
+  `No clusters found in the <project-name> namespace.` or the cluster selector with
+  status and resource details for `raytest`.
+* Clicking *Open Ray Dashboard* opens the Ray dashboard Overview tab; the
+  corresponding URL is shown in the notebook.
+
+== Module summary
+
+**What you accomplished:**
+
+* Created a workbench and downloaded the CodeFlare SDK demo notebooks
+* Configured and started an mTLS-secured Ray cluster through Kueue and verified it reached `Active`/`ready`
+* Managed Ray clusters with the interactive notebook controls and the Ray dashboard
+
+**Key takeaways:**
+
+* The CodeFlare SDK drives `RayCluster` creation while Kueue queues it against your project's local queue
+* The Ray cluster image Python version must match the workbench Python version
+* mTLS is on by default, so the `generate_cert` steps are required for the Ray client to connect
+
+**Next steps:**
+
+In Module 03 you go beyond notebooks: run Ray from an AI pipeline, monitor workload
+metrics, and troubleshoot the most common failure states.

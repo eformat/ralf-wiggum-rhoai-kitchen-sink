@@ -1,0 +1,306 @@
+= Module 02: Deploy a model with the vLLM ServingRuntime
+:navtitle: Module 02: Deploy a model with the vLLM ServingRuntime
+
+In this module you will deploy a generative AI model through the
+*Deploy model* wizard using the vLLM ServingRuntime for KServe, inspect the
+`InferenceService` custom resource (CR) that the deployment creates, and query
+the model over its OpenAI-compatible REST API.
+
+**Learning objectives:**
+
+* Deploy a gen AI model with the vLLM ServingRuntime for KServe from the console
+* Read the generated `InferenceService` CR and map it to your wizard choices
+* Make authenticated inference requests to the `/v1/chat/completions` endpoint
+
+== Exercise 1: Deploy a model through the Deploy model wizard
+
+The *Deploy a model* wizard lets you configure the model location and type,
+select a serving runtime, assign a hardware profile, and set advanced options
+such as external routes and token authentication.
+
+Before you start, you need:
+
+* The working project `{guid}-{user}`.
+* A connection in the project that points to S3-compatible object storage
+  holding a gen AI model — for example, a Granite model such as
+  `granite-7b-instruct`.
+* A hardware profile backed by an NVIDIA GPU (the vLLM runtime requires GPU
+  support enabled and the Node Feature Discovery Operator configured on the
+  cluster).
+
+. In the RHOAI dashboard left menu, click *Projects*.
+. Click the name of your project, `{guid}-{user}`.
+. Click the *Deployments* tab and then click *Deploy model*.
+. In the *Model details* section:
+.. From the *Model location* list, select the connection that points to your
+   model storage and complete the connection detail fields.
+.. From the *Model type* list, select *Generative AI model*.
+.. Click *Next*.
+. In the *Model deployment* section:
+.. In the *Model deployment name* field, enter `granite-vllm`.
+.. From the *Hardware profile* list, select an NVIDIA GPU hardware profile.
+.. In the *Serving runtime* field, select *Select from a list of serving
+   runtimes, including custom ones* and choose *vLLM ServingRuntime for
+   KServe*.
+.. In the *Number of model server replicas to deploy* field, enter `1`.
+.. Click *Next*.
+. In the *Advanced settings* section:
+.. Select the *Model access* checkbox to expose the model through an external
+   route.
+.. Select *Require token authentication* and enter a service account name —
+   the token will be generated for this service account.
+.. Click *Deploy*.
+
+=== CPU-only cluster alternative
+
+The wizard flow above requires an NVIDIA GPU hardware profile and an
+S3-compatible storage connection. On a **CPU-only cluster** (or without S3
+staged weights), deploy the same `InferenceService` from the CLI with the CPU
+vLLM runtime and a modelcar OCI image — the wizard generates the equivalent
+fields on a GPU cluster.
+
+KServe resolves `spec.predictor.runtime` from the deployment's own namespace,
+so first copy the enabled runtime into your project:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get servingruntime vllm-cpu-x86-runtime -n redhat-ods-applications -o yaml \
+  | sed 's/namespace: redhat-ods-applications/namespace: {guid}-{user}/' \
+  | oc replace --force -n {guid}-{user} -f -
+----
+
+Then deploy:
+
+[source,bash,role="execute",subs="attributes"]
+----
+cat <<EOF | oc apply -n {guid}-{user} -f -
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: granite-vllm
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
+  labels:
+    opendatahub.io/dashboard: "true"
+    networking.kserve.io/visibility: exposed
+spec:
+  predictor:
+    minReplicas: 1
+    maxReplicas: 1
+    model:
+      modelFormat:
+        name: vLLM
+      runtime: vllm-cpu-x86-runtime
+      storageUri: oci://quay.io/redhat-ai-services/modelcar-catalog:qwen2.5-0.5b-instruct
+      args:
+        - "--dtype=bfloat16"
+        - "--max-model-len=8192"
+        - "--max-num-seqs=8"
+      env:
+        - name: VLLM_CPU_KVCACHE_SPACE
+          value: "2"
+        - name: OMP_NUM_THREADS
+          value: "4"
+        - name: VLLM_CPU_OMP_THREADS_BIND
+          value: "0-3"
+      resources:
+        requests:
+          cpu: "1"
+          memory: 2Gi
+        limits:
+          cpu: "4"
+          memory: 8Gi
+EOF
+oc wait inferenceservice granite-vllm -n {guid}-{user} --for=condition=Ready --timeout=600s
+----
+
+The model pulls the modelcar image and reports `READY` in a few minutes on a
+CPU node (GPUs are not required for this path).
+
+=== Verify
+
+Confirm that the deployed model is shown on the *Deployments* tab for the
+project with a checkmark in the *Status* column. From the CLI:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get inferenceservice -n {guid}-{user}
+----
+
+The output should show the `granite-vllm` inference service with `READY` set
+to `True`:
+
+----
+NAME           URL                                        READY   AGE
+granite-vllm   https://granite-vllm-<project>.<domain>   True    5m
+----
+
+The wizard generated a `InferenceService` CR from your choices. Inspect it:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get inferenceservice granite-vllm -n {guid}-{user} -o yaml
+----
+
+The generated resource mirrors the decisions you made in the wizard:
+
+[source,yaml]
+----
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: granite-vllm <1>
+  annotations:
+    serving.knative.openshift.io/enablePassthrough: 'true' <2>
+    sidecar.istio.io/inject: 'true'
+spec:
+  predictor:
+    maxReplicas: 1 <3>
+    minReplicas: 1
+    model:
+      modelFormat:
+        name: vLLM <4>
+      resources:
+        limits:
+          nvidia.com/gpu: '1' <5>
+        requests:
+          nvidia.com/gpu: '1'
+      runtime: vLLM ServingRuntime for KServe
+      storage:
+        key: aws-connection-my-storage <6>
+        path: models/granite-7b-instruct/
+----
+
+<1> *name:* The deployment name you entered in the wizard; the
+`spec.predictor.name` template variable inside the `ServingRuntime` maps to
+this field.
+<2> *enablePassthrough and Istio annotations:* Enable the passthrough route
+for REST inference and inject the service mesh sidecar.
+<3> *minReplicas / maxReplicas:* The number of model server replicas you
+requested.
+<4> *modelFormat:* The `vLLM` format is what makes the
+`ServingRuntime`'s `supportedModelFormats` entry match, binding the
+deployment to the runtime you selected.
+<5> *resources:* The GPU allocation defined by your hardware profile choice.
+<6> *storage:* The connection (`key`) and path you selected in *Model
+location* — this is where KServe mounts the model files.
+
+Now that the model is deployed, the next step is to query it.
+
+== Exercise 2: Make inference requests
+
+When you deploy a model on the model serving platform, it is available as a
+service you can access with API requests. The vLLM runtime is compatible with
+the OpenAI REST API and exposes these paths:
+
+----
+:443/version
+:443/docs
+:443/v1/models
+:443/v1/chat/completions
+:443/v1/completions
+:443/v1/embeddings
+:443/tokenize
+:443/detokenize
+----
+
+The model serving platform serves external API requests on the HTTPS port of
+your OpenShift router (usually port 443).
+
+. From the OpenShift AI dashboard, click *Projects*, open `{guid}-{user}`,
+  and click the *Deployments* tab.
+. In the *Deployments* list, expand the section for `granite-vllm`.
+. Copy the *Inference endpoints* value and the token from the *Token
+  authentication* section (*Token secret* field).
+. Set shell variables for the endpoint host and the token. The endpoint is
+   derived from the `InferenceService` status. With *Require token
+   authentication* (wizard path), copy the token from the deployment's *Token
+   authentication* section in the dashboard into `$TOKEN`; the CPU-only
+   alternative deploys without auth, so a placeholder works there:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export INFER_HOST=$(oc get inferenceservice granite-vllm -n {guid}-{user} -o jsonpath='{.status.url}' | sed -e 's|https://||' -e 's|:443$||')
+export TOKEN=${TOKEN:-unused}
+----
+
+. Confirm the vLLM version and that the model is served:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -ks https://$INFER_HOST:443/version
+curl -ks https://$INFER_HOST:443/v1/models -H "Authorization: Bearer $TOKEN"
+----
+
+. Send a chat completion request:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -ks https://$INFER_HOST:443/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "model": "granite-vllm",
+    "messages": [{"role": "user", "content": "What is discrete diffusion?"}],
+    "max_tokens": 32
+  }'
+----
+
+NOTE: `max_tokens` is kept small so a reply returns inside the gateway's
+~60s route timeout. On CPU-only clusters inference is markedly slower than on
+GPU — a 512-token reply can exceed the timeout (HTTP 504) while the request
+is still valid.
+
+IMPORTANT: As of vLLM v0.5.5, you must provide a chat template while querying
+a model using the `/v1/chat/completions` endpoint. If your model does not
+include a predefined chat template, you can use the
+`--chat-template=<CHAT_TEMPLATE>` command-line parameter in a custom runtime
+to specify one.
+
+NOTE: The embeddings endpoint (`/v1/embeddings`) works only with embeddings
+models that vLLM supports — you cannot use it with generative models.
+
+To go further, you can customize the vLLM runtime at deployment time: add
+*Additional serving runtime arguments* in the *Configuration parameters*
+section. For example, n-gram speculative decoding uses
+`--speculative-model=[ngram]`, `--num-speculative-tokens=<NUM>`,
+`--ngram-prompt-lookup-max=<MAX>`, and `--use-v2-block-manager`; multi-modal
+inferencing for vision-language models uses `--trust-remote-code`. Only use
+`--trust-remote-code` with models from trusted sources.
+
+=== Verify
+
+The `/version` request returns the vLLM version string, and the
+`/v1/models` request returns a JSON object listing your deployed model name:
+
+----
+{"object":"list","data":[{"id":"granite-vllm","object":"model",...}]}
+----
+
+The `/v1/chat/completions` request returns an OpenAI-compatible JSON response
+with HTTP 200, containing a `choices` array whose `message.content` field
+holds the model's answer. An unexpected `403` or `401` usually means the
+`Authorization: Bearer $TOKEN` header is missing or the token has expired.
+
+You have deployed a model with the vLLM ServingRuntime for KServe and
+validated it end to end, from the `InferenceService` CR to a live inference
+response.
+
+== Module summary
+
+**What you accomplished:**
+
+* Deployed a gen AI model through the *Deploy model* wizard with the vLLM ServingRuntime for KServe
+* Inspected the generated `InferenceService` CR and mapped its fields to your wizard choices
+* Queried the model over the OpenAI-compatible REST API with token authentication
+
+**Key takeaways:**
+
+* The wizard choices — model type, hardware profile, runtime, and connection — translate directly into `InferenceService` CR fields
+* The vLLM runtime speaks the OpenAI REST API: `/v1/models`, `/v1/chat/completions`, `/v1/completions`, and friends, served over the OpenShift router's HTTPS port
+* Token authentication is a wizard toggle backed by a service account, and the token is retrieved from the deployment's *Token authentication* section
+
+**Next steps:**
+
+Head to the conclusion for the RHOAI documentation chapters that cover
+serving runtime configuration and inference requests in depth.

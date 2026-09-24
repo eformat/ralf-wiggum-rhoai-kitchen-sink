@@ -1,0 +1,314 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will work through the core MLflow workflow end to end:
+enable the MLflow Operator component, deploy the tracking server with an
+`MLflow` custom resource, enable automatic MLflow SDK configuration in a
+workbench, and track an experiment from a notebook.
+
+**Learning objectives:**
+
+* Enable the `mlflowoperator` component and deploy an `MLflow` instance
+* Enable MLflow integration for a workbench and verify the injected environment variables and RoleBinding
+* Log parameters and metrics with the MLflow SDK and review the run in the dashboard
+
+== Exercise 1: Enable the MLflow Operator and deploy the tracking server
+
+The `mlflowoperator` component defaults to `Removed` in the
+DataScienceCluster (DSC). You must explicitly set it to `Managed` to enable
+MLflow on the platform. These steps require cluster administrator privileges.
+
+. Log in to your OpenShift cluster as a cluster administrator:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc login {openshift_api_url} --username {user} --password {password}
+----
+
+. Identify the name of the DataScienceCluster object:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get datasciencecluster
+----
+
+. Patch the DSC to enable the MLflow Operator component:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch datasciencecluster default-dsc --type=merge -p '{"spec":{"components":{"mlflowoperator":{"managementState":"Managed"}}}}'
+----
++
+When you set `mlflowoperator` to `Managed`, the RHOAI Operator automatically
+configures the notebook controller with `MLFLOW_ENABLED=true` and sets the
+appropriate `GATEWAY_URL` for the cluster.
+
+. Create an `MLflow` custom resource (CR). The resource is cluster-scoped,
+must be named `mlflow`, and is created in the `redhat-ods-applications`
+namespace. For a development or test deployment, use SQLite for the backend
+store and a PVC for file-based artifact storage:
++
+[source,bash]
+----
+cat > mlflow.yaml <<'EOF'
+EOF
+----
+apiVersion: mlflow.opendatahub.io/v1
+kind: MLflow
+metadata:
+  name: mlflow <1>
+  namespace: redhat-ods-applications
+spec:
+  storage: <2>
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+  backendStoreUri: "sqlite:////mlflow/mlflow.db" <3>
+  artifactsDestination: "file:///mlflow/artifacts" <4>
+----
+*`name: mlflow`* — the resource is cluster-scoped and must be named `mlflow`; only one instance is allowed per cluster.
+*`spec.storage`* — provisions a PVC for file-based development or test deployments.
+*`backendStoreUri`* — the tracking metadata database URI; `sqlite://` for development, `postgresql://` for production.
+*`artifactsDestination`* — the base URI where artifacts are stored for new experiments. Artifact serving is *not* supported when this uses a `file://` path together with `spec.storage`.
+
+. For a production-oriented deployment, use PostgreSQL for metadata and
+S3-compatible object storage for artifacts instead:
++
+[source,yaml]
+----
+apiVersion: mlflow.opendatahub.io/v1
+kind: MLflow
+metadata:
+  name: mlflow
+  namespace: redhat-ods-applications
+spec:
+  replicas: 2 <1>
+  backendStoreUriFrom: <2>
+    name: mlflow-db-credentials
+    key: backend-store-uri
+  artifactsDestination: "s3://my-mlflow-bucket/artifacts" <3>
+  serveArtifacts: true <4>
+  envFrom: <5>
+  - secretRef:
+      name: mlflow-s3-credentials
+----
+*`replicas`* — the scaling knob for production deployments. High availability requires remote storage because PVC-backed storage does not support multiple concurrent writers.
+*`backendStoreUriFrom`* — a secret reference for the backend database URI; use it instead of `backendStoreUri` so database credentials are not stored in the MLflow CR.
+*`artifactsDestination`* — an S3-compatible URI for artifact storage.
+*`serveArtifacts`* — clients log and retrieve artifacts through the MLflow server REST API via the `mlflow-artifacts:/` proxy scheme.
+*`envFrom`* — injects the S3 credentials secret (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) into the MLflow pods.
+
+. Save the CR as `mlflow.yaml` and apply it:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f mlflow.yaml
+----
+
+=== Verify
+
+. Confirm that the MLflow Operator pod is running:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n redhat-ods-applications -l app=mlflow-operator --field-selector status.phase=Running
+----
++
+Expected output shows one or more operator pods in `Running` status.
+
+. Confirm that the component reports installed in the DSC:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get datasciencecluster default-dsc -o jsonpath='{.status.installedComponents.mlflowoperator}'
+----
++
+The expected output is `true`.
+
+. Confirm the MLflow UI is available in the RHOAI dashboard: open
+{openshift_console_url} and launch the RHOAI dashboard, then in the dashboard
+navigation bar click *Applications* and confirm that *MLflow UI* is listed in
+the applications grid.
+
+. To view all available configuration options for the MLflow custom
+resource, run:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc explain mlflow.spec
+----
+
+With the tracking server deployed, connect a workbench to it in the next
+exercise.
+
+== Exercise 2: Enable MLflow integration for a workbench
+
+The workbench integration injects MLflow environment variables and provisions
+RBAC automatically, so you can track experiments without manual SDK
+configuration.
+
+TIP: If you use the OpenShift AI dashboard with the *Dashboard*, *MLflow*,
+and *Workbenches* components all set to `Managed` in the DSC, the dashboard
+automatically adds the `opendatahub.io/mlflow-instance` annotation when you
+create or update a workbench — no manual configuration is required. The
+manual steps below are for environments that manage workbenches through
+GitOps, Helm charts, or direct YAML manifests.
+
+. Check which workbenches exist in your project:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get notebooks -n {guid}-{user}
+----
++
+The following commands use `my-workbench` as the notebook name — replace it
+with the name of your workbench.
+
+. Add the `opendatahub.io/mlflow-instance` annotation to the notebook
+resource. The annotation value must be the name of the MLflow instance CR:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc annotate notebook -n {guid}-{user} my-workbench opendatahub.io/mlflow-instance=mlflow
+----
++
+If the MLflow instance name is `mlflow`, the tracking URI path is `/mlflow`;
+if it is different, the path is `/mlflow-<mlflow_instance_name>`.
+
+IMPORTANT: You can add the annotation to a stopped workbench or include it
+when you create a new one. Environment variables are injected on the next pod
+start, so you must start or restart the workbench after annotating it.
+
+. Start or restart the workbench so the environment variables are injected
+into the new pod.
+
+=== Verify
+
+. Find the pod for your workbench:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n {guid}-{user} -l notebook-name=my-workbench
+----
+
+. Verify that the MLflow environment variables are present in the running pod:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc exec -n {guid}-{user} my-workbench -c my-workbench -- env | grep MLFLOW
+----
++
+Expected output shows the three injected variables:
++
+----
+MLFLOW_TRACKING_URI=https://<gateway_hostname>/mlflow
+MLFLOW_K8S_INTEGRATION=true
+MLFLOW_TRACKING_AUTH=kubernetes-namespaced
+----
++
+The `<gateway_hostname>` value is cluster-specific and matches the GatewayAPI
+public endpoint for your cluster.
+
+. Verify that the RoleBinding was created. The notebook controller creates a
+namespace-scoped RoleBinding named `<notebook_name>-mlflow` that grants the
+workbench service account the permissions in the
+`mlflow-operator-mlflow-integration` ClusterRole:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get rolebinding -n {guid}-{user} my-workbench-mlflow
+----
++
+Expected output shows a RoleBinding referencing
+`mlflow-operator-mlflow-integration`.
+
+With the workbench connected, log your first experiment in the next exercise.
+
+== Exercise 3: Track an experiment from the workbench notebook
+
+Log experiments, parameters, metrics, and artifacts with the MLflow SDK. The
+required environment variables are already configured, so the SDK connects to
+the tracking server automatically.
+
+. Open a notebook in your workbench. The MLflow SDK is pre-installed in all
+workbench images except the minimal image; for older or custom images,
+install it with `pip install "mlflow[kubernetes]>=3.11"` (the required SDK
+version is 3.11 or later; the deployed server version is 3.13.0).
+
+. Verify that the injected environment variables are available:
++
+[source,python]
+----
+import os
+
+print(os.environ.get("MLFLOW_TRACKING_URI"))
+print(os.environ.get("MLFLOW_K8S_INTEGRATION"))
+print(os.environ.get("MLFLOW_TRACKING_AUTH"))
+----
++
+All three variables display their configured values.
+
+. Import the MLflow SDK, set an experiment, and start a run:
++
+[source,python]
+----
+import random
+import time
+import mlflow
+
+mlflow.set_experiment("demo-experiment")
+
+with mlflow.start_run(run_name="demo-run"):
+    mlflow.log_param("model_type", "baseline")
+    mlflow.log_param("feature_count", 3)
+    for step in range(5):
+        mlflow.log_metric("accuracy", 0.8 + random.random() * 0.2, step=step)
+        mlflow.log_metric("loss", 0.5 - random.random() * 0.2, step=step)
+        time.sleep(0.2)
+----
++
+The `set_experiment()` call returns an `Experiment` object and prints the
+experiment ID. Experiment names must be unique within the project.
+
+. Optional: to target a project other than the one associated with your
+credentials, set the workspace explicitly:
++
+[source,python,subs="attributes"]
+----
+mlflow.set_workspace("{guid}-{user}")
+----
+
+NOTE: With the automatic workbench integration, you can log parameters,
+metrics, and tags, but `mlflow.log_artifact()` functionality that relies on
+an S3-backed artifact store requires additional configuration that is outside
+the scope of the automatic integration.
+
+=== Verify
+
+From the RHOAI dashboard, select your project ({guid}-{user}) from the
+*Project* list, then click *Develop & train → Experiments (MLflow)*. The
+*Experiments* list displays `demo-experiment`. Click the experiment name to
+see the *Runs* table with `demo-run`, then click the run name to review the
+logged parameters (`model_type`, `feature_count`), the accuracy and loss
+metric charts, and system metrics.
+
+== Module summary
+
+**What you accomplished:**
+
+* Enabled the `mlflowoperator` component in the DataScienceCluster and deployed the cluster-scoped `MLflow` instance
+* Enabled MLflow integration for a workbench with the `opendatahub.io/mlflow-instance` annotation and verified the injected variables and RoleBinding
+* Logged a full experiment run with the MLflow SDK and reviewed it in the dashboard's *Experiments (MLflow)* page
+
+**Key takeaways:**
+
+* The workbench integration injects `MLFLOW_TRACKING_URI`, `MLFLOW_K8S_INTEGRATION`, and `MLFLOW_TRACKING_AUTH` and creates a `<notebook>-mlflow` RoleBinding automatically
+* The `MLflow` CR must be named `mlflow`; choose SQLite/PVC for development or PostgreSQL/S3 with `serveArtifacts` for production
+* The dashboard *Experiments (MLflow)* page shows the same data as the standalone MLflow UI
+
+**Next steps:**
+
+Override artifact storage per project with `MLflowConfig` and archive trace
+payloads with the `traceArchival` section in the advanced module.

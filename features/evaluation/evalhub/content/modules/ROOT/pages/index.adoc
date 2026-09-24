@@ -1,0 +1,44 @@
+= Welcome to the Evaluation Stack (EvalHub) Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *Evaluation Stack (EvalHub)*, the evaluation
+orchestration service for LLMs on Red Hat OpenShift AI.
+
+**What you will learn:**
+
+* What EvalHub does and how its server, SDK/CLI, and providers fit together
+* Verify the EvalHub deployment with the TrustyAI Operator and its tenant resources
+* Submit evaluation jobs against benchmarks and custom collections from the CLI, the REST API, and the RHOAI dashboard
+* Track jobs and results, log metrics to MLflow, and grant tenant access with RBAC
+
+== Prerequisites
+
+* RHOAI operator installed, with the TrustyAI component set to `Managed` and KServe in `RawDeployment` mode
+* Model serving endpoint with an OpenAI-compatible `/v1` API
+* An OpenShift cluster with RHOAI 3.5 installed, EvalHub deployed, and your project registered as a tenant
+* Python 3.11 or later with access to PyPI for the EvalHub SDK and CLI
+
+== Estimated time
+
+About 2 hours
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-concepts.adoc[Module 01: Core Concepts]
+* xref:module-02-hands-on.adoc[Module 02: Hands-on Exercise]
+* xref:module-03-advanced.adoc[Module 03: Advanced Usage]
+* xref:eval-api.adoc[EvalHub REST API]
+* xref:scoring.adoc[Scoring and Thresholds]
+* xref:conclusion.adoc[Conclusion]

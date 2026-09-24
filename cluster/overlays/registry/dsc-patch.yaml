@@ -1,0 +1,13 @@
+---
+# Strategic-merge patch enabling the Model Registry. The registries namespace
+# is pinned so the model-catalog-sources ConfigMap lands in a stable place.
+apiVersion: datasciencecluster.opendatahub.io/v2
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+  namespace: redhat-ods-operator
+spec:
+  components:
+    modelregistry:
+      managementState: Managed
+      registriesNamespace: rhoai-model-registries

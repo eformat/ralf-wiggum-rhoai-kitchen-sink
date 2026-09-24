@@ -1,0 +1,448 @@
+= Module 03: Advanced Usage
+:navtitle: Module 03: Advanced Usage
+
+In this module you will explore advanced configuration options for NeMo
+Guardrails: switching between guardrail policies, scaling the deployment,
+masking sensitive data instead of blocking it, and adding custom rails with
+Python actions.
+
+**Learning objectives:**
+
+* Deploy multiple guardrail configurations and switch between them per request
+* Mask detected PII instead of blocking the request
+* Extend the configuration with custom Colang flows and Python actions
+
+== Exercise 1: Switch guardrail policies and scale
+
+A single `NemoGuardrails` resource can load multiple configurations. Each
+`nemoConfigs` entry creates its own configuration directory, and you select the
+active configuration per request with the `config_id` parameter. Set `default:
+true` on the entry used when a request omits `config_id`.
+
+. Create a file named `nemo-strict-config.yaml` with a strict configuration
+that blocks PII and security keywords:
++
+[source,bash,role="execute",subs="attributes"]
+----
+cat > nemo-strict-config.yaml <<'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-strict-config
+data:
+  config.yaml: |
+    models:
+    - type: main
+      engine: openai
+      parameters:
+        openai_api_base: "{model_predictor_url}"
+        model_name: "{model_name}"
+    rails:
+      config:
+        sensitive_data_detection:
+          input:
+            entities:
+              - EMAIL_ADDRESS
+              - PERSON
+      input:
+        flows:
+          - detect sensitive data on input
+  rails.co: |
+    # Strict: block PII
+EOF
+----
+
+. Create a file named `nemo-lenient-config.yaml` with a lenient configuration
+that only detects security keywords:
++
+[source,bash,role="execute",subs="attributes"]
+----
+cat > nemo-lenient-config.yaml <<'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-lenient-config
+data:
+  config.yaml: |
+    models:
+    - type: main
+      engine: openai
+      parameters:
+        openai_api_base: "{model_predictor_url}"
+        model_name: "{model_name}"
+    rails:
+      config:
+        regex_detection:
+          input:
+            patterns:
+              - "\\b(password|secret|api[_-]?key|token)\\b"
+            case_insensitive: true
+      input:
+        flows:
+          - regex check input
+  rails.co: |
+    # Lenient: regex only
+EOF
+----
+
+. Create a file named `nemo-policies-cr.yaml` that loads both configurations
+and scales to three replicas:
++
+[source,bash,role="execute"]
+----
+cat > nemo-policies-cr.yaml <<'EOF'
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: NemoGuardrails
+metadata:
+  name: nemo-policies
+  annotations:
+    security.opendatahub.io/enable-auth: 'true'
+spec:
+  replicas: 3
+  nemoConfigs:
+  - name: strict-filtering
+    configMaps:
+    - nemo-strict-config
+    default: true
+  - name: lenient-filtering
+    configMaps:
+    - nemo-lenient-config
+  env:
+  - name: OPENAI_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: api-token-secret
+        key: token
+EOF
+----
++
+*spec.replicas* — the number of NeMo Guardrails deployment replicas.
+Default is 1, minimum is 1. Increase for higher availability and throughput.
+*nemoConfigs* — each entry is a named configuration; the name becomes the
+`config_id` used in API requests.
+*default* — the configuration used when a request does not specify
+`config_id`. If none is set, the first entry in `nemoConfigs` is used.
+
+. Apply the manifests and wait for readiness:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f nemo-strict-config.yaml -n {guid}-{user}
+oc apply -f nemo-lenient-config.yaml -n {guid}-{user}
+oc apply -f nemo-policies-cr.yaml -n {guid}-{user}
+oc get nemoguardrails nemo-policies -n {guid}-{user} -w
+----
++
+Wait until the `PHASE` column shows `Ready`, then press `Ctrl+C`.
+
+. Export the route and test the default (strict) policy with an email address:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export POLICIES_ROUTE=https://$(oc get routes/nemo-policies -n {guid}-{user} -o jsonpath='{.status.ingress[0].host}')
+curl -k -X POST $POLICIES_ROUTE/v1/guardrail/checks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(oc whoami -t)" \
+  -d '{
+    "model": "test",
+    "messages": [
+      {"role": "user", "content": "Please contact me at alice@example.com"}
+    ]
+  }'
+----
++
+The overall status is `blocked` — the strict policy is the default.
+
+. Repeat the request with `config_id` set to the lenient policy:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k -X POST $POLICIES_ROUTE/v1/guardrail/checks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(oc whoami -t)" \
+  -d '{
+    "model": "test",
+    "messages": [
+      {"role": "user", "content": "Please contact me at alice@example.com"}
+    ],
+    "guardrails": {"config_id": "lenient-filtering"}
+  }'
+----
++
+The overall status is `success` — the lenient policy does not check for email
+addresses.
+
+=== Verify
+
+* The same request is `blocked` under the default `strict-filtering` policy
+  and `success` under `lenient-filtering`.
+* `oc get deploy nemo-policies -n {guid}-{user}` reports `READY` `3/3`, and
+  `oc get pods -n {guid}-{user}` lists three `nemo-policies` pods.
+
+== Exercise 2: Mask PII instead of blocking
+
+Blocking is not always the right action. Masking flows replace detected PII
+with `[MASKED]` before the content is sent to the LLM or returned to the user,
+so a request like "My email is user@example.com" still gets an answer — the
+address is just anonymized.
+
+[NOTE]
+====
+This exercise reuses the `nemo-simple` deployment from module 2, which has a
+live model behind it. Patching the CR replaces the active configuration and
+triggers an automatic redeploy.
+====
+
+. Create a file named `nemo-masking-config.yaml` with masking flows:
++
+[source,bash,role="execute",subs="attributes"]
+----
+cat > nemo-masking-config.yaml <<'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-masking-config
+data:
+  config.yaml: |
+    models:
+    - type: main
+      engine: openai
+      parameters:
+        openai_api_base: "{model_predictor_url}"
+        model_name: "{model_name}"
+    rails:
+      config:
+        sensitive_data_detection:
+          input:
+            entities:
+              - PERSON
+              - EMAIL_ADDRESS
+              - PHONE_NUMBER
+      input:
+        flows:
+          - mask sensitive data on input
+      output:
+        flows:
+          - mask sensitive data on output
+  rails.co: |
+    # Masking instead of blocking
+EOF
+----
++
+*mask sensitive data on input* — instead of the `detect sensitive data`
+flow, this flow replaces detected PII with `[MASKED]` before the content
+reaches the LLM.
+
+. Patch the `nemo-simple` custom resource to use the masking configuration:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch nemoguardrails nemo-simple -n {guid}-{user} --type=merge -p '
+spec:
+  nemoConfigs:
+  - name: nemo-masking-config
+    configMaps:
+    - nemo-masking-config
+'
+----
++
+The NeMo Guardrails service automatically redeploys when the configuration
+changes.
+
+. Wait for the redeploy to be ready:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get nemoguardrails nemo-simple -n {guid}-{user} -w
+----
++
+Wait until the `PHASE` column shows `Ready`, then press `Ctrl+C`.
+
+. Send a message containing an email address:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export NEMO_SIMPLE_ROUTE=https://$(oc get routes/nemo-simple -n {guid}-{user} -o jsonpath='{.status.ingress[0].host}')
+curl -k -X POST $NEMO_SIMPLE_ROUTE/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(oc whoami -t)" \
+  -d '{"model": "{model_name}", "messages":[{"role":"user","content":"My email is user@example.com"}]}'
+----
+
+=== Verify
+
+Instead of a block, the model now receives the anonymized prompt — the request
+succeeds and the detected address is replaced with `[MASKED]` before being
+sent to the LLM or returned to the user. Compare this with the same request in
+module 2, which was blocked outright.
+
+== Exercise 3: Add custom rails with Python actions
+
+Built-in flows cover common policies. For your own business logic, define a
+Colang flow that calls a Python action. This example adds a rail that blocks
+messages over 100 words.
+
+[WARNING]
+====
+Patching `nemo-simple` again replaces the masking configuration from
+Exercise 2. Keep a record of the previous `nemoConfigs` values so you can
+restore them.
+====
+
+. Create a file named `nemo-custom-config.yaml` with the custom flow, Colang
+definitions, and the Python action:
++
+[source,bash,role="execute",subs="attributes"]
+----
+cat > nemo-custom-config.yaml <<'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-custom-config
+data:
+  config.yaml: |
+    models:
+    - type: main
+      engine: openai
+      parameters:
+        openai_api_base: "{model_predictor_url}"
+        model_name: "{model_name}"
+    rails:
+      input:
+        flows:
+          - check message length
+    rails.co: |
+      define flow check message length
+      $length_result = execute check_message_length
+      if $length_result == "blocked_too_long"
+        bot inform message too long
+        stop
+      if $length_result == "warning_long"
+        bot warn message long
+
+      define bot inform message too long
+      "Please keep your message under 100 words for better assistance."
+
+      define bot warn message long
+      "That's quite detailed! I'll help as best I can."
+    actions.py: |
+      from typing import Optional
+      from nemoguardrails.actions import action
+
+      @action(is_system_action=True)
+      async def check_message_length(context: Optional[dict] = None) -> str:
+          """Check if user message is within acceptable length limits."""
+          user_message = context.get("user_message", "")
+          word_count = len(user_message.split())
+          MAX_WORDS = 100
+          if word_count > MAX_WORDS:
+              return "blocked_too_long"
+          elif word_count > MAX_WORDS * 0.8:
+              return "warning_long"
+          return "allowed"
+EOF
+----
++
+*rails.input.flows* — the custom flow `check message length` executes on
+user input. *rails.co* — the Colang flow orchestrates the Python action: it calls
+`check_message_length` with `execute` and responds based on the result. The
+`stop` instruction halts processing when the message is too long.
+*actions.py* — the Python action is decorated with
+`@action(is_system_action=True)`, reads `user_message` from the context, and
+returns a string that the Colang flow branches on.
+
+. Patch the `nemo-simple` custom resource to use the custom configuration:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch nemoguardrails nemo-simple -n {guid}-{user} --type=merge -p '
+spec:
+  nemoConfigs:
+  - name: nemo-custom-config
+    configMaps:
+    - nemo-custom-config
+'
+----
+
+. Wait for the redeploy to be ready:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get nemoguardrails nemo-simple -n {guid}-{user} -w
+----
++
+Wait until the `PHASE` column shows `Ready`, then press `Ctrl+C`.
+
+. Test the custom rail with a message that exceeds 100 words:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k -X POST $NEMO_SIMPLE_ROUTE/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(oc whoami -t)" \
+  -d '{"model": "{model_name}", "messages":[{"role":"user","content":"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium."}]}'
+----
+
+=== Verify
+
+NeMo Guardrails blocks the request with the message *"Please keep your message
+under 100 words for better assistance."* — the custom Colang flow intercepted
+the input before the LLM was called. A short message still returns the model's
+answer.
+
+== Explore: Observability with OpenTelemetry
+
+For production guardrails, you can enable OpenTelemetry distributed tracing to
+monitor guardrail performance, troubleshoot issues, and analyze request flows.
+
+When tracing is enabled, NeMo Guardrails emits trace spans that capture:
+
+* An HTTP request span for the entire request to `/v1/chat/completions` or `/v1/guardrail/checks`
+* Child spans for each input rail and output rail flow executed
+* LLM call spans, including the model name and token counts
+* Spans for custom Python actions
+
+The configuration keys live in `config.yaml` (`tracing.enabled: true`,
+`tracing.span_format: opentelemetry`, and
+`tracing.enable_content_capture`) alongside OTEL environment variables on the
+CR (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`,
+`OTEL_EXPORTER_OTLP_PROTOCOL`), pointing at a tracing backend such as Grafana
+Tempo with Jaeger Query UI.
+
+[IMPORTANT]
+====
+Set `tracing.enable_content_capture: false` in production environments to
+avoid capturing potentially sensitive request and response content in traces.
+====
+
+If your cluster has a tracing backend deployed, enable tracing in the
+configuration, send a test request, then view the traces:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc port-forward -n observability svc/jaeger-query 16686:16686
+----
+
+Open your browser to http://localhost:16686 and search for traces from the
+`nemoguardrails` service. Each trace shows the total request duration, time
+spent in input rails, LLM call latency, and time spent in output rails — use
+the data to identify slow rails and optimize your configuration.
+
+== Module summary
+
+**What you accomplished:**
+
+* Deployed two guardrail policies on one `NemoGuardrails` resource and switched between them with `config_id`
+* Scaled the deployment to three replicas and masked PII instead of blocking it
+* Added a custom Colang flow backed by a Python action and verified it blocks long messages
+
+**Key takeaways:**
+
+* `nemoConfigs` entries become named policies selected per request via `guardrails.config_id`
+* Masking flows anonymize detected PII instead of blocking the request
+* Colang flows plus Python actions let you encode any business logic as a rail
+
+**Next steps:**
+
+Head to the conclusion for the RHOAI 3.5 Guardrails documentation, including
+the full `NemoGuardrails` CR configuration reference.

@@ -1,0 +1,67 @@
+= Welcome to the Automated Red Teaming (powered by Garak) Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+*Automated Red Teaming (powered by Garak)* probes your AI model and associated
+guardrails for safety weaknesses by sending adversarial prompts across categories
+of harmful content, then progressively applying attack techniques to bypass the
+model's safety controls. The result is a report showing where your model is
+vulnerable and which attack techniques succeed. The assessment runs as a
+Kubeflow Pipelines (KFP) pipeline that you trigger through the EvalHub API or
+directly with the KFP Python SDK.
+
+[NOTE]
+====
+The RHOAI 3.5 *Evaluating AI systems* guide documents this feature as
+*automated risk assessment*. The 3.5 release notes announce Automated Red
+Teaming as GA. Because the naming and APIs are still settling between
+releases, expect possible changes in future RHOAI versions.
+====
+
+**What you will learn:**
+
+* How the two-phase assessment works: adversarial prompt generation, then
+  security testing with increasingly aggressive attack strategies
+* Prepare an EvalHub tenant namespace, grant access, and authenticate with a
+  bearer token
+* Run an intent-based risk assessment against an OpenAI-compatible model
+  endpoint through the EvalHub API
+* Read Attack Success Rate (ASR), compliance classifications, and per-strategy
+  results from the risk assessment report
+* Tune scans with the Garak scan configuration and define custom harm
+  categories
+* Run the same assessment standalone with the KFP Python SDK
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI 3.5 installed, the TrustyAI component set to
+  *Managed*, and KServe configured to use RawDeployment mode
+* A configured pipeline server for the assessment pipeline
+* EvalHub deployed on your cluster (modules 1 and 2); module 3 shows the
+  standalone KFP path that does not require EvalHub
+* A model endpoint and a judge model endpoint, both compatible with the
+  OpenAI `/v1` API
+* An S3-compatible storage endpoint for pipeline artifacts
+* A Kubernetes secret containing your model API key
+
+== Estimated time
+
+About 2 hours
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Run a Risk Assessment]
+* xref:module-03-advanced.adoc[Advanced Usage]
+* xref:conclusion.adoc[Conclusion]

@@ -1,0 +1,23 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the External metering integration for MaaS workshop.
+
+== What you covered
+
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/release_notes/index[RHOAI 3.5 release notes — External metering integration for Models-as-a-Service (Developer Preview features)]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/govern_llm_access_with_models-as-a-service/index[Govern LLM access with Models-as-a-Service]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:maas-core::index.adoc[Models-as-a-Service (MaaS) core: access model and token mechanism]
+* xref:external-metering-per-user::index.adoc[External metering: per-user token usage and cost]

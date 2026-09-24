@@ -1,0 +1,311 @@
+= Module 01: Getting Started with the MaaS observability stack
+:navtitle: Module 01: Getting Started
+
+In this module you will verify the MaaS and observability prerequisites on your
+workshop cluster, then enable the two configuration switches that feed the MaaS
+observability dashboard: Kuadrant observability (rate-limiting metrics from
+Limitador) and MaaS telemetry (usage metrics from the gateway).
+
+**Learning objectives:**
+
+* Verify MaaS CRDs, User Workload Monitoring, and Tenant readiness from the CLI
+* Enable Kuadrant observability and confirm the Limitador `PodMonitor` is created
+* Enable MaaS telemetry on the Tenant custom resource and confirm metrics flow
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: The MaaS observability dashboard is a *Technology Preview* feature.
+APIs and manifests shown here may change between releases. Technology Preview
+features are not supported with Red Hat production service-level agreements
+(SLAs) and might not be functionally complete.
+endif::[]
+
+== Exercise 1: Verify the observability prerequisites
+
+The dashboard queries Prometheus for metrics collected from Kuadrant, Authorino,
+and the MaaS gateway, so the cluster must have MaaS deployed and user workload
+monitoring enabled before any configuration switch will help. Work through the
+following checks in order.
+
+. Log in to your OpenShift cluster as a cluster administrator:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc login {openshift_api_url} -u {user} -p {password}
+----
+
+. Verify that the MaaS custom resource definitions (CRDs) are installed:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get crd | grep -E 'maas.opendatahub.io|aitenants'
+----
++
+Expected output shows the MaaS CRDs:
++
+----
+aitenants.maas.opendatahub.io
+maasauthpolicies.maas.opendatahub.io
+maasmodelrefs.maas.opendatahub.io
+maassubscriptions.maas.opendatahub.io
+maastenantconfigs.maas.opendatahub.io
+tenants.maas.opendatahub.io
+----
+
+. Verify that User Workload Monitoring is enabled on the cluster:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get namespace openshift-user-workload-monitoring
+----
++
+If the namespace exists, User Workload Monitoring is enabled. If the namespace
+is not found, User Workload Monitoring is not enabled and the MaaS deployment
+might show as `Degraded` — enable it before continuing.
+
+. Verify that the Tenant custom resource exists and is reconciled in the
+`models-as-a-service` namespace:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get tenants.maas.opendatahub.io -n models-as-a-service
+----
++
+Expected output shows at least one Tenant resource in a ready state:
++
+----
+NAME             READY   REASON       AGE
+default-tenant   True    Reconciled   5m
+----
++
+The `READY` column shows `True` and the `REASON` column shows `Reconciled`,
+confirming that the tenant is fully configured.
+
+. Verify that the observability dashboard is enabled in the console
+configuration. The documentation requires
+`spec.dashboardConfig.observabilityDashboard: true` in the `OdhDashboardConfig`
+custom resource:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get odhdashboardconfigs.opendatahub.io odh-dashboard-config \
+  -n redhat-ods-applications \
+  -o jsonpath='{.spec.dashboardConfig.observabilityDashboard}'
+----
++
+Expected output:
++
+----
+true
+----
++
+If the output is empty or `false`, set the field to `true` in the
+`OdhDashboardConfig` YAML (in the OpenShift console:
+*Ecosystem* → *Installed Operators* → *Red Hat OpenShift AI Operator* →
+*OdhDashboardConfig* tab) and re-check.
+
+IMPORTANT: The CSV export exercise in Module 02 additionally requires the
+*Cluster Observability Operator* to be installed and configured on the cluster.
+Check *Ecosystem* → *Installed Operators* for *Cluster Observability* now so you
+are not blocked later.
+
+=== Verify
+
+* The MaaS CRD list includes `tenants.maas.opendatahub.io` and
+`maastenantconfigs.maas.opendatahub.io`.
+* The `openshift-user-workload-monitoring` namespace exists.
+* The Tenant resource shows `READY: True`, `REASON: Reconciled`.
+* The `observabilityDashboard` flag returns `true`.
+
+With the prerequisites confirmed, the cluster is ready to collect MaaS metrics —
+the next exercise switches them on.
+
+== Exercise 2: Enable Kuadrant observability
+
+Kuadrant uses Limitador, a rate-limiting service, to enforce the token limits
+defined in MaaS subscriptions. When observability is enabled, Kuadrant creates a
+`PodMonitor` that configures Prometheus to scrape metrics from Limitador — token
+consumption, request counts, and rate-limit violations — which the MaaS
+observability dashboard then displays for showback reporting.
+
+. (Console) In the OpenShift console, navigate to *Administration* →
+*CustomResourceDefinitions*, search for `Kuadrant`, click the resource name,
+open the *Instances* tab, click `kuadrant`, and open the *YAML* tab.
+
+. In the YAML editor, locate the `spec` section and add or update the
+observability configuration:
++
+[source,yaml]
+----
+spec:
+  observability:
+    enable: true                        # <1>
+----
+<1> *Observability enable* — creates a `PodMonitor` resource that configures
+Prometheus to scrape rate-limiting metrics from Limitador. These metrics are
+used by the MaaS observability dashboard to track token consumption, request
+counts, and rate-limit violations.
+
+. Click *Save*. Alternatively, configure the resource from the command line:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch kuadrant kuadrant -n kuadrant-system \
+  --type merge \
+  -p '{"spec":{"observability":{"enable":true}}}'
+----
+
+. Verify that the Limitador `PodMonitor` was created:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get podmonitor kuadrant-limitador-monitor -n kuadrant-system
+----
++
+Expected output shows the PodMonitor resource:
++
+----
+NAME                        AGE
+kuadrant-limitador-monitor  2m
+----
+
+. Verify that the Kuadrant custom resource shows observability as enabled:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get kuadrant kuadrant -n kuadrant-system \
+  -o jsonpath='{.spec.observability.enable}'
+----
++
+Expected output:
++
+----
+true
+----
+
+. Verify that Prometheus is scraping metrics from Limitador. In the OpenShift
+console, navigate to *Observe* → *Metrics* and run the following query:
+`limited_calls`
+
+From the CLI, query the Thanos Querier API with the same expression:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -sSk -H "Authorization: Bearer $(oc whoami -t)" \
+  "https://$(oc get route -n openshift-monitoring prometheus-k8s -o jsonpath='{.spec.host}')/api/v1/query?query=limited_calls" \
+  | python3 -m json.tool | head -30
+----
++
+You should see metrics showing rate-limit violations by user and subscription.
+If no data appears, this is expected if no models have been accessed yet — the
+metric appears once users begin making requests to MaaS models.
+
+=== Verify
+
+* `kuadrant-limitador-monitor` exists in the `kuadrant-system` namespace.
+* `oc get kuadrant ... -o jsonpath='{.spec.observability.enable}'` returns `true`.
+* The `limited_calls` metric is available in *Observe* → *Metrics* (or empty only
+because no MaaS traffic has occurred yet).
+
+Kuadrant now publishes rate-limiting metrics to Prometheus — the next exercise
+turns on the gateway-side usage metrics that complete the dashboard's data
+source.
+
+== Exercise 3: Enable MaaS telemetry
+
+Telemetry configures the MaaS gateway to generate Prometheus metrics about model
+usage — token consumption, request counts, and model-specific usage patterns.
+It is enabled on the Tenant custom resource, the same resource you verified in
+Exercise 1.
+
+. (Console) In the OpenShift console, navigate to *Administration* →
+*CustomResourceDefinitions*, search for `Tenant`, click the resource name, open
+the *Instances* tab, click `default-tenant`, and open the *YAML* tab.
+
+. In the YAML editor, locate the `spec` section and add or update the telemetry
+configuration:
++
+[source,yaml]
+----
+spec:
+  telemetry:
+    enabled: true                       # <1>
+    metrics:
+      captureOrganization: true         # <2>
+      captureUser: false                # <3>
+      captureGroup: false               # <4>
+      captureModelUsage: true           # <5>
+----
+<1> *Telemetry enabled* — activates TelemetryPolicy and Istio Telemetry to
+collect MaaS usage metrics.
+<2> *captureOrganization* — includes organization identifiers in metrics.
+Default is `true`.
+<3> *captureUser* — includes user labels in metrics. Default is `false` due to
+privacy and cardinality considerations. Module 02 shows how to enable per-user
+metrics and what it costs.
+<4> *captureGroup* — includes group labels in metrics. Default is `false` to
+reduce metric cardinality.
+<5> *captureModelUsage* — tracks model-specific usage patterns. Default is
+`true`.
+
+. Click *Save*. Alternatively, configure the resource from the command line:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch tenants.maas.opendatahub.io default-tenant -n models-as-a-service \
+  --type merge \
+  -p '{
+    "spec": {
+      "telemetry": {
+        "enabled": true,
+        "metrics": {
+          "captureOrganization": true,
+          "captureUser": false,
+          "captureGroup": false,
+          "captureModelUsage": true
+        }
+      }
+    }
+  }'
+----
+
+. Verify that telemetry metrics are flowing. In the OpenShift console, navigate
+to *Observe* → *Metrics*, enter the following metric name in the query field,
+and click *Run queries*:
++
+[source,bash,role="execute"]
+----
+curl -sSk -H "Authorization: Bearer $(oc whoami -t)" \
+  "https://$(oc get route -n openshift-monitoring prometheus-k8s -o jsonpath='{.spec.host}')/api/v1/query?query=authorized_calls" \
+  | python3 -m json.tool | head -30
+----
++
+If telemetry is enabled, the query returns MaaS usage metrics with labels such
+as `subscription`, `limitador_namespace`, and optionally `model` depending on
+your telemetry configuration.
+
+=== Verify
+
+* The Tenant resource accepts the telemetry patch and remains `Ready`/`Reconciled`.
+* The `authorized_calls` query returns MaaS usage metrics with the expected labels.
+
+Both halves of the metrics pipeline are now switched on. Module 02 puts them to
+work: per-user dashboards in the console and a CSV export for your finance team.
+
+== Module summary
+
+**What you accomplished:**
+
+* Verified the MaaS CRDs, User Workload Monitoring, Tenant readiness, and the dashboard console flag
+* Enabled Kuadrant observability and confirmed the `kuadrant-limitador-monitor` PodMonitor
+* Enabled MaaS telemetry on the Tenant custom resource and confirmed `authorized_calls` metrics
+
+**Key takeaways:**
+
+* The dashboard's data comes from two switches: Kuadrant observability (Limitador rate-limiting metrics) and Tenant telemetry (gateway usage metrics)
+* User Workload Monitoring must be enabled or the MaaS deployment can show as `Degraded`
+* `captureUser` defaults to `false` for privacy and Prometheus cardinality reasons — enable it deliberately
+
+**Next steps:**
+
+Continue to the next module, where you enable per-user metrics, read the
+observability dashboard in the console, and export showback data as CSV.

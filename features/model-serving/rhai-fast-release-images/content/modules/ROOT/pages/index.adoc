@@ -1,0 +1,46 @@
+= Welcome to the Red Hat AI Inference fast-release images as custom ServingRuntime Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *Red Hat AI Inference fast-release images as custom ServingRuntime*.
+
+Red Hat AI Inference fast-release images are Red Hat-built vLLM container images published to
+`registry.redhat.io/rhaii-early-access`. You can deploy them as custom serving runtimes on your
+existing Red Hat OpenShift AI installation without upgrading it, giving you access to the latest
+vLLM versions and new model support between OpenShift AI stable releases.
+
+**What you will learn:**
+
+* How fast builds differ from supported (GA) and unsupported (custom) vLLM runtimes — support levels, badges, and the 1-month support window
+* How limited-support runtimes are gated by support-status annotations until an administrator accepts the risk
+* How to create a custom ServingRuntime that references a fast-release image and gate it with acceptance annotations
+* How to deploy a model on the new runtime and verify inference through the OpenAI-compatible API
+
+== Prerequisites
+
+* RHOAI operator installed
+* KServe enabled
+* An OpenShift cluster with RHOAI 3.5 installed
+* A pull secret for `registry.redhat.io`
+* For the CUDA fast-release image used in this workshop, GPU support enabled with the Node Feature Discovery Operator installed
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Module 01: Explore vLLM runtime support levels]
+* xref:module-02-hands-on.adoc[Module 02: Deploy a model on a fast-release ServingRuntime]
+* xref:conclusion.adoc[Conclusion]

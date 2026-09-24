@@ -1,0 +1,49 @@
+= Welcome to the Kubeflow Trainer v2 Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *Kubeflow Trainer v2*, the unified distributed training
+API in Red Hat OpenShift AI 3.5. Kubeflow Trainer v2 replaces the
+framework-specific custom resource definitions (CRDs) from Training Operator v1,
+such as `PyTorchJob`, with a single `TrainJob` API and pre-built
+`ClusterTrainingRuntime` infrastructure templates, so you can launch distributed
+PyTorch training and LLM fine-tuning jobs without writing per-job pod specs.
+
+**What you will learn:**
+
+* How the `TrainJob` API and `runtimeRef` replace Training Operator v1 CRDs like `PyTorchJob`
+* How to list and inspect the pre-built `ClusterTrainingRuntime` resources shipped with RHOAI
+* How to launch, monitor, suspend, resume, and delete a distributed PyTorch `TrainJob` from the CLI
+* How to create a custom namespace-scoped `TrainingRuntime` for project-specific images and resources
+* How to submit training jobs programmatically with the Kubeflow Python SDK, including progress tracking and JIT checkpointing
+* How to fine-tune LLMs with Training Hub runtimes using OSFT and SFT algorithms
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI 3.5 installed
+* RHOAI operator installed and the `training` (Kubeflow Trainer) component enabled in the DataScienceCluster
+* The JobSet Operator installed from OLM by your cluster administrator
+* Worker nodes with supported NVIDIA GPUs (or AMD ROCm GPUs) for the hands-on exercises
+* The OpenShift CLI (`oc`) installed and configured
+
+== Estimated time
+
+About 2 hours
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:module-03-advanced.adoc[Advanced Usage]
+* xref:conclusion.adoc[Conclusion]

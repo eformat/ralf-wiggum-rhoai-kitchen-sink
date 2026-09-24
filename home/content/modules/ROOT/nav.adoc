@@ -1,0 +1,4 @@
+.RHOAI Kitchen Sink
+* xref:index.adoc[Feature Catalog]
+* xref:learning-paths.adoc[Learning Paths]
+* xref:cluster-setup.adoc[Cluster Setup]

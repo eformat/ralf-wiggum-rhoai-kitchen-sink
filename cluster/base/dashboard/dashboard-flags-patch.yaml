@@ -1,0 +1,34 @@
+# OdhDashboardConfig flags for every feature workshop. This is a MERGE patch —
+# apply it (never replace the CR) so the operator's own defaults survive:
+#   make dashboard-flags
+# ...which runs:
+#   oc patch odhdashboardconfig odh-dashboard-config -n redhat-ods-applications \
+#     --type merge --patch-file cluster/base/dashboard/dashboard-flags-patch.yaml
+#
+# Flags are UI-only: a flag surfaces dashboard nav entries even when the
+# underlying feature is not deployed on the cluster. Each feature workshop
+# states which flag it needs; setting them all here keeps the base simple.
+spec:
+  dashboardConfig:
+    # Model serving / MaaS
+    modelAsService: true
+    vLLMDeploymentOnMaaS: true
+    externalModels: true
+    # Gen AI studio / playground / AutoRAG (RHOAIENG: enablement combo)
+    genAiStudio: true
+    enablement: true
+    autorag: true
+    automl: true
+    # Agents / MCP
+    mcpCatalog: true
+    agentsCatalog: true
+    agentConfigManagement: true
+    agentOps: true
+    toolCalling: true
+    # llm-d templates (topology configuration list)
+    llmdTemplates: true
+    # AI assets / catalog
+    aiAssetCustomEndpoints: true
+    # Observability
+    observabilityDashboard: true
+    genAiTracing: true

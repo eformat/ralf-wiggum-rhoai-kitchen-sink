@@ -1,0 +1,21 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Platform-wide direct OIDC authentication (GatewayConfig CR).
+#
+# NOTHING IS SCAFFOLDED HERE, by design:
+#   * The cluster-side prerequisite — OpenShift direct-OIDC (authentication
+#     type=OIDC, provider under .spec.oidcProviders, kube-apiserver rollout,
+#     OCP >= 4.19.9) — is install-time/Day-2 OCP configuration, not something
+#     kustomize can apply. See the platform-oidc-auth lab (module-01) for the
+#     documented flow.
+#   * The idp-client-secret + default-gateway GatewayConfig OIDC patch is a
+#     LEARNER exercise (lab REQ-003) — applying it here would do the lab for
+#     the learner.
+#
+# This overlay exists so the mapping (feature-overlays.yml) has a target for
+# the platform-oidc-auth lab and so `oc apply -k` here is a safe base-only
+# no-op.
+resources:
+  - ../../base

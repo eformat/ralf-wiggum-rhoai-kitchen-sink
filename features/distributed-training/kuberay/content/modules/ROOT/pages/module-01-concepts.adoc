@@ -1,0 +1,142 @@
+= Module 01: Core Concepts
+:navtitle: Module 01: Core Concepts
+
+In this module you will understand what the KubeRay Operator is, how it fits into the
+distributed workloads infrastructure in Red Hat OpenShift AI 3.5, and which operators
+and custom resources back Ray-based workloads.
+
+**Learning objectives:**
+
+* Explain the role of the KubeRay Operator in the distributed workloads stack
+* Identify the components that support Ray-based distributed workloads
+* Inspect the operators, custom resource definitions (CRDs), and queues from the CLI
+
+== Exercise 1: Where KubeRay fits
+
+Distributed workloads enable data scientists to use multiple cluster nodes in parallel
+for faster data processing and model training. In OpenShift AI 3.5, *Ray-based
+distributed workloads* use the `kueue` and `ray` components. The infrastructure that
+makes this work includes:
+
+* *CodeFlare SDK* — defines and controls remote distributed compute jobs and
+  infrastructure from any Python-based environment. The SDK is not installed as part
+  of OpenShift AI, but it is included in some workbench images such as the Standard
+  Data Science workbench.
+* *KubeRay Operator* — manages and secures remote Ray clusters on OpenShift for
+  running distributed compute workloads, and enforces a controlled-network
+  environment. It drives the `RayCluster` custom resource.
+* *Red Hat build of Kueue Operator* — manages quotas and how distributed workloads
+  consume them, and queues distributed workloads with respect to those quotas. It
+  drives the `Workload`, `LocalQueue`, and `ClusterQueue` resources.
+* *Kubeflow Training Operator* — provides fine-tuning and scalable distributed
+  training of ML models created with frameworks such as PyTorch (used for
+  Training Operator-based workloads, a separate path from Ray).
+* *cert-manager Operator* — provides certificate provisioning, renewal, and
+  retirement for the controlled-network environment.
+
+The typical Ray-based flow in this workshop: your notebook (or pipeline) uses the
+CodeFlare SDK to request a Ray cluster; Kueue admits the request against a local
+queue and cluster queue; the KubeRay Operator reconciles the `RayCluster` resource and
+creates the head and worker pods; Ray runs your distributed compute.
+
+Locate the feature in the consoles:
+
+. Log in to the {openshift_console_url} and open the OpenShift AI dashboard.
+. In the OpenShift AI left navigation pane, click *Observe & monitor* -> *Workload
+  metrics*. This is where distributed workload metrics and status appear once your
+  project contains distributed workloads.
+. Open the OpenShift Console: in the OpenShift AI top navigation bar, click the
+  application launcher icon and then click *OpenShift Console*.
+
+[TIP]
+====
+The CodeFlare SDK is the Python front door; KubeRay and Kueue are the Kubernetes
+machinery behind it. You can drive the same flow with `oc` and YAML, but the SDK
+handles mTLS certificates and queue discovery for you.
+====
+
+Bridging the concepts to reality: in the next exercise you inspect the actual
+operators and CRDs in your cluster.
+
+== Exercise 2: Inspect the cluster
+
+Connect to your cluster and confirm the distributed workloads components are present.
+
+. Log in with the CLI. In the OpenShift Console, click your user name in the
+  upper-right corner and click *Copy login command*. In the new tab, click *Display
+  Token* and copy the *Log in with this token* command, then paste it in your terminal:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc login --token=%token% --server={openshift_api_url}
+----
+
+The token is a security credential: treat it with care, do not save it in a notebook
+or Git, and note that it expires after 24 hours.
+
+. Confirm the KubeRay CRD is registered:
+
+[source,bash,role="execute"]
+----
+oc get crd rayclusters.ray.io
+----
+
+Expected output:
+
+----
+NAME                    CREATED AT
+rayclusters.ray.io      2025-04-02T14:22:31Z
+----
+
+. Confirm the Ray and Kueue components are installed in the `redhat-ods-applications`
+  namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n redhat-ods-applications | grep -E "ray|kueue"
+----
+
+Expected output (names include the operator pods; exact hash suffixes vary):
+
+----
+kueue-controller-manager-5c8f9d6b7c-xxxxx        1/1     Running
+ray-operator-controller-manager-d94fc7b55-xxxxx  2/2     Running
+----
+
+. Check whether a local queue already exists in your working project (this matters in
+  Module 02):
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get localqueues -n {user}
+----
+
+If no `LocalQueue` resources are listed, your cluster administrator has not defined a
+default local queue — you must specify `local_queue` in each notebook configuration,
+as described in Module 02.
+
+=== Verify
+
+* `oc get crd rayclusters.ray.io` returns the CRD instead of `NotFound`.
+* The Ray operator and Kueue controller pods show `Running` in
+  `redhat-ods-applications`.
+* You can list local queues in your project (or you have noted that none exist).
+
+== Module summary
+
+**What you accomplished:**
+
+* Mapped the distributed workloads infrastructure: CodeFlare SDK, KubeRay Operator, Kueue, Training Operator, and cert-manager
+* Logged in with the CLI and confirmed the `RayCluster` CRD and operator pods exist
+* Checked for local queues in your project before creating any workload
+
+**Key takeaways:**
+
+* KubeRay manages and secures remote Ray clusters, while Kueue manages the quotas those clusters consume
+* Ray-based workloads use the `kueue` and `ray` components; Training Operator-based workloads are a separate path
+* The `oc` login token expires after 24 hours and must never be stored in notebooks or Git
+
+**Next steps:**
+
+With the concepts and cluster plumbing confirmed, you are ready to create a Ray
+cluster and run a real distributed workload in Module 02.

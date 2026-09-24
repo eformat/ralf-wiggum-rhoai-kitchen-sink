@@ -1,0 +1,44 @@
+= Welcome to the Automated tool-calling evaluation-data generation for custom MCP servers Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *Automated tool-calling evaluation-data generation for custom MCP servers*:
+the EvalHub MCP server and agent skills that let AI coding agents discover evaluation providers,
+submit jobs, and interpret results through tool-calling on Red Hat OpenShift AI.
+
+**What you will learn:**
+
+* How EvalHub, its providers, and the MCP server fit into RHOAI 3.5 evaluation workflows
+* Deploy the EvalHub MCP server through the TrustyAI Operator and register it with an AI coding agent
+* Generate evaluation data through automated tool calls: `discover_providers`, `submit_evaluation`, and `get_job_status`
+* Make custom providers agent-discoverable with agent metadata and generate auditable evaluation cards
+
+== Prerequisites
+
+* RHOAI operator installed
+* MCP server deployed
+* An OpenShift cluster with RHOAI 3.5 installed
+* The TrustyAI component in your `DataScienceCluster` set to `Managed`, with EvalHub deployed by the TrustyAI Operator
+* An MCP client such as Claude Code installed on your workstation
+
+== Estimated time
+
+About 2 hours
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:module-03-advanced.adoc[Advanced Usage]
+* xref:conclusion.adoc[Conclusion]

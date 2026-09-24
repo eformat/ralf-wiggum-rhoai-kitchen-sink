@@ -1,0 +1,25 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the MCP Lifecycle Operator workshop.
+
+== What you covered
+
+* xref:module-01-getting-started.adoc[Getting Started] — enabling the `mcplifecycleoperator` component in the `DataScienceCluster`, the `mcpCatalog` dashboard flag, and deploying an MCP server from the AI Hub MCP Catalog
+* xref:module-02-hands-on.adoc[Hands-on Exercise] — inspecting the `MCPServer` CR, monitoring health, scaling replicas, upgrading a version, and removing a server
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/working_with_the_mcp_catalog/index[RHOAI 3.5 — Working with the MCP catalog]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/release_notes/index[RHOAI 3.5 release notes — MCP Lifecycle Operator and MCP Catalog (Technology Preview)]
+* link:https://github.com/kubernetessigs/mcp-lifecycle-operator[kubernetessigs/mcp-lifecycle-operator on GitHub]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5[RHOAI 3.5 documentation]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:mcp-catalog-support-tier::index.adoc[MCP Catalog support-tier labeling]
+* xref:mcp-catalog-admin::index.adoc[MCP Catalog administrative interface]

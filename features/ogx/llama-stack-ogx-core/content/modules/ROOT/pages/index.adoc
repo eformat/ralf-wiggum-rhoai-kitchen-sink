@@ -1,0 +1,45 @@
+= Welcome to the Llama Stack / OGX core: RAG, agentic workflows, vector DB integration Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *OGX (Open GenAI Stack)*, the unified AI runtime in RHOAI 3.5 that
+replaces Llama Stack. OGX integrates model inference, embedding generation, vector storage, and
+retrieval services into a single stack optimized for retrieval-augmented generation (RAG) and
+agent-based AI workflows.
+
+**What you will learn:**
+
+* What OGX is, how it replaces Llama Stack in RHOAI 3.5, and how the OGXServer custom resource ties inference, embeddings, vector storage, and metadata persistence together
+* Enable the OGX Operator in the DataScienceCluster and deploy an OGX server connected to a vLLM inference service and a pgvector vector store
+* Ingest documents into a vector store and run grounded RAG queries with the OpenAI-compatible `file_search` tool
+* Tune retrieval search modes and scale the server with high availability, autoscaling, and external S3 file storage
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI 3.5 installed and the RHOAI operator installed
+* OGX enabled in the DSC (Module 02 covers this if it is not already enabled)
+* The OpenShift CLI (`oc`)
+* A vLLM-served inference model (for example, llama-3.2-3b-instruct) and a remote embedding model endpoint for the RAG modules
+* Recommended prerequisite: complete the xref:vllm-serving-runtime-kserve::index.adoc[vLLM ServingRuntime for KServe] workshop first
+
+== Estimated time
+
+About 2 hours
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Deploy an OGX Server and RAG]
+* xref:module-03-advanced.adoc[Advanced Usage]
+* xref:conclusion.adoc[Conclusion]

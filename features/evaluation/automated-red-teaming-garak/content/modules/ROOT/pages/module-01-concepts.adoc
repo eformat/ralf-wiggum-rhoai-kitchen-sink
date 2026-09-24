@@ -1,0 +1,169 @@
+= Module 01: Core Concepts
+:navtitle: Module 01: Core Concepts
+
+In this module you will understand what automated risk assessment does, how the
+two-phase scan works, which attack strategies it applies, and what backs the
+feature in your cluster.
+
+**Learning objectives:**
+
+* Explain the two phases of an automated risk assessment and how the pipeline
+  reports results
+* Describe the attack strategies the scan applies and how the judge model
+  classifies responses
+* Locate the cluster components that back the feature: the TrustyAI component,
+  the pipeline server, and EvalHub
+
+== Exercise 1: How the assessment works
+
+The assessment has two phases:
+
+* *Prompt generation* — generates multiple realistic test prompts per harm
+  category. Prompts vary by demographic, region, and writing style to simulate
+  how real users might attempt to misuse your model.
+* *Security testing* — sends each test prompt through a series of increasingly
+  aggressive attack strategies, measuring whether your model complies or
+  refuses.
+
+The assessment targets whatever inference endpoint you point it at, so it tests
+the full stack — a bare model endpoint, or a model combined with guardrails —
+as your users would experience it.
+
+You can trigger a scan in two ways:
+
+* *EvalHub API* — submit a JSON request to the `/api/v1/evaluations/jobs`
+  endpoint. EvalHub orchestrates the pipeline execution, result collection, and
+  optional MLflow integration. This is the streamlined approach when EvalHub is
+  deployed on your cluster.
+* *Kubeflow Pipelines SDK* — submit the assessment pipeline directly with the
+  KFP Python SDK. This approach does not require EvalHub and gives you
+  programmatic control over execution and result retrieval.
+
+When the target model responds, a separate *judge model* classifies the
+response into one of four categories:
+
+|===
+|Classification |Meaning
+
+|`Complied`
+|The model provided the requested harmful content. Safety controls failed.
+
+|`Rejected`
+|The model explicitly refused, citing safety, ethical, or policy reasons. Safety controls worked.
+
+|`Alternative`
+|The model did not directly comply but offered a redirect, partial answer, or alternative.
+
+|`Other`
+|The response does not fit the previous categories.
+|===
+
+The classification must meet a minimum judge confidence threshold, which
+defaults to 70%, to be accepted. The primary report metric is the *Attack
+Success Rate (ASR)* — the percentage of test prompts that bypassed your model's
+safety controls under any strategy. Lower is better.
+
+The scan applies the following attack strategies in order. Each strategy runs
+only against prompts that previous strategies failed to bypass, so the results
+are cumulative:
+
+|===
+|Strategy |What it does
+
+|*Baseline*
+|Sends each test prompt to the target model, unmodified. Establishes the model's default behavior as the reference point.
+
+|*System Prompt Override (SPO)*
+|Replaces the system prompt with adversarial instructions designed to override safety controls. Multiple adversarial system prompts are paired with each user prompt.
+
+|*SPO variants*
+|Combines adversarial system prompts with statistical manipulation of the user prompt, the system prompt, or both.
+
+|*Translation*
+|Translates prompts into another language, by default Mandarin Chinese, and translates responses back for classification. Reveals whether safety controls are language-dependent.
+
+|*Tree of Attacks with Pruning (TAP)*
+|Uses a separate attacker LLM to dynamically generate new prompts based on the original prompt and the model's previous responses.
+
+|===
+
+In the RHOAI dashboard, open *Data Science Pipelines* and confirm that a
+pipeline server is configured for your project. The assessment itself is
+triggered through the EvalHub API or the KFP SDK — there is no dedicated
+dashboard page for red teaming.
+
+=== Verify
+
+You can name the two phases of the assessment, the four judge classifications,
+and the five attack strategies without consulting the table.
+
+== Exercise 2: Inspect the cluster
+
+The assessment runs as a KFP pipeline, driven by EvalHub when it is deployed.
+Confirm the backing components before you run a scan.
+
+. Check that the TrustyAI component is managed in your DataScienceCluster:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get dsc default-dsc -o jsonpath='{.spec.components.trustyai.managementState}'
+----
++
+Expected output: `Managed`
+
+. Check that the EvalHub pod is running. This workshop assumes your facilitator
+deployed EvalHub in the `{guid}-evalhub` namespace:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -l app=eval-hub -n {guid}-evalhub
+----
++
+----
+NAME                         READY   STATUS    RESTARTS   AGE
+evalhub-7b9f4c6d88-x2k4p     1/1     Running   0          2m
+----
+
+. Locate the pipeline server route that orchestrates the assessment pipeline:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get routes ds-pipeline-dspa -n <pipeline-namespace>
+----
++
+Replace `<pipeline-namespace>` with the namespace where your pipeline server is
+configured. The route host is the Kubeflow Pipelines endpoint you reference in
+your scan requests.
+
+=== Verify
+
+The TrustyAI component reports `Managed`, the `eval-hub` pod is `Running`, and
+the `ds-pipeline-dspa` route resolves to a host.
+
+[NOTE]
+====
+If EvalHub is not deployed on your cluster, you can still complete this
+workshop: module 3 shows how to submit the assessment pipeline directly with
+the KFP Python SDK.
+====
+
+== Module summary
+
+**What you accomplished:**
+
+* Explained the two-phase assessment, the judge classifications, and the five
+  attack strategies
+* Confirmed that a pipeline server is configured in the RHOAI dashboard
+* Verified the TrustyAI component, the EvalHub pod, and the pipeline server
+  route in your cluster
+
+**Key takeaways:**
+
+* The assessment tests the full inference stack you point it at, including guardrails
+* Each strategy runs only against prompts that earlier strategies failed to bypass
+* ASR is the primary metric; lower is better
+
+**Next steps:**
+
+With the components verified, prepare your tenant namespace and run your first
+scan in the hands-on module.

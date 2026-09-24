@@ -1,0 +1,158 @@
+= EvalHub REST API
+:navtitle: EvalHub REST API
+
+Every EvalHub interaction — CLI, SDK, dashboard, or `curl` — goes through the
+same versioned REST API. This page is the reference for the endpoints used in
+the workshop; the modules exercise them one at a time.
+
+== Base URL and versioning
+
+All endpoints are rooted at `/api/v1`. Resolve the base URL from the EvalHub
+route:
+
+[source,bash,role="execute",subs="attributes"]
+----
+export EVALHUB_URL=https://$(oc get routes evalhub -o jsonpath='{.spec.host}' -n {guid}-evalhub)
+----
+
+== Authentication
+
+EvalHub is multi-tenant. Every request except `GET /api/v1/health` must carry
+two headers:
+
+|===
+|Header |Value |Source
+
+|`Authorization`
+|`Bearer <token>`
+|`oc whoami -t` for interactive use; `oc create token <serviceaccount>` for
+automation. Tokens are validated with the Kubernetes TokenReview API.
+
+|`X-Tenant`
+|Target namespace, e.g. `{guid}-{user}`
+|The namespace registered as an EvalHub tenant. Jobs, providers, and
+collections are scoped to it.
+|===
+
+[NOTE]
+====
+Tokens created by `oc create token` expire. A `401 Unauthorized` response
+usually means the token expired or `X-Tenant` does not match your tenant
+namespace.
+====
+
+Authorization uses SubjectAccessReview checks against virtual resources in the
+tenant namespace — the `evaluations`, `collections`, and `providers` resources
+of the `trustyai.opendatahub.io` API group. Module 03 shows the Role and
+RoleBinding that grant them.
+
+== Endpoints
+
+|===
+|Method |Path |Purpose
+
+|`GET`
+|`/api/v1/health`
+|Liveness probe. No auth required.
+
+|`GET`
+|`/api/v1/evaluations/providers`
+|List registered providers and their benchmarks.
+
+|`GET`
+|`/api/v1/evaluations/providers/\{provider_id\}`
+|Describe one provider: benchmarks, categories, metrics.
+
+|`POST`
+|`/api/v1/evaluations/jobs`
+|Submit an evaluation job. Returns `202 Accepted` with the job resource.
+
+|`GET`
+|`/api/v1/evaluations/jobs`
+|List jobs. Filters: `status`, `name`, `limit`, `offset`, `tags`, `owner`.
+
+|`GET`
+|`/api/v1/evaluations/jobs/\{job_id\}`
+|Job detail, including state, per-benchmark progress, and results.
+
+|`DELETE`
+|`/api/v1/evaluations/jobs/\{job_id\}`
+|Soft delete — marks the job `cancelled` and preserves the record for
+auditing. Add `?hard_delete=true` to permanently remove the record and its
+results.
+
+|`POST`
+|`/api/v1/evaluations/collections`
+|Register a custom collection.
+
+|`GET`
+|`/api/v1/evaluations/collections`
+|List collections visible to the tenant.
+|===
+
+== Submitting a job
+
+The `POST /api/v1/evaluations/jobs` body references either a list of
+benchmarks or a collection, plus the model endpoint:
+
+[source,json,subs="attributes,callouts"]
+----
+{
+  "name": "my-eval", <1>
+  "model": {
+    "url": "http://<model-svc>.{guid}-{user}.svc.cluster.local:8080/v1", <2>
+    "name": "my-model"
+  },
+  "benchmarks": [ <3>
+    {"provider_id": "lm_evaluation_harness", "benchmark_id": "mmlu"}
+  ],
+  "experiment": {
+    "name": "my-eval" <4>
+  }
+}
+----
+<1> *name* — job name used for filtering; defaults to a timestamp.
+<2> *model* — the OpenAI-compatible endpoint to evaluate. Some providers
+require an auth `secret_ref` for the API key.
+<3> *benchmarks* — `provider_id` plus `benchmark_id` per entry. Mutually
+exclusive with `collection`.
+<4> *experiment* — optional MLflow experiment the results log into.
+
+The server validates the request, resolves the benchmarks, and persists the
+job as `pending`. One Kubernetes Job is created per benchmark, in parallel;
+each pod runs the adapter container plus a sidecar proxy that reports status
+events back to the server.
+
+== Job lifecycle
+
+Jobs progress through these states:
+
+* `pending` — validated and stored, not yet scheduled
+* `running` — benchmark Jobs executing
+* `completed` — all benchmarks finished
+* `failed` — the job failed outright
+* `cancelled` — soft-deleted by a `DELETE` request
+* `partially_failed` — some benchmarks completed, others failed
+
+Poll `GET /api/v1/evaluations/jobs/\{job_id\}` or use
+`evalhub eval status --watch <job_id>` until the state is terminal.
+
+== Results
+
+Benchmark results are returned per benchmark with the metric values the
+provider reported:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -H "Authorization: Bearer $TOKEN" -H "X-Tenant: {guid}-{user}" \
+  $EVALHUB_URL/api/v1/evaluations/jobs/<job_id> | jq .
+----
+
+The CLI supports the same data with output formatting:
+`evalhub eval results <job_id> --format table|json|yaml|csv`.
+
+== Related
+
+* xref:module-02-hands-on.adoc[Module 02: Hands-on Exercise] — CLI and API job submission
+* xref:scoring.adoc[Scoring and Thresholds] — how metric values become pass/fail decisions
+* xref:home::index.adoc[Back to the catalog]

@@ -1,0 +1,24 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the CSV export for Model Catalog data workshop.
+
+== What you covered
+
+* xref:module-01-hands-on.adoc[Module 01: Guided tour — CSV export]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/release_notes/index[RHOAI 3.5 Release notes — CSV export for model catalog data (Developer preview features)]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/working_with_the_model_catalog/index[Working with the model catalog]
+* The *CSV Exporter for Model Catalog* guide — installation, authentication, and usage of the export script, linked from the release notes
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5[RHOAI 3.5 documentation]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:model-registry-catalog::index.adoc[Model registry and model catalog]
+* xref:ai-available-assets::index.adoc[AI Available Assets page]

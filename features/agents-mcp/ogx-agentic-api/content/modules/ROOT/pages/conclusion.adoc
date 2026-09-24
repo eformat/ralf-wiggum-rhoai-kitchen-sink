@@ -1,0 +1,26 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the OGX-native agentic API surface (Tool Runtime, Responses, Conversations) workshop.
+
+== What you covered
+
+* xref:module-01-concepts.adoc[Module 01: OGX agentic API concepts]
+* xref:module-02-hands-on.adoc[Module 02: Responses and Conversations hands-on]
+* xref:module-03-advanced.adoc[Module 03: RAG, citations, and advanced APIs]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/working_with_ogx/index[Working with OGX (RHOAI 3.5)] — OGX overview, OGX APIs, and file citation annotations
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/building_rag_applications_with_ogx/index[Building RAG applications with OGX (RHOAI 3.5)] — deploying an OGXServer and querying ingested content
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5[RHOAI 3.5 documentation]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:ogx-file-processors::index.adoc[OGX File Processors API]
+* xref:ogx-remote-providers::index.adoc[OGX remote::anthropic and remote::gemini providers]
+* xref:validated-tool-calling-config::index.adoc[Validated tool-calling configuration in Model Catalog]

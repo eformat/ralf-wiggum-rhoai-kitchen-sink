@@ -1,0 +1,271 @@
+= Module 03: Advanced Usage
+:navtitle: Module 03: Advanced Usage
+
+In this module you will explore advanced configuration for Distributed Inference with llm-d:
+applying router configurations for KV cache-aware scheduling, and creating and managing the
+topology and router configuration templates that administrators publish to self-service users.
+
+**Learning objectives:**
+
+* Apply a router configuration to a deployment and verify it in the generated
+`LLMInferenceService`
+* Create a router `LLMInferenceServiceConfig` template with KV cache-aware scheduling
+* Create and manage topology configuration templates from the dashboard admin settings
+
+== Exercise 1: Apply advanced routing to a deployment
+
+Router configurations are optional `LLMInferenceServiceConfig` templates that enable
+KV cache-aware scheduling, intelligent request gateway routing, and other production
+optimizations. The dashboard displays only router configurations whose
+`opendatahub.io/supported-topologies` annotation includes your selected topology.
+
+.Prerequisites
+
+* You started the model deployment workflow and selected a deployment topology (from
+Module 02)
+* An administrator created one or more router `LLMInferenceServiceConfig` resources
+compatible with your topology — if none exist yet, complete Exercise 2 first and then return
+here
+
+.Procedure
+
+. In the model deployment wizard, after selecting your topology and configuring model
+storage, expand the *Advanced routing* section. By default, *Default optimized routing* is
+pre-selected, which means the llm-d controller uses built-in defaults.
+. Review the list of available router configurations. To pick one for your workload:
+.. For KV cache-aware scheduling that reduces redundant computation for similar prompts,
+select a router config with `kvCacheAware: true`.
+.. For intelligent load balancing across model replicas, select a router config with a
+scheduling policy such as least-loaded or round-robin.
+.. If you do not need advanced routing, keep *Default optimized routing*.
+. Continue the deployment by clicking *Create*.
+
+=== Verify
+
+. On the *Models* tab of your project, click your deployed model name to view details and
+check the YAML representation of the generated `LLMInferenceService`.
+. Confirm that the `spec.baseRefs` array includes the topology preset config followed by
+your selected router:
+
+[source,yaml]
+----
+spec:
+  baseRefs:
+  - name: config-llm-template
+    namespace: kserve-system
+  - name: kv-cache-router-config
+    namespace: default
+----
+
+* `config-llm-template` *— the topology preset*. The wizard adds the topology configuration
+template first.
+* `kv-cache-router-config` *— your selected router*. The router template you chose in the
+*Advanced routing* section is appended after the topology preset, so your settings override
+preset defaults.
+
+. Send test inference requests to verify that the router functions correctly:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -v $ROUTE_URL/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "model": "'"$MODEL_NAME"'",
+    "messages": [{
+      "role": "user",
+      "content": "What is machine learning?"
+    }]
+  }'
+----
+
+. Monitor the model server logs to observe router behavior, such as request routing
+decisions or KV cache utilization.
+
+If no router configurations appear in the *Advanced routing* section, verify that your
+administrator created router templates with the `opendatahub.io/config-type: router` label
+and that at least one includes your topology type in its `supported-topologies` annotation.
+
+Router configurations only appear in the wizard if an administrator publishes them. Next you
+create those templates yourself.
+
+== Exercise 2: Manage topology and router configuration templates
+
+As a platform administrator you create the `LLMInferenceServiceConfig` templates that define
+deployment patterns and routing behavior. Users can then select them in the wizard.
+
+.Prerequisites
+
+* Administrator privileges in RHOAI
+* The model serving platform installed and enabled
+
+.Procedure
+
+. Create a topology configuration template:
+.. In the RHOAI dashboard, click *Settings*.
+.. Click *llm-d topology configurations*. The page displays a table with *Name*,
+*Topology type*, *Enabled*, *Pre-installed*, and *Actions* columns.
+.. Click *Add*.
+.. From the *Topology type* list, select the deployment pattern to configure — for example
+*Multi-node data-parallel* for request-level parallelism across workers.
+.. Select a source: *Start from sample* (pre-populated template with sensible defaults),
+*Upload file*, or *Start from scratch*.
+.. Provide a name and optional description, review the YAML, and click *Create*.
+. When editing the YAML, verify these settings:
+
+[source,yaml]
+----
+metadata:
+  name: multi-node-dp-config
+  labels:
+    opendatahub.io/config-type: workload-multi-node-data-parallel
+spec:
+  container:
+    resources:
+      limits:
+        nvidia.com/gpu: "8"
+  workers:
+    replicas: 4
+----
+
+* `opendatahub.io/config-type` *— the topology category*. This label must match the
+selected topology type: `workload-single-node`, `workload-multi-node-data-parallel`,
+`workload-single-node-pd`, or `workload-multi-node-data-parallel-pd`. The wizard uses it to
+discover and filter configurations.
+* `spec.container.resources` *— the resource envelope*. Adjust requests and limits to match
+your available GPU and memory capacity.
+* `spec.workers` *— the worker pool* (multi-node topologies only). Defines the number of
+worker replicas and their resource allocation.
+* For prefill/decode disaggregate topologies, set `spec.scheduler.replicas` to `1` or
+greater — the scheduler component is required for KV cache-aware request routing.
+
+[NOTE]
+====
+Common KServe webhook validation errors: `baseRefs field is forbidden in
+LLMInferenceServiceConfig` (remove the `spec.baseRefs` field — only
+`LLMInferenceService` resources may include it) and `scheduler replicas must be greater
+than 0` (set `spec.scheduler.replicas` to at least 1 for P/D topologies).
+====
+
+. Create a router configuration template with KV cache-aware scheduling:
+.. In the RHOAI dashboard, click *Settings*.
+.. Click *llm-d routing configurations*.
+.. Click *Add*, select the topology type this router should support, choose a source,
+provide a name, and edit the YAML:
+
+[source,yaml]
+----
+metadata:
+  name: kv-cache-router-single-node
+  labels:
+    opendatahub.io/config-type: router
+  annotations:
+    opendatahub.io/supported-topologies: '["workload-single-node", "workload-multi-node-data-parallel"]'
+spec:
+  router:
+    scheduler:
+      replicas: 1
+      config:
+        inline: |
+          plugins:
+          - name: prefix-cache-scorer
+            weight: 100
+          - name: queue-scorer
+            weight: 50
+    route: {}
+    gateway: {}
+----
+
+* `opendatahub.io/config-type: router` *— marks this as a router template*. Router
+templates appear in the wizard's *Advanced routing* list rather than the topology list.
+* `opendatahub.io/supported-topologies` *— topology compatibility*. The value must be a
+JSON array of topology type strings; the wizard filters router options by it.
+* `scheduler.config.inline` *— the endpoint-picker plugin chain*. The `prefix-cache-scorer`
+scores endpoints by KV cache overlap and `queue-scorer` by queue depth; weights set their
+relative influence.
++
+[NOTE]
+====
+The topology type form field only allows one selection. To publish a router that supports
+multiple topologies, edit the `opendatahub.io/supported-topologies` annotation directly in
+the YAML editor. The form fields above the YAML editor overwrite the corresponding YAML
+values when you save.
+====
+
+=== Verify
+
+. On the *llm-d topology configurations* page, verify that your new configuration appears
+in the list.
+. Navigate to *Data Science Projects*, select a project, click *Deploy model*, and select
+*Distributed inference with llm-d*. Verify that the topology matching your new template is
+now enabled and selectable in the wizard.
+. For the router template, expand the *Advanced routing* section for a compatible topology
+and verify that your router appears in the *Router configuration* list. Select a topology
+that is not in the `supported-topologies` annotation and verify that your router does not
+appear.
+
+. Manage existing templates with the action menu (the three-dot menu) on either page:
+.. *Edit* — modify the YAML and click *Save*.
+.. *Duplicate* — copy a template and edit `metadata.name` to a unique value.
+.. *Delete* — remove the template and confirm in the dialog.
+
+[NOTE]
+====
+Deleting a topology or router configuration does not affect existing deployed models that
+reference it. However, users will no longer be able to select that configuration when
+deploying new models.
+====
+
+== Explore: WVA autoscaling
+
+The `workload-variant-autoscaler` pod you saw in the Module 01 verify step is the
+_workload variant autoscaler_ (WVA), a Kubernetes controller that provides inference-aware
+autoscaling for llm-d deployments. Instead of generic CPU or memory metrics, the WVA derives
+scaling decisions from vLLM signals — KV cache utilization (`vllm:kv_cache_usage_perc`) and
+queue length (`vllm:num_requests_waiting`) — using a saturation-based spare capacity model,
+and emits the desired replica count for KEDA or an HPA to act on. The WVA is a
+link:https://access.redhat.com/support/offerings/techpreview[Technology Preview] feature that
+must be enabled in the `DataScienceCluster` custom resource (`spec.components.wva.managementState: "Managed"`).
+
+Observe the controller and its default scaling thresholds:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n redhat-ods-applications \
+  -l 'app.kubernetes.io/name in (workload-variant-autoscaler)'
+----
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get cm workload-variant-autoscaler-saturation-scaling-config \
+  -n redhat-ods-applications -o jsonpath='{.data.default}'
+----
+
+The ConfigMap shows the default thresholds the WVA uses to decide when to scale up or down:
+`kvCacheThreshold: 0.80`, `queueLengthThreshold: 5`, `kvSpareTrigger: 0.1`,
+`queueSpareTrigger: 3`.
+
+== Module summary
+
+**What you accomplished:**
+
+* Applied a router configuration to a deployment and verified it in the generated
+`LLMInferenceService` baseRefs
+* Created a router `LLMInferenceServiceConfig` template with a KV cache-aware scheduler
+plugin chain
+* Created, verified, and managed topology configuration templates from the dashboard admin
+settings
+
+**Key takeaways:**
+
+* Router templates are filtered into the wizard by the `opendatahub.io/supported-topologies`
+annotation and merge into `spec.baseRefs` after the topology preset
+* The `opendatahub.io/config-type` label determines whether a template appears as a
+topology option or a router option
+* Template deletion never breaks running deployments — it only removes the option for new
+deployments
+
+**Next steps:**
+
+Continue to the conclusion for the full documentation and links you can use to go deeper
+into autoscaling, controlled deployment, and disaggregated serving.

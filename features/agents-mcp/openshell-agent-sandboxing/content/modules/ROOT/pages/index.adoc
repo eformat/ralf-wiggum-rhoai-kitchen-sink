@@ -1,0 +1,43 @@
+= Welcome to the OpenShell (secure agent sandboxing and policy enforcement) Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *OpenShell (secure agent sandboxing and policy enforcement)* —
+a Developer Preview feature of Red Hat OpenShift AI 3.5 for secure agent onboarding on
+OpenShift. OpenShell is an agent-aware sandboxing platform that provides
+policy-controlled, isolated execution environments for AI agents, enforcing
+fine-grained restrictions on system calls, network access, and tool availability.
+
+**What you will learn:**
+
+* What OpenShell is and the three surfaces it restricts for AI agents: system calls, network access, and tool availability
+* The five areas the included OpenShell guide covers: Helm deployment, mTLS, LLM provider setup, isolated sandboxes, and controlled network egress
+* How OpenShell's sandbox-level enforcement complements other RHOAI security layers such as guardrails on MCP gateway tool calls
+* How agents deployed manually surface as OpenShell-managed Sandbox custom resources (CRs) and appear in the dashboard
+
+== Prerequisites
+
+* RHOAI operator installed
+* An agent deployment (agents deployed manually appear as OpenShell-managed Sandbox CRs)
+* An OpenShift cluster with RHOAI 3.5 installed
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

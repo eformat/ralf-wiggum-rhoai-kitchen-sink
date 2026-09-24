@@ -1,0 +1,209 @@
+= Module 02: Enable and explore remote Anthropic and Gemini
+:navtitle: Module 02: Enable and explore remote Anthropic and Gemini
+
+In this module you will walk the enablement path for a remote OGX inference
+provider end to end: store the credential in a Kubernetes Secret, wire the
+provider into an OGXServer, and call the remote model through the
+OpenAI-compatible `/v1` surface.
+
+**Learning objectives:**
+
+* Store external API credentials in a Kubernetes Secret that OGX can reference
+* Enable `remote::anthropic` and `remote::gemini` through the OGX `config.yaml` and OGXServer configuration
+* Call a remote-provider model through the OpenAI-compatible API surface
+
+ifeval::["{feature_maturity}" == "DP"]
+NOTE: This feature is a *Developer Preview*. Developer Preview features are not
+supported by Red Hat in any way and are not functionally complete or
+production-ready. The exact provider configuration options might change between
+releases.
+endif::[]
+
+== Exercise 1: Store the API key in a Secret
+
+Secrets are never stored in the OGXServer CR spec itself. Instead, you create a
+Kubernetes Secret in the OGXServer namespace and reference it; the operator
+collects the reference and injects the value as an environment variable at pod
+startup.
+
+. Create a file named `anthropic-creds.yaml`:
+
+[source,yaml,subs="attributes"]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: anthropic-creds <1>
+  namespace: {guid}-{user} <2>
+  labels:
+    ogx.io/watch: "true" <3>
+type: Opaque <4>
+data:
+  api-key: <base64-encoded-key> <5>
+----
+
+<1> **name** — the Secret name the OGXServer reference points at.
+<2> **namespace** — must match the OGXServer namespace.
+<3> **ogx.io/watch** — required for operator cache detection; Secrets with this
+label trigger an immediate pod roll on rotation.
+<4> **type** — must be `Opaque`.
+<5> **data.api-key** — the base64-encoded Anthropic API key.
+
+. Apply the Secret to your project:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f anthropic-creds.yaml -n {guid}-{user}
+----
+
+WARNING: The key is held in a Secret, but any user who can read Secrets in the
+namespace can decode it. Scope RBAC on the namespace accordingly.
+
+=== Verify
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get secret anthropic-creds -n {guid}-{user}
+----
+
+The output shows the Secret with `DATA` count `1`. With the credential stored,
+you can now enable the remote provider.
+
+== Exercise 2: Tour the enablement path
+
+This is a guided walkthrough — the exact YAML follows, but observe how each
+path maps to the documented enablement variables.
+
+*Path 1 — environment variables in the default distribution.* The default OGX
+distribution `config.yaml` references `${env.*}` substitution strings. When you
+deploy the OGXServer, the operator injects referenced Secrets as
+`OGX_<PROVIDER_ID>_<FIELD>` environment variables, and the server resolves
+`${env.ANTHROPIC_API_KEY}` and `${env.ENABLE_GEMINI}` at startup. Enablement
+here means: create the Secret, reference it from the OGXServer, and let the
+operator roll the pods.
+
+*Path 2 — a custom `config.yaml` via `spec.overrideConfig`.* For providers that
+are not in the default runtime `config.yaml`, you pass a custom `config.yaml`
+that includes the provider definitions. The following example is patterned on
+the documented Bedrock remote provider configuration — it shows the shape a
+remote inference provider takes:
+
+[source,yaml]
+----
+version: 2
+distro_name: remote-providers-demo
+apis:
+  - inference
+  - models
+providers:
+  inference:
+    - provider_id: anthropic-inference <1>
+      provider_type: remote::anthropic <2>
+      config:
+        api_key: ${env.ANTHROPIC_API_KEY:=} <3>
+----
+
+<1> **provider_id** — a name you choose for this provider instance; registered
+models reference it.
+<2> **provider_type** — the remote provider to enable; `remote::gemini` is
+enabled the same way through the `ENABLE_GEMINI` feature flag.
+<3> **api_key** — resolved from the environment at server startup; the operator
+injects the value from your Secret.
+
+NOTE: The RHOAI release notes document only the enablement variables for these
+two providers — `ANTHROPIC_API_KEY` for `remote::anthropic` and `ENABLE_GEMINI`
+for `remote::gemini`. The full provider schema (provider ID and config field
+names) follows the upstream OGX `config.yaml` format; verify field names
+against the provider support table and the OGX documentation for your release
+before relying on the example above.
+
+TIP: A standalone OGX server takes the same custom `config.yaml` at the
+command line: `ogx run --port 8321 ./config.yaml` starts a local server that
+proxies inference requests to the configured remote providers.
+
+=== Verify
+
+* You can articulate both enablement paths: Secrets-backed environment variables
+  for the default distribution, and `spec.overrideConfig` for providers missing
+  from the default runtime `config.yaml`.
+* The example config names `remote::anthropic` as the provider type and resolves
+  its key from `${env.ANTHROPIC_API_KEY}`.
+
+With the provider enabled, the remaining step is observing the remote model
+through the OpenAI-compatible surface.
+
+== Exercise 3: Explore the remote model through the OpenAI-compatible surface
+
+Once an OGXServer configured with remote providers is running, its models are
+reachable through the OpenAI-compatible endpoints on the OGX service, port
+`8321`.
+
+. Point at your OGX service and list the registered models:
+
+[source,bash,role="execute",subs="attributes"]
+----
+export OGX_URL="http://ogx-distribution-service.{guid}-{user}.svc.cluster.local:8321"
+curl -s "$OGX_URL/v1/models" | jq -r '.data[].id'
+----
+
+. Select a model backed by the remote provider and send a chat completion:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -X POST "$OGX_URL/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"model\": \"<model_id>\",
+    \"messages\": [{\"role\": \"user\", \"content\": \"Which planet do humans live on?\"}],
+    \"stream\": false
+  }" | jq -r '.choices[0].message.content'
+----
+
+Replace `<model_id>` with a model ID from the `/v1/models` output.
+
+Expected output:
+
+----
+Earth
+----
+
+NOTE: Because your existing OpenAI SDK client keeps working, the same call
+works from Python with `base_url` set to your OGX route including the `/v1`
+path suffix, for example
+`http://ogx-distribution-service.{guid}-{user}.svc.cluster.local:8321/v1`.
+
+WARNING: Requests to remote providers egress your cluster to
+`api.anthropic.com` or Google endpoints. Disconnected (air-gapped) clusters
+cannot reach these providers, and per-request costs are billed against the API
+key you registered.
+
+=== Verify
+
+* `/v1/models` lists model IDs registered through the remote provider.
+* The chat completion returns a plain-text answer, proving the request was
+  proxied to the remote API and back.
+* If the call fails with an authentication error, re-check that the Secret is
+  labeled `ogx.io/watch: "true"` and that the pods rolled after the Secret was
+  applied.
+
+You have now walked the full remote provider path: credential, enablement, and
+verified inference through the OpenAI-compatible surface.
+
+== Module summary
+
+**What you accomplished:**
+
+* Stored an external API key in a Kubernetes Secret with the `ogx.io/watch` label
+* Walked both enablement paths — environment variables in the default distribution and a custom `config.yaml` via `spec.overrideConfig`
+* Called a remote-provider model through the OpenAI-compatible `/v1/chat/completions` endpoint
+
+**Key takeaways:**
+
+* `remote::anthropic` enables through `ANTHROPIC_API_KEY` and `remote::gemini` through `ENABLE_GEMINI`
+* Secrets back every credential; the operator injects them as `OGX_<PROVIDER_ID>_<FIELD>` environment variables and rolls pods on rotation
+* Existing OpenAI SDK clients work unchanged — only the `base_url` changes to your OGX route with the `/v1` suffix
+
+**Next steps:**
+
+Continue to the conclusion, where you will find the provider support table and
+related OGX documentation for further exploration.

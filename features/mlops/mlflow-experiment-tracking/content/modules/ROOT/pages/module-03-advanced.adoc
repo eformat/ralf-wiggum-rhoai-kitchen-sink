@@ -1,0 +1,281 @@
+= Module 03: Advanced Usage
+:navtitle: Module 03: Advanced Usage
+
+In this module you will explore the advanced configuration that MLflow in
+RHOAI supports: overriding artifact storage per project with the
+namespace-scoped `MLflowConfig` resource, archiving trace payloads to
+S3-compatible storage with the `traceArchival` section, and disabling the
+workbench integration cleanly.
+
+**Learning objectives:**
+
+* Override default artifact storage for a project with `MLflowConfig` and an S3 connection
+* Enable trace archival and control retention at the server and experiment level
+* Disable MLflow integration for a workbench without leaving stale permissions behind
+
+== Exercise 1: Configure project-specific S3 artifact storage
+
+By default all projects use the artifact storage configured in the `MLflow`
+resource. You can override it for a specific project by creating an
+`MLflowConfig` resource and an S3 connection in that project. After you
+create these resources, MLflow resolves the artifact root from the override
+for any *new* experiments and runs in that project.
+
+NOTE: MLflow does not serve artifacts when you configure a per-project
+override. The client accesses the S3 bucket directly, so the client must have
+valid S3 credentials.
+
+. In your project, add a connection of type *S3 compatible object storage*
+with the resource name `mlflow-artifact-connection`, providing the access
+key, secret key, endpoint, optional region, and bucket name. If you use the
+connections API instead of the dashboard, create a Secret with the
+`opendatahub.io/connection-type-protocol: "s3"` annotation:
++
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mlflow-artifact-connection <1>
+  annotations:
+    opendatahub.io/connection-type-protocol: "s3" <2>
+type: Opaque
+stringData: <3>
+  AWS_ACCESS_KEY_ID: "<your_aws_access_key>"
+  AWS_SECRET_ACCESS_KEY: "<your_aws_secret_access_key>"
+  AWS_S3_BUCKET: "<your_bucket>"
+  AWS_S3_ENDPOINT: "<your_s3_endpoint>"
+  AWS_DEFAULT_REGION: "<your_aws_region>"
+----
+<1> *`name: mlflow-artifact-connection`* — the connection name that `MLflowConfig.artifactRootSecret` must point to.
+<2> *`connection-type-protocol: "s3"`* — marks the secret as an S3-compatible connection for the connections API.
+<3> *`stringData`* — the required keys are `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET`, and `AWS_S3_ENDPOINT`; the region is optional.
+
+. Create an `MLflowConfig` resource named `mlflow` in the same project:
++
+[source,yaml]
+----
+apiVersion: mlflow.kubeflow.org/v1
+kind: MLflowConfig
+metadata:
+  name: mlflow <1>
+spec:
+  artifactRootSecret: mlflow-artifact-connection <2>
+  artifactRootPath: mlflow-artifacts <3>
+----
+<1> *`name: mlflow`* — the `MLflowConfig` resource is namespace-scoped and must be named `mlflow`, just like the cluster-scoped instance.
+<2> *`artifactRootSecret`* — must be `mlflow-artifact-connection`; the CRD enforces this validation.
+<3> *`artifactRootPath`* — an optional relative path appended to the bucket root from the secret. For example, with bucket `ds-team-bucket` the resolved artifact root becomes `s3://ds-team-bucket/mlflow-artifacts`. The path must be relative and must not contain path traversal such as `..`.
+
+. Save as `mlflowconfig.yaml` and apply it:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f mlflowconfig.yaml -n {guid}-{user}
+----
+
+=== Verify
+
+. Create a new experiment in your project and log a run from your workbench
+notebook (repeat the SDK exercise from module 2 with a new experiment name).
+. Confirm the new run's artifacts resolve under your bucket: in the MLflow UI
+or the dashboard *Experiments (MLflow)* page, inspect the run's artifact URI
+— it should point to `s3://<your_bucket>/mlflow-artifacts/...` rather than the
+default `workspaces/<project_name>` path.
+
+If artifacts keep going to the default storage location, the `MLflowConfig`
+resource is missing in the active project or the `artifactRootSecret` is
+invalid — verify both with `oc get mlflowconfig mlflow -n {guid}-{user}` and
+`oc get secret mlflow-artifact-connection -n {guid}-{user}`.
+
+With per-project storage in place, enable trace archival in the next
+exercise.
+
+== Exercise 2: Configure trace archival
+
+As your MLflow deployment grows, trace span payloads can consume significant
+storage in the tracking database. Trace archival moves older span payloads
+from the SQL tracking store to S3-compatible artifact storage while trace
+metadata — timestamps, trace IDs, tags, status — stays in the database.
+Archived traces are fetched on demand and displayed identically to active
+traces.
+
+These steps require cluster administrator privileges.
+
+. Update the `MLflow` CR to enable trace archival:
++
+[source,yaml]
+----
+apiVersion: mlflow.opendatahub.io/v1
+kind: MLflow
+metadata:
+  name: mlflow
+  namespace: redhat-ods-applications
+spec:
+  backendStoreUriFrom:
+    name: mlflow-db-credentials
+    key: backend-store-uri
+  serveArtifacts: true
+  artifactsDestination: "s3://mlflow-artifacts"
+  traceArchival: <1>
+    enabled: true <2>
+    schedule: "0 */6 * * *" <3>
+    location: "s3://mlflow-trace-archive" <4>
+    retention: "30d" <5>
+    maxTracesPerPass: 1000
+----
+<1> *`traceArchival`* — the section that configures automatic archival of trace span payloads from the SQL tracking store to archive storage.
+<2> *`enabled`* — trace archival is disabled by default and must be explicitly enabled. When `true`, the MLflow Operator creates a CronJob that runs the archival process.
+<3> *`schedule`* — the cron expression controlling how often the archival CronJob runs; the default is every 6 hours. Required when archival is enabled.
+<4> *`location`* — the archive URI for span payloads, for example `s3://mlflow-trace-archive`. A `file://` URI is supported only when `spec.storage` uses shared ReadWriteMany (RWX) storage. Required when archival is enabled.
+<5> *`retention`* — the age threshold after which traces are eligible for archival, in the format `<number><unit>` with unit `m`, `h`, or `d`. Required when archival is enabled.
+
+. Apply the updated CR:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f mlflow.yaml
+----
+
+. Optional: to allow specific experiments to use a retention period longer
+than the server default, add experiment IDs to the
+`longRetentionAllowlist` field (up to 64 IDs):
++
+[source,yaml]
+----
+spec:
+  traceArchival:
+    longRetentionAllowlist:
+    - "<experiment_id_1>"
+    - "<experiment_id_2>"
+----
+
+WARNING: Archival cannot be undone. Once a trace is archived, its span
+payloads are served from artifact storage and cannot be moved back to the
+tracking database. Trace metadata is never deleted — payloads are moved, not
+copied then deleted — but plan your retention policy before enabling archival.
+
+=== Verify
+
+. Confirm that the archival CronJob was created:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get cronjob -n redhat-ods-applications
+----
++
+Expected output lists a CronJob with the schedule you configured.
+
+. Verify the MLflow CR accepted the trace archival configuration:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mlflow mlflow -n redhat-ods-applications -o jsonpath='{.spec.traceArchival}'
+----
++
+If this returns empty, the MLflow Operator version does not support trace
+archival.
+
+. Set a per-experiment retention override from the RHOAI dashboard: navigate
+to the experiment, click the three-dot menu, select *Edit Experiment*, enter
+a retention period such as `7d` in the *Trace archival retention* field, and
+click *Save*. A shorter experiment retention takes effect automatically; a
+longer one takes effect only if the experiment ID is in the
+`longRetentionAllowlist`.
+
+. Confirm the retention in the dashboard: the experiment now shows an
+*Archive after* badge with the expected retention period.
+
+With the advanced configuration in place, disable the workbench integration
+cleanly in the final exercise.
+
+== Exercise 3: Disable MLflow integration for a workbench
+
+You can disable MLflow integration for a workbench by removing the
+`opendatahub.io/mlflow-instance` annotation from the notebook resource. You
+must stop the workbench *before* removing the annotation.
+
+IMPORTANT: When you remove the annotation, the platform deletes the
+associated RoleBinding resource immediately, but environment variables in the
+running pod persist until the pod restarts. If the workbench is running when
+you remove the annotation, the MLflow SDK continues to send requests to the
+tracking server without a valid RoleBinding, which causes authentication
+failures.
+
+. Verify that the workbench pod has stopped:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc annotate notebook -n {guid}-{user} my-workbench kubeflow-resource-stopped=true
+----
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n {guid}-{user} -l notebook-name=my-workbench
+----
++
+The `oc get pods` command produces no output when the pod has stopped. A
+validating webhook checks that the `kubeflow-resource-stopped` annotation is
+present before it allows removal of the MLflow annotation — it validates the
+annotation state, not the actual pod state, so deleting the pod directly is
+not enough.
+
+. Remove the annotation. The trailing dash (`-`) removes it:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc annotate notebook -n {guid}-{user} my-workbench opendatahub.io/mlflow-instance-
+----
+
+=== Verify
+
+. Confirm the annotation is gone:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get notebook -n {guid}-{user} my-workbench -o jsonpath='{.metadata.annotations.opendatahub\.io/mlflow-instance}'
+----
++
+The command produces no output, confirming the annotation is removed.
+
+. Start the workbench and verify the MLflow environment variables are no
+longer present:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc exec -n {guid}-{user} my-workbench -c my-workbench -- env | grep MLFLOW
+----
++
+The command produces no output, confirming the variables are gone.
+
+. Verify the RoleBinding was deleted with the annotation:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get rolebinding -n {guid}-{user} my-workbench-mlflow
+----
++
+Expected output:
++
+----
+Error from server (NotFound): rolebindings.rbac.authorization.k8s.io "my-workbench-mlflow" not found
+----
+
+== Module summary
+
+**What you accomplished:**
+
+* Overrode artifact storage for your project with the `MLflowConfig` resource and an `mlflow-artifact-connection` S3 connection
+* Enabled trace archival in the `MLflow` CR and verified the operator created the archival CronJob, with a per-experiment retention override from the dashboard
+* Disabled the workbench integration by removing the `opendatahub.io/mlflow-instance` annotation and confirmed the RoleBinding and environment variables were cleaned up
+
+**Key takeaways:**
+
+* `MLflowConfig` is namespace-scoped, must be named `mlflow`, and routes *new* experiments in the project to the overridden S3 artifact root — with no artifact serving from MLflow
+* Trace archival moves only span payloads to object storage; metadata stays in the database, archived traces remain viewable, and archival is irreversible
+* The workbench integration is fully lifecycle-managed: the RoleBinding is created and deleted with the annotation, and the stop-first requirement protects running workbenches
+
+**Next steps:**
+
+Continue to the conclusion for the full MLflow documentation and links to
+related workshop features.

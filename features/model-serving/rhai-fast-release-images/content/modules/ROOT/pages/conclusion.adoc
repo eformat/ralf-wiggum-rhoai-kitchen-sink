@@ -1,0 +1,23 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the Red Hat AI Inference fast-release images as custom ServingRuntime workshop.
+
+== What you covered
+
+* xref:module-01-getting-started.adoc[Module 01: Explore vLLM runtime support levels]
+* xref:module-02-hands-on.adoc[Module 02: Deploy a model on a fast-release ServingRuntime]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/configuring_your_model_serving_platform/index[Configuring your model-serving platform — vLLM runtime support levels, limited-support gating, and enabling fast builds]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/deploying_models/index[Deploying models — serving runtime badges, the deployment wizard, and inference endpoints]
+* link:https://docs.redhat.com/en/documentation/red_hat_ai/3/html/validated_models/index[Validated models — the model support matrix for Red Hat AI Inference and vLLM versions]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:vllm-serving-runtime-kserve::index.adoc[vLLM ServingRuntime for KServe]

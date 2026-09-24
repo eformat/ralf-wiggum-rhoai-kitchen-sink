@@ -1,0 +1,126 @@
+= Module 01: Core Concepts
+:navtitle: Module 01: Core Concepts
+
+In this module you will learn what the Feature Store (Feast-based) component is, the problems it
+solves, and how it fits into Red Hat OpenShift AI. You will then locate the feature in your
+cluster by enabling the Feast operator in the Data Science Cluster (DSC) and verifying that its
+controller pod is running.
+
+**Learning objectives:**
+
+* Explain the role of the Feature Store in RHOAI and its key components
+* Distinguish entities, feature views, features, and materialization
+* Enable the `feastoperator` component in the DSC and verify the result from the CLI
+
+== Exercise 1: Where Feature Store fits
+
+Feature Store is an OpenShift AI component, based on the open source Feast project, that provides
+a centralized repository for storing, managing, and serving machine learning features for both
+training and inference. In an ML workflow, features are inputs to models. The workflow starts with
+raw data from many sources; ML engineers use the Feature Store to curate that data into features,
+and models consume those features to make predictions.
+
+The Feature Store consists of four key components:
+
+* *Registry* — a central catalog of all feature definitions and their metadata. It exposes
+  methods to apply, list, retrieve, and delete features so that teams can search and reuse them.
+* *Offline store* — the data store holding historical time-series feature values for
+  scale-out batch scoring or model training. Examples: Dask, Snowflake, BigQuery, Redshift, DuckDB.
+* *Online store* — the data store used for low-latency feature retrieval at inference time.
+  Examples: Redis, PostgreSQL, DynamoDB, and SQLite (development only).
+* *Feature servers* — the online feature server (an HTTP endpoint with JSON I/O), the offline
+  feature server (an Apache Arrow Flight server), and the registry server (gRPC).
+
+Feature Store uses a *time-series data model*. The core vocabulary you will use throughout this
+workshop:
+
+* A *feature* is a measurable property or field in a dataset — an entire column, such as
+  `credit_score`. A *feature value* is a single value in that column, such as `730`.
+* An *entity* groups features that share a conceptual link, for example a customer or a ZIP code.
+  Entities map to the domain of your use case.
+* A *feature view* is a group of features plus their data source, tied to one or more entities.
+* *Materialization* is the process of loading features from the offline store into the online
+  store so they can be served at low latency.
+
+[NOTE]
+====
+The Feature Store registry reduces duplicated data engineering effort: once a feature is
+registered, it is immediately reusable by other models across your organization, and new ML
+projects can bootstrap from a library of curated, production-ready features.
+====
+
+== Exercise 2: Enable the Feature Store component
+
+The Feast operator is a DSC component that is disabled by default. Cluster administrators enable
+it through the `DataScienceCluster` custom resource.
+
+. Log in to the OpenShift web console as a cluster administrator.
+. Go to *Installed Operators* (on OpenShift 4.20 and later, click *Ecosystem* → *Installed
+  Operators*; on OpenShift 4.19, click *Operators* → *Installed Operators*).
+. Click the *Red Hat OpenShift AI Operator*.
+. Click the *Data Science Cluster* tab.
+. Click the default instance name (for example, `default-dsc`) to open the instance details page.
+. Click the *YAML* tab and edit the `spec.components` section so that the `feastoperator`
+  component is managed:
+
+[source,yaml,subs="attributes,callouts"]
+----
+spec: <1>
+  components: <2>
+    feastoperator: <3>
+      managementState: Managed <4>
+----
+
+<1> **spec** — the DSC specification you are editing.
+<2> **components** — the map of RHOAI components managed by the operator.
+<3> **feastoperator** — the Feature Store operator component.
+<4> **managementState: Managed** — instructs the operator to install and reconcile Feature Store.
+
+. Click *Save*.
+
+=== Verify
+
+The enablement deploys a controller pod named `feast-operator-controller-manager-<pod-id>` in the
+`redhat-ods-applications` namespace. Check it from your terminal:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n redhat-ods-applications -l control-plane=controller-manager
+----
+
+You should see output similar to the following:
+
+----
+NAME                                                 READY   STATUS    RESTARTS   AGE
+feast-operator-controller-manager-5f5b8f9c4d-x2p7v   1/1     Running   0          2m
+----
+
+When the pod status is `Running`, Feature Store is enabled. You can also confirm in the console
+under *Workloads* → *Deployments*, project `redhat-ods-applications`, deployment
+`feast-operator-controller-manager`, *Pods* tab.
+
+With the operator running, the Feature Store workflow splits by role: the cluster administrator
+configures the stores and creates a Feature Store instance (Module 02), while ML engineers and
+data scientists define features, materialize them, and retrieve them for training and inference.
+
+// TODO: capture screenshot
+image::01-feature-store-workflow.png[Feature Store in the ML workflow,link=self,window=blank,width=700]
+
+== Module summary
+
+**What you accomplished:**
+
+* Learned the Feature Store architecture: registry, offline store, online store, and feature servers
+* Defined the core vocabulary: features, entities, feature views, and materialization
+* Enabled the `feastoperator` DSC component and verified the controller pod is running
+
+**Key takeaways:**
+
+* Feature Store is the RHOAI interface between models and data, based on Feast
+* The registry is the catalog; the offline store serves training; the online store serves inference
+* The Feast operator is enabled through the `DataScienceCluster` resource, not a separate install
+
+**Next steps:**
+
+In the next module you will deploy a Feature Store instance, initialize it with feature
+definitions, and retrieve features for training and inference.

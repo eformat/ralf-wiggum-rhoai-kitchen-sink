@@ -1,0 +1,24 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the Feature Store (Feast-based) workshop.
+
+== What you covered
+
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:module-03-advanced.adoc[Advanced Usage]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/working_with_machine_learning_features/index[Working with machine learning features] — the RHOAI 3.5 chapter this workshop was built from (covers Feature Store configuration, feature definitions, workbench integration, compute engines, and the Feast CLI reference)
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5[RHOAI 3.5 documentation]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:automl::index.adoc[AutoML]
+* xref:autorag::index.adoc[AutoRAG]

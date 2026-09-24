@@ -1,0 +1,169 @@
+= Module 02: Deploy a model on a fast-release ServingRuntime
+:navtitle: Module 02: Deploy a model on a fast-release ServingRuntime
+
+In this module you will create a custom ServingRuntime that references a Red Hat AI Inference
+fast-release container image, then deploy a model on it and verify inference end to end.
+
+**Learning objectives:**
+
+* Create a custom ServingRuntime that references the fast-release image
+* Apply the support-status gating annotations
+* Deploy a model on the new runtime from the deployment wizard
+* Send an OpenAI-compatible inference request to the deployed model
+
+== Exercise 1: Create the custom fast-release ServingRuntime
+
+You can deploy Red Hat AI Inference fast release container images as custom serving runtimes on
+your existing OpenShift AI installation *without upgrading OpenShift AI*. This gives you access
+to the latest vLLM versions and new model support between OpenShift AI stable releases. Fast
+images from the next version cycle are validated against the current OpenShift AI stable release.
+
+IMPORTANT: The fast-release image is published to `registry.redhat.io/rhaii-early-access`. Check
+the Red Hat Ecosystem Catalog for the current fast-build tag for your architecture — the tag
+changes with every monthly fast build.
+
+. From the OpenShift AI dashboard, click *Settings* -> *Model resources and operations* ->
+*Serving runtimes*.
+. Click the action menu (⋮) next to the *vLLM NVIDIA GPU ServingRuntime for KServe* runtime and
+click *Duplicate*. This carries over the runtime specification, including the model formats and
+container configuration.
+. Give the duplicate a unique name (for example, `vllm-fast-1`).
+. In the YAML editor, update the metadata annotations and the container image:
++
+[source,yaml,subs="attributes,callouts"]
+----
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+  name: vllm-fast-1
+  annotations:
+    opendatahub.io/support-status: unsupported <1>
+    opendatahub.io/unsupported-status-accepted: "true" <2>
+    opendatahub.io/fast-version: "1" <3>
+    opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
+    openshift.io/display-name: vLLM ServingRuntime for KServe (fast-1)
+spec:
+  # keep the runtime specification carried over from the duplicated vLLM runtime <4>
+  containers:
+    - name: kserve-container
+      image: registry.redhat.io/rhaii-early-access/vllm-cuda-rhel9:3.5.0-ea.1-1780065492 <5>
+----
+<1> **support-status**: marks the runtime as limited support and requires administrator acceptance.
+<2> **unsupported-status-accepted**: records the acceptance of the 1-month support coverage window.
+<3> **fast-version**: fast-build number; the dashboard displays this with a `fast-` prefix (for example, a value of `1` displays as `fast-1`).
+<4> **spec**: the specification is inherited from the vLLM runtime you duplicated.
+<5> **image**: the Red Hat AI Inference fast-release container image from `registry.redhat.io/rhaii-early-access`.
+. Click *Add*. The Serving runtimes page opens and shows the runtime in an enabled state, with
+the API protocol you specified.
+
+NOTE: If you manage runtimes with GitOps instead of the dashboard, add the same annotations to
+the ServingRuntime manifest in your GitOps repository and sync. The runtime becomes visible
+without dashboard interaction, and the Git commit history provides an auditable acceptance
+record.
+
+=== Verify
+
+Confirm the runtime was created and carries the acceptance annotations:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get template vllm-fast-1 -o yaml | grep -A 2 "opendatahub.io/support-status"
+----
+
+Expected output:
+
+----
+opendatahub.io/support-status: unsupported
+opendatahub.io/unsupported-status-accepted: "true"
+opendatahub.io/fast-version: "1"
+----
+
+In the dashboard, the runtime is shown in an enabled state on the *Serving runtimes* page with
+the *Limited support* and *fast-N* badges, and data scientists can now see it in the model
+deployment wizard runtime selection dropdown.
+
+With the runtime accepted and enabled, deploy a model on it.
+
+== Exercise 2: Deploy a model on the fast-release runtime
+
+Deploy a generative model on the new runtime from the *Deploy a model* wizard. The model must be
+reachable through an S3-compatible object storage connection, a URI-based repository, an
+OCI-compliant registry, or a PVC in your project.
+
+. In the left menu, click *Projects*, then click the name of your project (`{guid}-{user}`).
+. Click the *Deployments* tab and click *Deploy model*.
+. In the *Model location* list, select the connection that points to your model files.
+. In the *Model type* list, select *Generative AI model*, then click *Next*.
+. Enter a unique *Model deployment name* and description.
+. In the *Serving runtime* field, choose *Select from a list of serving runtimes* and pick your
+*vLLM ServingRuntime for KServe (fast-1)* runtime.
+. Select a *Hardware profile* with an NVIDIA GPU, adjust the resource requests and limits if
+needed, then click *Next*.
+. Review the advanced settings — for example, enable *Model access* for an external route or
+*Require token authentication* — then click *Deploy*.
+
+// TODO: capture screenshot
+image::02-wizard-fast-runtime.png[Model deployment wizard showing the fast-1 runtime selected,link=self,window=blank,width=700]
+
+=== Verify
+
+. Confirm the deployed model is shown on the *Deployments* tab for the project, and on the
+*Deployments* page of the dashboard, with a checkmark in the *Status* column:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n {guid}-{user}
+----
+The model pod transitions from *Pending* to *Running*.
+. Collect the values you need to query the model:
+* *Token*: *Projects* -> your project -> *Deployments* tab -> expand your model -> the token is
+shown in the *Token secret* field.
+* *Endpoint*: *AI hub* -> *Deployments* — the inference endpoint is shown in the *Inference
+endpoints* field.
+. The vLLM runtime is compatible with the OpenAI REST API. Send a chat completion to the
+deployed model:
++
+[source,bash]
+----
+curl -v https://<inference_endpoint_url>:443/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H 'Authorization: Bearer <token>' \
+  -d '{ "messages": [{ "role": "user", "content": "Give one advantage of monthly fast builds." }] }'
+----
+A JSON response with a `choices` object confirms the model is serving on the fast-release image.
+
+== Manage the support window
+
+The acceptance annotation persists through disable and re-enable cycles, OpenShift AI operator
+upgrades, and cluster maintenance — re-enabling a previously accepted runtime does not show the
+risk modal again. The annotation does *not* automatically expire when the 1-month support window
+ends: you remain responsible for tracking support expiration and planning a migration to a newer
+fast build (for example, `fast-2`) or a GA runtime.
+
+To revoke acceptance and hide the runtime from data scientists, remove the annotation:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc annotate servingruntime <runtime-name> \
+  opendatahub.io/unsupported-status-accepted-
+----
+
+WARNING: Revoking acceptance immediately hides the runtime from data scientists.
+
+== Module summary
+
+**What you accomplished:**
+
+* Created a custom ServingRuntime that references a Red Hat AI Inference fast-release image
+* Applied the support-status gating annotations and verified the acceptance state
+* Deployed a model on the new runtime and queried it through the OpenAI-compatible endpoint
+
+**Key takeaways:**
+
+* Fast-release images can be adopted without upgrading OpenShift AI, and are validated against the current stable release
+* The gating annotations control visibility and provide an auditable acceptance record
+* The 1-month support window expires but the annotation does not — track migration to newer fast builds yourself
+
+**Next steps:**
+
+Continue to the conclusion for a recap and links to the relevant documentation.

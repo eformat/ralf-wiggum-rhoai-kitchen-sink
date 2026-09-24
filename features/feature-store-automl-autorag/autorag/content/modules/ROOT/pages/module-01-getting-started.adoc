@@ -1,0 +1,218 @@
+= Module 01: Get started with AutoRAG
+:navtitle: Module 01: Get started with AutoRAG
+
+In this module you will learn what AutoRAG does, prepare the test data it
+evaluates against, and create your first AutoRAG optimization run.
+
+**Learning objectives:**
+
+* Explain the role of AutoRAG in RHOAI and the limits of its Technology Preview scope
+* Prepare a JSON test data file with questions, expected answers, and document IDs
+* Create an AutoRAG optimization run from the RHOAI dashboard
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: This feature is a *Technology Preview*. APIs, manifests, and console
+navigation shown here may change between releases.
+endif::[]
+
+== Exercise 1: Prepare test data for AutoRAG
+
+AutoRAG evaluates RAG configurations against ground-truth answers. Your test
+data file is a JSON array where each entry contains a question, one or more
+expected answers, and the documents that contain those answers.
+
+Create a file named `test-data.json` with the following structure:
+
+[source,json]
+----
+[
+  {
+    "question": "What is the return policy?", <1>
+    "correct_answers": [
+      "Items can be returned within 30 days",
+      "The return window is 30 days from purchase"
+    ], <2>
+    "correct_answer_document_ids": ["policies.pdf", "faq.md"] <3>
+  },
+  {
+    "question": "How do I reset my password?",
+    "correct_answers": ["Navigate to Settings and select Reset Password"],
+    "correct_answer_document_ids": ["user-guide.pdf"]
+  }
+]
+----
+<1> *question* — the question AutoRAG submits to each RAG configuration during evaluation.
+<2> *correct_answers* — one or more expected answers. Multiple phrasings help AutoRAG evaluate answer correctness more accurately.
+<3> *correct_answer_document_ids* — the base file names of documents containing the answer. AutoRAG uses these IDs to prioritize documents during sampling and to evaluate context correctness.
+
+. Identify questions that represent your target use case. Cover the range of
+topics in your document set, mixing simple factual questions with questions
+that require synthesizing information from multiple sections.
+. For each question, write one or more correct answers. Use the exact phrasing
+from your source documents where possible and include alternative phrasings.
+. For each question, identify the source documents that contain the answer.
+Use the base file name without any folder path: `policies.pdf`, not
+`documents/policies.pdf`.
+. Save the file with the `.json` extension.
+. Make the test data available for your optimization run: either upload it to
+an S3-compatible storage bucket, or keep it on your local system to upload
+when you create the run.
+
+NOTE: AutoRAG automatically samples up to 1 GiB of relevant documents based on
+your test data, so you do not need to filter your document set in advance.
+Documents referenced in your test data are prioritized during sampling.
+
+=== Verify
+
+Validate that the file is well-formed JSON:
+
+[source,bash,role="execute",subs="attributes"]
+----
+python3 -m json.tool test-data.json
+----
+
+Expected output: the same JSON reprinted in a normalized form. A
+`json.decoder.JSONDecodeError` means the file has a syntax error to fix.
+
+Also confirm that every entry contains the `question` and `correct_answers`
+fields, and that every ID in `correct_answer_document_ids` matches a file name
+in your document set exactly.
+
+With test data in place, you are ready to create the optimization run that
+consumes it.
+
+== Exercise 2: Create an AutoRAG optimization run
+
+[IMPORTANT]
+====
+Optimization runs cannot be edited after creation. Choose your metric, preset,
+and models carefully before you click *Create run*.
+====
+
+An administrator must have enabled the prerequisite configuration first:
+
+* The cluster administrator set `spec.dashboardConfig.genAiStudio` and
+`spec.dashboardConfig.autorag` to `true` in the DataScienceCluster.
+* Your project has a pipeline server with AutoML and AutoRAG pipelines enabled.
+  xref:automl:ROOT:module-01-getting-started.adoc[Module 01 of the AutoML
+  workshop] walks through this enablement — the *Enable AutoML and AutoRAG
+  pipelines* option in *Advanced settings*, or patching
+  `spec.apiServer.managedPipelines: {}` on the DataSciencePipelinesApplication.
+  If you have not completed the AutoML workshop, that module covers what you
+  need to enable it here.
+* An OGX instance is available and configured with foundation and embedding models.
+* A remote vector database — Milvus or pgvector (PostgreSQL) — is registered as
+a vector I/O provider with your OGX instance. Inline vector databases are not
+supported.
+* An OGX connection is configured in your project, including the OGX base URL
+and API key.
+
+[WARNING]
+====
+Foundation models deployed with vLLM must have tool calling enabled. Add the
+`--enable-auto-tool-choice` and `--tool-call-parser` model server arguments when
+the model is deployed. The `--tool-call-parser` value depends on the model
+family, for example `mistral` for Mistral models.
+====
+
+. In the RHOAI dashboard, click *Gen AI studio* > *AutoRAG*.
+. Select your project, and then click *Create AutoRAG optimization run*.
+. Enter a name and optionally a description for the run, select your OGX
+connection, and click *Next*.
+. Configure the optimization settings:
+.. In the *Knowledge setup* section, select an S3 connection for your documents
+and select the files to use. You can browse your S3 bucket or upload files
+directly; uploaded files can be up to 32 MiB.
+.. Select your vector database from the *Vector I/O provider* list.
+.. Add an evaluation data set by browsing your S3 bucket for the JSON file or
+uploading it directly. You can download a template from the evaluation dataset
+template link on the configuration page.
+.. Select an optimization metric from the *Optimization metric* list:
+
+[cols="1,2,2",options="header"]
+|===
+|Metric |What it optimizes |Choose it when
+
+|Answer faithfulness (default)
+|Answers grounded in retrieved context
+|Accuracy and traceability to source documents are critical, such as in compliance or legal use cases
+
+|Answer correctness
+|Answers that match your test data
+|You have well-defined expected answers and want the system to match them closely
+
+|Context correctness
+|Retrieval of relevant documents
+|Retrieval quality matters more than answer phrasing, such as when you plan to use a different generation model in production
+|===
+
+.. In the *Maximum RAG patterns* field, enter a value between 4 and 20. The default is 8.
+.. Select a *Run preset* to control the search space and resource allocation:
+
+[cols="1,3,2",options="header"]
+|===
+|Run preset |Search space |Resources required
+
+|Faster (default)
+|Recursive chunking on exported text only; chunk sizes 128, 256, or 512 tokens
+|4 vCPU, 16 GiB memory
+
+|Better quality
+|Recursive and hybrid chunking with Docling table layout parsing and structural contextualization; chunk sizes 512, 1024, or 2048 tokens
+|8 vCPU, 32 GiB memory
+|===
+
+.. Optional: Click *Edit* on the model configuration card to exclude models. By
+default, all foundation and embedding models available from your OGX instance
+are selected.
+. Click *Create run*. AutoRAG begins testing RAG configurations; you can
+monitor the status on the AutoRAG page.
+
+// TODO: capture screenshot
+image::01-autorag-page.png[AutoRAG page in the RHOAI dashboard listing optimization runs,link=self,window=blank,width=700]
+
+[TIP]
+====
+For embedding models, `BAAI/bge-m3` is recommended. It supports more than 100
+languages, dense and sparse retrieval, and requires approximately 1.1 GB of
+memory (fp16). If your documents are in a language other than English, ensure
+the models you select support your target language — AutoRAG detects the
+language of your evaluation questions automatically.
+====
+
+=== Verify
+
+On the AutoRAG page, your new optimization run is listed with a status of
+*Running* or *Pending*. The run progresses to *Complete* when AutoRAG finishes
+testing all RAG configurations.
+
+Keep the following Technology Preview limits in mind while your run executes:
+
+* A maximum of three foundation models and two embedding models per
+optimization run. Specifying more models can cause the run to fail.
+* Images embedded in documents are not processed, and optical character
+recognition (OCR) is not available for PDF documents.
+* Table structure detection for PDF documents is available only with the
+*Better quality* run preset.
+
+When your run reaches *Complete*, continue to the next module to evaluate the
+leaderboard and put the best pattern to work.
+
+== Module summary
+
+**What you accomplished:**
+
+* Prepared a JSON test data file with questions, expected answers, and document IDs
+* Created an AutoRAG optimization run with a metric, preset, and model selection
+* Verified the run progressed from Running to a completed state
+
+**Key takeaways:**
+
+* Test data quality drives evaluation quality: multiple answer phrasings and exact document IDs make scoring more accurate
+* The run preset trades speed for retrieval quality — Faster uses recursive chunking only, Better quality adds hybrid chunking and table parsing
+* Technology Preview limits such as remote-only vector databases and the 3+2 model maximum can fail a run if ignored
+
+**Next steps:**
+
+Continue to the next module to review the leaderboard, compare RAG patterns,
+and run the best-performing one in a workbench.

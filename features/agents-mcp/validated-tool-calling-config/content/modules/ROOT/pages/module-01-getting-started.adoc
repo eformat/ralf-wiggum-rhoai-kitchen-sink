@@ -1,0 +1,141 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will enable validated tool-calling configuration on your RHOAI
+3.5 cluster and explore the validated arguments it exposes in the model catalog.
+
+**Learning objectives:**
+
+* Explain what validated tool-calling configuration adds to the model catalog
+* Enable the feature with the `toolCalling` dashboard flag in the `OdhDashboardConfig` custom resource
+* View and copy the validated `vllm serve` arguments for a model with confirmed tool-calling support
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: This feature is a *Technology Preview*. The `toolCalling` flag name, the
+Validated Arguments UI panels, and the exact arguments displayed may change
+between releases.
+endif::[]
+
+== What this feature adds to the catalog
+
+Models that Red Hat has validated for tool calling display a *Validated
+Arguments* section on their Model Details page in the model catalog. Expanding
+the *Tool Calling* panel shows the exact `vllm serve` CLI arguments required to
+enable tool calling for that model, including `--tool-call-parser`,
+`--reasoning-parser`, `--chat-template`, and `--enable-auto-tool-choice`. The
+catalog also gains a *Validated Arguments* filter that narrows the model list to
+models with confirmed tool-calling support.
+
+Without this feature, running a validated model with tool calling requires you
+to discover the correct parser and chat template combination yourself; with it,
+the catalog hands you the copyable, validated configuration.
+
+== Exercise 1: Enable validated tool-calling configuration
+
+IMPORTANT: You need cluster administrator privileges for this exercise. The
+`OdhDashboardConfig` custom resource is cluster-wide, so the feature is enabled
+for all users of the deployment.
+
+. Confirm the dashboard custom resource exists in your cluster:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get OdhDashboardConfig odh-dashboard-config -n redhat-ods-applications
+----
+
+. Patch the `toolCalling` dashboard flag to `true`:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch OdhDashboardConfig odh-dashboard-config -n redhat-ods-applications --type=merge -p '{"spec":{"dashboardConfig":{"toolCalling":true}}}'
+----
+
+The patch sets the following fragment in the `OdhDashboardConfig` custom resource:
+
+[source,yaml]
+----
+spec:
+  dashboardConfig:
+    toolCalling: true
+----
+<1> *toolCalling* — enables the Validated Arguments section and filter for models with confirmed tool-calling support in the model catalog.
+
+=== Verify
+
+. Confirm the flag is set:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get OdhDashboardConfig odh-dashboard-config -n redhat-ods-applications -o jsonpath='{.spec.dashboardConfig.toolCalling}'
+----
++
+The output prints `true`.
+
+. Confirm the dashboard pods are running so the change is picked up:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n redhat-ods-applications -l app=odh-dashboard
+----
++
+Example output (pod names and age vary):
++
+----
+NAME                            READY   STATUS    RESTARTS   AGE
+odh-dashboard-58f7c9d4b2-xk7p9   2/2     Running   0          12m
+----
+
+With the flag verified as `true`, you are ready to look at what it exposes in
+the catalog.
+
+== Exercise 2: Find validated tool-calling arguments in the catalog
+
+. In the OpenShift AI dashboard, click *AI hub -> Models -> Catalog*.
+. In the menu bar, select a model category. The *Red Hat AI validated models*
+category lists third-party models benchmarked by Red Hat for performance and
+quality, and is a good place to look for tool-calling candidates.
+. Use the *Validated Arguments* filter to narrow the catalog to models with
+confirmed tool-calling support.
+. Click a model name to open its model details page.
+. In the *Validated Arguments* section, expand the *Tool Calling* panel to view
+and copy the exact `vllm serve` arguments required for tool calling, including
+`--tool-call-parser`, `--reasoning-parser`, `--chat-template`, and
+`--enable-auto-tool-choice`.
+
+// TODO: capture screenshot
+image::01-validated-arguments-panel.png[Validated Arguments section with the Tool Calling panel on a model details page,link=self,window=blank,width=700]
+
+TIP: The same copy-and-run pattern applies to the *Runtime command* column on
+the *Performance insights* tab: clicking *View* opens a popover with the full
+`vllm serve` command used during benchmark validation for a hardware
+configuration, which you can copy as a starting point for your own deployment.
+
+=== Verify
+
+The model details page shows the model name heading, the *Model card* content
+section, and the *Model details* sidebar. For a validated model, the sidebar
+also shows the *Minimum vRAM* and *Container size* infrastructure fields, and
+the *Validated Arguments* section lists the *Tool Calling* panel. If the model
+you selected has no *Validated Arguments* section, pick another model — only
+models with confirmed tool-calling support display it.
+
+== Module summary
+
+**What you accomplished:**
+
+* Enabled the `toolCalling` dashboard flag on the `OdhDashboardConfig` custom resource
+* Verified the flag and the running dashboard pods from the CLI
+* Located the Validated Arguments section and copied the validated `vllm serve` arguments for a tool-calling model
+
+**Key takeaways:**
+
+* The catalog ships validated `vllm serve` arguments so tool calling works on the first run
+* Feature flags live in `spec.dashboardConfig` on the `OdhDashboardConfig` custom resource
+* The *Validated Arguments* filter narrows the catalog to models with confirmed tool-calling support
+
+**Next steps:**
+
+Copying the validated arguments gets tool calling working on a supported
+serving runtime, but it does not tell you how accurately a model uses *your*
+tools. Continue to Module 02 to measure tool-calling accuracy against your own
+MCP servers with the SDG Hub evaluation pipeline.

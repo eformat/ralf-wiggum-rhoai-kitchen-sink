@@ -1,0 +1,556 @@
+= Module 02: Deploy an OGX server and build a RAG workflow
+:navtitle: Module 02: Deploy an OGX Server and RAG
+
+In this module you will activate the OGX Operator, deploy an OGX server connected to a vLLM
+inference service and PostgreSQL metadata storage, and build an end-to-end RAG workflow: ingest
+documents into a vector store and query them from a notebook.
+
+**Learning objectives:**
+
+* Enable the OGX Operator in the DataScienceCluster custom resource
+* Deploy an OGXServer connected to a vLLM inference service, a vector store, and PostgreSQL metadata storage
+* Ingest documents into a vector store and run retrieval-augmented queries with the `file_search` tool
+
+== Exercise 1: Activate the OGX Operator
+
+You activate the OGX Operator by setting its management state to `Managed` in the
+DataScienceCluster (DSC) custom resource.
+
+NOTE: If your facilitator has already activated OGX, run the verification step and continue to
+Exercise 2.
+
+. Log in to the OpenShift web console as a cluster administrator.
+. Go to the Installed Operators page: on OpenShift 4.20 and later, click *Ecosystem → Installed
+Operators*; on OpenShift 4.19, click *Operators → Installed Operators*.
+. Click the *Red Hat OpenShift AI Operator* to open its details.
+. Click the *Data Science Cluster* tab and select the `default-dsc` object.
+. Click the *YAML* tab, locate `spec.components`, and set the `ogx` component to `Managed`:
++
+
+[source,yaml]
+----
+spec:
+  components:
+    ogx:
+      managementState: Managed
+----
+
+. Click *Save* to apply your changes.
+
+You can also activate the operator from the CLI:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch datasciencecluster default-dsc --type=merge -p '{"spec":{"components":{"ogx":{"managementState":"Managed"}}}}'
+----
+
+=== Verify
+
+Confirm that the OGX Operator pod is running in the `redhat-ods-applications` namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n redhat-ods-applications -l name=ogx-k8s-operator
+----
+
+Expected output:
+
+----
+NAME                               READY   STATUS    RESTARTS   AGE
+ogx-k8s-operator-<pod-suffix>      1/1     Running   0          <age>
+----
+
+With the operator running, deploy your first OGX server.
+
+== Exercise 2: Deploy an OGX server
+
+The OGXServer custom resource deploys a server that exposes the OGX APIs in your project. You are
+responsible for provisioning the PostgreSQL instance used for metadata storage; it can run
+in-cluster or be hosted externally, as long as it is reachable from the cluster network.
+
+IMPORTANT: Create the PostgreSQL credential secret in the same namespace as the OGXServer
+resource. Avoid placing passwords directly on the command line, as they can be stored in shell
+history.
+
+. Create a secret that contains only the database password, then create the secret from that file:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+echo "{password}" > pg-password.txt
+oc create secret generic postgres-secret --from-file=password=pg-password.txt -n {guid}-{user}
+rm -f pg-password.txt
+----
+
+. Create the `ogxserver.yaml` file — a shell heredoc with the PostgreSQL
+secret from the previous step. Point `VLLM_URL` at your vLLM inference
+service; here the `granite-vllm` predictor from the vLLM ServingRuntime
+workshop (a GPU cluster substitutes its deployed model, e.g.
+`https://llama32-3b.<project>.svc.cluster.local/v1`):
++
+[source,bash,role="execute",subs="attributes"]
+----
+PGPASSWORD=$(oc get secret postgres-secret -n {guid}-{user} -o jsonpath='{.data.password}' | base64 -d)
+oc create secret generic ogx-postgres-conn -n {guid}-{user} \
+  --from-literal=connection="postgresql://ogx:${PGPASSWORD}@postgres.{guid}-{user}.svc.cluster.local:5432/ogx" \
+  --dry-run=client -o yaml | oc apply -n {guid}-{user} -f -
+oc label secret ogx-postgres-conn -n {guid}-{user} ogx.io/watch=true --overwrite
+cat > ogxserver.yaml <<'EOF'
+apiVersion: ogx.io/v1beta1
+kind: OGXServer
+metadata:
+  name: ogx-custom-server
+  namespace: {guid}-{user}
+spec:
+  distribution:
+    name: rh-dev
+  storage:
+    sql:
+      type: postgres
+      connectionString:
+        name: ogx-postgres-conn
+        key: connection
+EOF
+oc apply -f ogxserver.yamlEOF
+----
+
+The fields map to the RHOAI documentation (OGXServer v1beta1):
+`distribution.name` is an internal image reference (the RHOAI Operator
+resolves `rh-dev` to the container image in the appropriate registry).
+`spec.storage.sql` configures the PostgreSQL metadata store — the
+`connectionString` Secret must carry the `ogx.io/watch: "true"` label and the
+key holds a `postgresql://` connection string to your PostgreSQL instance
+(deploy a PostgreSQL instance and Service in your project first; the in-lab
+flow uses an in-cluster PostgreSQL). Inference provider endpoints are
+registered via `spec.resources` or the server's registry — point your client
+at the deployed model's OpenAI-compatible API.
+
+. Apply the OGXServer CR:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f ogxserver.yaml -n {guid}-{user}
+----
+
+TIP: The `rh-dev` distribution value is an internal image reference resolved automatically by the
+OpenShift AI Operator; you do not need to replace it with a registry URL.
+
+=== Verify
+
+. Check that the custom resource was created and the server pods are running:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get ogxserver -n {guid}-{user}
+oc get pods -n {guid}-{user} | grep ogx-custom-server
+----
+
+. Check the server logs for startup output:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc logs -n {guid}-{user} -l app=ogx
+----
+
+Expected output:
+
+----
+INFO: Started server process
+INFO: Waiting for application startup.
+INFO: Application startup complete.
+INFO: Uvicorn running on http://['::', '0.0.0.0']:8321
+----
+
+The server listens on port 8321. The OGX Operator names the service
+`<ogxserver-name>-service`, so this instance is reachable in-cluster at
+`http://ogx-custom-server-service.{guid}-{user}.svc.cluster.local:8321`.
+
+With the base server running, pair it with a vector store and ingest real documents.
+
+== Exercise 3: Ingest documents and query with RAG
+
+The RAG stack connects your OGX server to a vector store so that you can ingest, embed, and query
+domain-specific documents during inference. In this exercise you configure the pgvector provider,
+upload a PDF from a Jupyter notebook, and answer questions grounded in the ingested content.
+
+IMPORTANT: For RAG you need a remote embedding model reachable from the cluster, for example
+`nomic-embed-text-v1-5` served through a vLLM embedding endpoint. RAG queries without ingested
+content return empty or non-contextual responses.
+
+. Create a secret that contains the inference model and remote embedding environment variables:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+export INFERENCE_MODEL="llama-3-2-3b"
+export VLLM_URL="https://llama-32-3b-instruct-predictor:8443/v1"
+export VLLM_TLS_VERIFY="false"
+export VLLM_API_TOKEN="<token-identifier>"
+export VLLM_MAX_TOKENS=16384
+export EMBEDDING_MODEL="nomic-embed-text-v1-5"
+export EMBEDDING_PROVIDER_MODEL_ID="nomic-embed-text-v1-5"
+export VLLM_EMBEDDING_URL="<embedding-endpoint>/v1"
+export VLLM_EMBEDDING_API_TOKEN="<embedding-token>"
+export VLLM_EMBEDDING_MAX_TOKENS=8192
+export VLLM_EMBEDDING_TLS_VERIFY="true"
+oc create secret generic ogx-secret -n {guid}-{user} \
+  --from-literal=INFERENCE_MODEL="$INFERENCE_MODEL" \
+  --from-literal=VLLM_URL="$VLLM_URL" \
+  --from-literal=VLLM_TLS_VERIFY="$VLLM_TLS_VERIFY" \
+  --from-literal=VLLM_API_TOKEN="$VLLM_API_TOKEN" \
+  --from-literal=VLLM_MAX_TOKENS="$VLLM_MAX_TOKENS" \
+  --from-literal=EMBEDDING_MODEL="$EMBEDDING_MODEL" \
+  --from-literal=EMBEDDING_PROVIDER_MODEL_ID="$EMBEDDING_PROVIDER_MODEL_ID" \
+  --from-literal=VLLM_EMBEDDING_URL="$VLLM_EMBEDDING_URL" \
+  --from-literal=VLLM_EMBEDDING_TLS_VERIFY="$VLLM_EMBEDDING_TLS_VERIFY" \
+  --from-literal=VLLM_EMBEDDING_API_TOKEN="$VLLM_EMBEDDING_API_TOKEN" \
+  --from-literal=VLLM_EMBEDDING_MAX_TOKENS="$VLLM_EMBEDDING_MAX_TOKENS"
+----
+
+. Create a secret with the pgvector connection values:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc create secret generic pgvector-connection -n {guid}-{user} \
+  --from-literal=PGVECTOR_HOST="<pgvector-hostname>" \
+  --from-literal=PGVECTOR_PORT="5432" \
+  --from-literal=PGVECTOR_DB="<pgvector-database>" \
+  --from-literal=PGVECTOR_USER="<pgvector-username>" \
+  --from-literal=PGVECTOR_PASSWORD="<pgvector-password>"
+----
+
+. Create a RAG-enabled OGXServer that reads its configuration from these secrets. In the console,
+select *Administrator → Quick Create (+) → Import YAML*, and apply:
++
+[source,yaml,subs="attributes,callouts"]
+----
+apiVersion: ogx.io/v1beta1
+kind: OGXServer
+metadata:
+  name: ogx-rag-server
+  namespace: {guid}-{user}
+spec:
+  distribution:
+    name: rh-dev
+  workload:
+    replicas: 1
+    storage:
+      size: 5Gi
+  overrides:
+    env:
+      - name: POSTGRES_HOST <1>
+        value: <postgres-host>
+      - name: POSTGRES_PORT
+        value: "5432"
+      - name: POSTGRES_DB
+        value: ogx_metadata
+      - name: POSTGRES_USER
+        value: ogx
+      - name: POSTGRES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: <postgres-secret-name>
+            key: password
+      - name: INFERENCE_MODEL <2>
+        valueFrom:
+          secretKeyRef:
+            name: ogx-secret
+            key: INFERENCE_MODEL
+      - name: VLLM_URL
+        valueFrom:
+          secretKeyRef:
+            name: ogx-secret
+            key: VLLM_URL
+      - name: VLLM_API_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: ogx-secret
+            key: VLLM_API_TOKEN
+      - name: EMBEDDING_MODEL
+        valueFrom:
+          secretKeyRef:
+            name: ogx-secret
+            key: EMBEDDING_MODEL
+      - name: VLLM_EMBEDDING_URL
+        valueFrom:
+          secretKeyRef:
+            name: ogx-secret
+            key: VLLM_EMBEDDING_URL
+      - name: ENABLE_PGVECTOR <3>
+        value: "true"
+      - name: PGVECTOR_HOST <4>
+        valueFrom:
+          secretKeyRef:
+            name: pgvector-connection
+            key: PGVECTOR_HOST
+      - name: PGVECTOR_PORT
+        valueFrom:
+          secretKeyRef:
+            name: pgvector-connection
+            key: PGVECTOR_PORT
+      - name: PGVECTOR_DB
+        valueFrom:
+          secretKeyRef:
+            name: pgvector-connection
+            key: PGVECTOR_DB
+      - name: PGVECTOR_USER
+        valueFrom:
+          secretKeyRef:
+            name: pgvector-connection
+            key: PGVECTOR_USER
+      - name: PGVECTOR_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: pgvector-connection
+            key: PGVECTOR_PASSWORD <5>
+----
+
+<1> *POSTGRES_** — the PostgreSQL metadata store; OGX requires PostgreSQL 14 or later for metadata persistence.
+<2> *INFERENCE_MODEL* — the vLLM-served LLM identifier; `VLLM_URL` points at its `/v1` endpoint.
+<3> *ENABLE_PGVECTOR* — enables the `remote::pgvector` vector_io provider in the OGX server.
+<4> *PGVECTOR_** — the pgvector vector store connection, read from the `pgvector-connection` secret.
+<5> *PGVECTOR_PASSWORD* — credentials must come from secrets, never as plaintext values in the CR.
+
+TIP: If you switch between vector store configurations, delete the existing OGX pod to ensure the
+new environment variables and backing store are picked up cleanly.
+
+. In a workbench in your project, open a Jupyter notebook and install the OGX client:
++
+
+[source,python]
+----
+%pip install ogx_client
+----
+
+. Create a client instance and list the available models:
++
+
+[source,python]
+----
+from ogx_client import OGXClient
+
+client = OGXClient(base_url="http://ogx-rag-server-service:8321")
+models = client.models.list()
+print(models)
+----
+
+Expected output:
+
+----
+[Model(identifier='llama-32-3b-instruct', model_type='llm', provider_id='vllm-inference'),
+ Model(identifier='nomic-embed-text-v1-5', model_type='embedding', metadata=
+ {'embedding_dimension': 768})]
+----
+
+NOTE: Provider IDs can differ between interfaces. In the Python SDK you use the provider name
+directly (for example, `provider_id: "pgvector"`); in some CLI tools remote providers use a
+prefixed identifier (for example, `--vector-db-provider-id remote-pgvector`). Use the format that
+matches the interface you are using.
+
+. Select an LLM and an embedding model, and register a vector store:
++
+
+[source,python]
+----
+model_id = next(m.identifier for m in models if m.model_type == "llm")
+embedding_model = next(m for m in models if m.model_type == "embedding")
+embedding_model_id = embedding_model.identifier
+embedding_dimension = int(embedding_model.metadata["embedding_dimension"])
+
+vector_store = client.vector_stores.create(
+    name="my_pgvector_store",
+    extra_body={
+        "embedding_model": embedding_model_id,
+        "embedding_dimension": embedding_dimension,
+        "provider_id": "pgvector",
+    },
+)
+vector_store_id = vector_store.id
+print(vector_store_id)
+----
+
+. Download a PDF, upload it to OGX, and add it to the vector store with a chunking strategy:
++
+
+[source,python]
+----
+import requests
+
+pdf_url = "https://www.federalreserve.gov/aboutthefed/files/quarterly-report-20250822.pdf"
+filename = "quarterly-report-20250822.pdf"
+response = requests.get(pdf_url)
+response.raise_for_status()
+with open(filename, "wb") as f:
+    f.write(response.content)
+
+with open(filename, "rb") as f:
+    file_info = client.files.create(
+        file=(filename, f),
+        purpose="assistants",
+    )
+
+vector_store_file = client.vector_stores.files.create(
+    vector_store_id=vector_store_id,
+    file_id=file_info.id,
+    chunking_strategy={
+        "type": "static",
+        "static": {
+            "max_chunk_size_tokens": 800,
+            "chunk_overlap_tokens": 400,
+        },
+    },
+)
+print(vector_store_file)
+----
+
+. Query the ingested content with the Responses API and the `file_search` tool:
++
+
+[source,python]
+----
+system_instructions = """You are a precise and reliable AI assistant.
+Use retrieved context when it is available.
+If nothing relevant is found, say so clearly."""
+query = "Summarize the key findings in the report."
+
+response = client.responses.create(
+    model=model_id,
+    input=query,
+    instructions=system_instructions,
+    tools=[
+        {
+            "type": "file_search",
+            "vector_store_ids": [vector_store_id],
+        }
+    ],
+)
+print(response.output_text)
+----
+
+When you include the `file_search` tool with `vector_store_ids`, OGX retrieves relevant chunks
+from the vector store and provides them to the model as context for the response.
+
+. Query the vector store directly to inspect the retrieved chunks:
++
+
+[source,python]
+----
+query_result = client.vector_io.query(
+    vector_store_id=vector_store_id,
+    query="key findings",
+)
+print(query_result)
+----
+
+=== Verify
+
+* The call to `client.vector_stores.files.create()` succeeds and returns metadata for the ingested file, and the vector store contains indexed chunks associated with the uploaded document.
+* The notebook returns a context-aware response when `file_search` is enabled, and answers outside the document content are declined.
+* `client.vector_io.query()` returns indexed chunks from the pgvector store without errors.
+
+You now have a working RAG loop. Before scaling it up, test the underlying model endpoints directly
+from the CLI.
+
+== Exercise 4: Test your vLLM model endpoints
+
+To confirm your deployed model is accessible, test the vLLM endpoint with a chat completion
+request. If you selected *Make deployed models available through an external route* during model
+deployment, the endpoint is already exposed outside the cluster.
+
+WARNING: Manually exposing vLLM model endpoints, for example with `oc expose`, creates an
+unsecured route unless you configure authentication. Avoid exposing endpoints without security
+controls.
+
+. Log in to the cluster from the CLI. In the upper-right corner of the web console, click your
+user name, select *Copy login command*, then *Display token*, and paste the token command:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc login --token=<token> --server={openshift_api_url}
+----
+
+. If you enabled *Require token authentication* during model deployment, retrieve the model token:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+export MODEL_TOKEN=$(oc get secret default-name-llama-32-3b-instruct-sa -n {guid}-{user} -o jsonpath='{.data.token}' | base64 -d)
+----
+
+. Obtain the model endpoint URL from *Endpoint details* on the Deployments page in the RHOAI
+dashboard, or from the route:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export MODEL_ENDPOINT="https://$(oc get route llama-32-3b-instruct -n {guid}-{user} -o jsonpath='{.spec.host}')"
+----
+
+. Test the endpoint with a sample chat completion request:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -k $MODEL_ENDPOINT/v1/chat/completions \
+  --header "Authorization: Bearer $MODEL_TOKEN" \
+  --header 'Content-Type: application/json' \
+  -d '{
+    "model": "llama-32-3b-instruct",
+    "messages": [
+      {"role": "user", "content": "Hello"}
+    ]
+  }' | jq .
+----
+
+NOTE: The `-k` flag disables SSL verification and should only be used in test environments or
+with self-signed certificates.
+
+=== Verify
+
+You receive a JSON response containing a chat completion, similar to:
+
+----
+{
+  "id": "chatcmpl-05d24b91b08a4b78b0e084d4cc91dd7e",
+  "object": "chat.completion",
+  "model": "llama-32-3b-instruct",
+  "choices": [{
+    "index": 0,
+    "message": {
+      "role": "assistant",
+      "content": "Hello! It's nice to meet you. Is there something I can help you with or would you like to chat?"
+    },
+    "finish_reason": "stop"
+  }],
+  "usage": {
+    "prompt_tokens": 37,
+    "total_tokens": 62,
+    "completion_tokens": 25
+  }
+}
+----
+
+If you do not receive a response similar to the example, verify that the endpoint URL and token
+are correct, and ensure your model deployment is running.
+
+== Module summary
+
+**What you accomplished:**
+
+* Activated the OGX Operator in the DataScienceCluster and confirmed the operator pod running
+* Deployed OGXServer instances backed by vLLM inference, PostgreSQL metadata storage, and a pgvector vector store
+* Ingested a PDF into a vector store and ran grounded RAG queries with the `file_search` tool
+
+**Key takeaways:**
+
+* The OGXServer CR is the single entry point for wiring providers: inference, embeddings, vector store, and metadata all come from environment variables sourced from secrets
+* Ingestion is a two-step flow — upload the file with the Files API, then index it into a vector store with a chunking strategy
+* The `file_search` tool on the OpenAI-compatible Responses API is what turns a plain chat into RAG
+
+**Next steps:**
+
+With the base RAG stack working, tune retrieval modes and scale the deployment for availability in
+Module 03.

@@ -1,0 +1,198 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will work through the saved-agent workflow end to end:
+configure a playground, save it as a named agent, load it back into a fresh
+session, and manage the saved agent as you iterate.
+
+**Learning objectives:**
+
+* Save a playground configuration as a named agent
+* Load a saved agent from the playground header menu or from the Agents tab
+* Create variant copies, rename, and delete saved agents
+
+ifeval::["{feature_maturity}" == "DP"]
+NOTE: Saved agents is a *Developer Preview* feature. Developer Preview features
+are not supported by Red Hat in any way, are subject to change or removal at
+any time, and have received limited testing. The exact dialog labels described
+here may change between releases.
+endif::[]
+
+.Prerequisites
+
+* The `agentConfigManagement` flag is enabled (Module 01)
+* A playground is configured for your project
+* At least one model is selected in the playground
+* The MLflow service is available in your project (saved agents reference
+MLflow prompts)
+
+== Exercise 1: Save a playground agent
+
+Saved agents exist to capture a configuration that took real work to assemble.
+Set the playground up the way you would for a real experiment, then snapshot
+it as a named agent.
+
+. From the OpenShift AI dashboard, click *Gen AI studio → Playground*.
+
+. Configure the playground with the model, inference parameters, prompt,
+knowledge sources, and MCP servers that you want to capture. If you have not
+configured a playground before, start by selecting a model in the settings
+panel.
+
+. In the playground header, click the menu and select *Save agent*.
+
+The *Save agent* dialog opens and displays a summary of the configuration that
+will be saved, including the selected model, prompt, knowledge sources, and
+MCP servers.
+
+NOTE: Playground guardrail settings are not included in a saved agent. Keep a
+note of any guardrail configuration you want to reproduce.
+
+. In the *Agent name* field, enter a descriptive name for the agent, for
+example `support-triage-baseline`.
+
+. Optional: In the *Description* field, describe the use case for this agent.
+
+. Click *Save*.
+
+The agent is created and the agent name is displayed in the playground header.
+
+// TODO: capture screenshot
+image::02-save-agent-dialog.png[The Save agent dialog showing a summary of the captured playground configuration,link=self,window=blank,width=700]
+
+.To save updates to a loaded agent, complete the following steps:
++
+* Make changes to the playground configuration while an agent is loaded. An
+unsaved-changes indicator appears in the playground header.
+* In the playground header, click the menu and select *Save agent*. The dialog
+opens with the existing agent name and description pre-filled.
+* Click *Save* to overwrite the existing agent with your changes. The
+unsaved-changes indicator disappears, confirming the save was successful.
+
+NOTE: If another user has modified the agent since you loaded it, a conflict
+warning is displayed. In this case, use *Save as new agent* to create a new
+agent with your changes instead of overwriting.
+
+=== Verify
+
+The agent name is displayed in the playground header, and the agent is listed
+on the *Agents* tab under *Gen AI studio → AI asset endpoints*.
+
+With your baseline agent saved, the next step is to load it into a fresh
+playground session.
+
+== Exercise 2: Load a saved agent
+
+Loading a saved agent restores all captured settings — the model, inference
+parameters, prompt, knowledge sources, and MCP server connections — without
+rebuilding anything.
+
+. To load an agent from the playground:
+.. From the OpenShift AI dashboard, click *Gen AI studio → Playground*.
+.. In the playground header, click the menu and select *Load agent*.
+The *Load agent* dialog opens and displays a table of saved agents in the
+current project.
+.. Locate the agent that you want to load and click *Load agent*.
+All captured settings are restored in the playground, and the agent name is
+displayed in the playground header.
+
+. To load an agent from the AI asset endpoints page instead:
+.. From the OpenShift AI dashboard, click *Gen AI studio → AI asset
+endpoints*.
+.. Click the *Agents* tab.
+.. Locate the agent that you want to load and click *Try in Playground*.
+The playground opens with the agent loaded.
+
+NOTE: When you load a saved agent, the system validates that all referenced
+resources are still available. If any resource has been deleted or become
+unavailable, the playground displays a warning that identifies each missing
+resource and links to the relevant settings tab.
+
+. Optional: confirm that agents are stored as Kubernetes resources in your
+project namespace by listing the agent-related API resources:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc api-resources --verbs=list -o name | grep -i agent
+----
+
+The saved-agent resource kind is not named in the RHOAI 3.5 documentation, so
+the exact kind may vary between releases — this is a discovery step, not a
+documented interface.
+
+=== Verify
+
+The agent name is displayed in the playground header, and the model, inference
+parameters, prompt, knowledge source, and MCP server settings match the saved
+agent.
+
+You now have a working baseline agent. The final exercise covers managing
+agents as you iterate.
+
+== Exercise 3: Manage saved agents
+
+Agents are meant to evolve. You can create variant copies for comparison
+experiments, rename agents, and delete stale ones from the *Agents* tab on the
+AI asset endpoints page or from the playground header menu.
+
+. To create a variant copy of an agent:
+.. Load an existing agent into the playground.
+.. Adjust the configuration as needed for your variant experiment — for
+example, change the temperature or swap the RAG knowledge source.
+.. In the playground header, click the menu and select *Save as new agent*.
+The *Save as new agent* dialog opens.
+.. In the *Agent name* field, enter a name for the new variant, and
+optionally describe how it differs from the original in the *Description*
+field.
+.. Click *Save as*.
+A new agent is created with the modified configuration, and the original agent
+remains unchanged.
+
+. To rename an agent or update its description:
+.. From the OpenShift AI dashboard, click *Gen AI studio → AI asset
+endpoints* and click the *Agents* tab.
+.. Click the action menu (⋮) for the agent and select *Edit*.
+The *Edit agent* dialog opens.
+.. Update the *Name* or *Description* fields as needed and click *Save*.
+
+. To delete an agent:
+.. On the *Agents* tab, click the action menu (⋮) for the agent and select
+*Delete*.
+.. In the confirmation dialog, click *Delete*.
+The agent is permanently removed from the project namespace.
+
+WARNING: Deleting an agent is a destructive operation — there is no undo. If
+other team members rely on the agent as a baseline, create a variant copy
+first.
+
+. To clear the loaded agent from the playground without deleting it, click the
+menu in the playground header and select *Clear agent*. The playground returns
+to its default state with no agent loaded.
+
+=== Verify
+
+The updated agent list on the *Agents* tab reflects your changes: the variant
+appears alongside the original, edited names and descriptions are shown, and
+deleted agents are gone.
+
+== Module summary
+
+**What you accomplished:**
+
+* Saved a configured playground as a named agent and updated it through the playground header menu
+* Loaded a saved agent from the playground and from the Agents tab, restoring all captured settings
+* Created a variant copy, edited an agent's metadata, and deleted an agent
+
+**Key takeaways:**
+
+* The playground header menu handles agent saves and loads in-session; the Agents tab under *Gen AI studio → AI asset endpoints* is the standalone management view
+* Loading an agent validates every referenced resource and warns about anything that has been deleted or become unavailable
+* *Save as new agent* is the safe path for conflict warnings and for variant experiments — the original agent stays unchanged
+
+**Next steps:**
+
+Saved agents are a starting point, not an endpoint: once a configuration is
+proven in the playground, the *View running agent deployments in dashboard*
+workshop in this catalog shows how deployed agents are monitored, and the
+automated tool-calling evaluation workshop covers measuring whether a
+tool-calling configuration actually performs.

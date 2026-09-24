@@ -1,0 +1,49 @@
+= Welcome to the Claude Code agent starter kit Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces the *Claude Code agent starter kit* — a Developer Preview
+feature that lets you deploy and configure the Anthropic Claude Code agent on OpenShift
+AI using a pre-configured Containerfile and Kustomize deployment manifests.
+
+**What you will learn:**
+
+* What the Claude Code agent starter kit provides and where it fits in RHOAI 3.5
+* The three validated inference paths: direct Anthropic API, self-hosted models through vLLM, and vLLM through the OGX gateway
+* How skills and MCP server configurations are injected at deploy time through a ConfigMap
+* What the built-in MLflow tracing integration captures about agent behavior
+* How the kit runs under the OpenShift restricted-v2 SCC with workspace storage that persists across pod restarts
+
+== Prerequisites
+
+* RHOAI operator installed
+* Anthropic API access
+
+[NOTE]
+====
+Anthropic API access is only required for the direct Anthropic inference path. The
+vLLM-based paths let you use your own models without an Anthropic subscription.
+====
+
+* An OpenShift cluster with RHOAI 3.5 installed
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

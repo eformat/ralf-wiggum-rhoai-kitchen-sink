@@ -1,0 +1,18 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Distributed workloads: Ray (KubeRay), Kueue (RHBoK), Kubeflow Trainer v2,
+# legacy Training Operator. Labs mapped here: kuberay, kueue,
+# kubeflow-trainer-v2, text-mode-multimodal-training.
+#
+# DEPENDENCIES:
+#   * RHBoK operator (this overlay pins stable-v1.3) + its activation CR —
+#     apply activation/ AFTER the kueue-operator CSV reaches Succeeded
+#   * JobSet operator (Trainer v2 needs it) — apply overlays/llmd too
+#   * User Workload Monitoring (kueue alerting rules) — apply overlays/monitoring
+resources:
+  - ../../base
+  - kueue-operator-subscription.yaml
+patches:
+  - path: dsc-patch.yaml

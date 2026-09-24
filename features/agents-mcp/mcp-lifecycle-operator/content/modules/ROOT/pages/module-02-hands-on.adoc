@@ -1,0 +1,244 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will manage the MCP server lifecycle end to end: discover
+and inspect the `MCPServer` custom resource (CR) that the operator created,
+monitor server health, scale replicas, upgrade the server version through the
+dashboard, and remove the server cleanly. You will also compare how the
+catalog's support tiers affect what you can expect from a deployed server.
+
+**Learning objectives:**
+
+* Discover the `MCPServer` CR on your cluster and inspect its spec and status
+* Monitor server health with the `READY` condition and scale replicas
+* Upgrade a deployed server version and remove a server cleanly
+* Explain the support-tier differences (`Red Hat`, `Partner`, `Community`) between catalog entries
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: This feature is a *Technology Preview*. The `MCPServer` CR API version is
+`v1alpha1` with no backwards compatibility commitment, and the operator manages
+MCP servers within a single cluster only — multi-cluster management is not
+validated.
+endif::[]
+
+== Exercise 1: Discover and inspect the MCPServer custom resource
+
+The MCP Lifecycle Operator watches `MCPServer` custom resources and coordinates
+the deployment lifecycle by provisioning `Deployments`, `Services`,
+`NetworkPolicies`, and cluster-internal URLs for service discovery. Before
+inspecting the CR, confirm which resource names and API group your cluster
+serves — the exact group depends on the installed operator.
+
+. Discover the `MCPServer` resource on your cluster:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc api-resources | grep -i mcpserver
+----
+
+NOTE: The cluster output is authoritative — use the API group and short names
+it reports in the commands below. Do not confuse the `MCPServer` resource with
+the `mcp.kuadrant.io` gateway resources (such as `MCPServerRegistration`), which
+belong to the separate MCP Gateway Operator and only exist if that operator is
+installed.
+
+. Inspect the `MCPServer` CR that Module 01 created. Use the resource name from
+  the previous step (the short name `mcpserver` is used here):
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mcpserver my-mcp-server -n {guid}-{user} -o yaml
+----
+
+The spec is where you configure the server, and the status is where the
+operator reports what it provisioned:
+
+[source,yaml,subs="attributes,callouts"]
+----
+spec:
+  runtime: <1>
+    replicas: 1 <2>
+    security:
+      serviceAccountName: <service_account_name> <3>
+  mcp:
+    stateless: false <4>
+----
+
+<1> **Runtime configuration:** the `spec.runtime` section holds the workload settings the operator applies to the provisioned `Deployment`.
+<2> **Replicas:** the number of pods the operator runs for this server (see Exercise 2).
+<3> **Service account:** only present when the catalog entry requires one; set from the deployment dialog in Module 01.
+<4> **Stateless flag:** controls the `SessionAffinity` the operator configures on the `Service` (see Exercise 2).
+
+. View the full field inventory for the installed CRD version:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc explain mcpserver.spec.runtime
+----
+
+=== Verify
+
+You can list all MCP servers in your namespace and confirm the status summary:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mcpservers -n {guid}-{user}
+----
+
+Expect the table from Module 01 with `READY True` and `ACCEPTED True` for your
+server. The `ADDRESS` column shows the cluster-internal URL the operator
+provisioned for service discovery.
+
+== Exercise 2: Monitor health and scale the server
+
+Health and scaling are day-2 operations on the `MCPServer` CR. The operator
+treats MCP servers as stateful by default, which affects how scaling behaves.
+
+. Check the status of all MCP servers in your namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mcpservers -n {guid}-{user}
+----
+
+. Review the status conditions for your server:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc describe mcpserver my-mcp-server -n {guid}-{user}
+----
+
+Look for a condition with `type: Ready` and `status: True` to confirm the
+server is running and ready to accept connections.
+
+. Scale the server to 3 replicas by patching the `spec.runtime.replicas` field:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch mcpserver my-mcp-server -n {guid}-{user} \
+  --type=merge -p '{"spec":{"runtime":{"replicas":3}}}'
+----
+
+You can set the replica count to `0` to scale to zero.
+
+IMPORTANT: By default, the MCP Lifecycle Operator treats MCP servers as
+stateful and configures `SessionAffinity: ClientIP` on the Kubernetes
+`Service`. This pins each client to a single pod, which means scaling to
+additional replicas does not distribute existing client connections across
+those replicas.
+
+. If the MCP server you deployed is stateless — meaning it does not maintain
+  per-client session data — set `spec.mcp.stateless: true` so the operator
+  configures `SessionAffinity: None` and load-balances traffic across all
+  replicas:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch mcpserver my-mcp-server -n {guid}-{user} \
+  --type=merge -p '{"spec":{"mcp":{"stateless":true},"runtime":{"replicas":3}}}'
+----
+
+WARNING: Only set `stateless: true` if the MCP server itself declares that it
+is stateless. The operator runs MCP servers as Kubernetes-native workloads but
+does not manage session state within those servers — if the server maintains
+session state, managing that state across replicas is the server's own
+responsibility.
+
+=== Verify
+
+Confirm the configured replica count on the `MCPServer` custom resource:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mcpserver my-mcp-server -n {guid}-{user} \
+  -o jsonpath='{.spec.runtime.replicas}'
+----
+
+The output shows the replica count you set. Then confirm the server is still
+ready with the updated replica count:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mcpserver my-mcp-server -n {guid}-{user}
+----
+
+Expect `READY` as `True`.
+
+== Exercise 3: Upgrade, compare support tiers, and remove the server
+
+The remaining lifecycle operations — upgrade and removal — run from the
+dashboard or the CLI. The catalog's support tier labels also matter here: they
+tell you what to expect from each server over its lifetime.
+
+. Upgrade the deployed server to a newer version. In the Red Hat OpenShift AI
+  dashboard, navigate to *AI hub* → *MCP servers*, open the *Deployments* tab,
+  locate your server and click its name, then click *Edit*, select the new
+  version, and save the changes.
+
+TIP: The support tier tells you what to expect from the upgrade path. A *Red
+Hat* tier server is fully validated and backed by Red Hat support commitments;
+a *Partner* tier server is provided and supported by an Independent Software
+Vendor (ISV) partner; a *Community* tier server is community-contributed with
+no official Red Hat support commitment. In disconnected environments,
+individual MCP server images — especially community ones — might require
+additional mirroring steps, so consult each server's metadata for image
+references before deploying.
+
+. Confirm the upgrade from the CLI:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mcpserver my-mcp-server -n {guid}-{user}
+----
+
+Expect `READY` as `True` when the server is running the new version.
+
+WARNING: Disabling the MCP Lifecycle Operator entirely (setting the
+`mcplifecycleoperator` component back to `Removed` in the `DataScienceCluster`)
+removes the operator and all resources it manages. `MCPServer` CRs and their
+associated resources might be cleaned up automatically, and developers can no
+longer deploy from the catalog until you re-enable the operator.
+
+. Remove the deployed server. In the dashboard, navigate to *AI hub* → *MCP
+  servers*, open the *Deployments* tab, locate your server, and select *Delete*
+  from the action menu. Alternatively, delete the `MCPServer` CR directly:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc delete mcpserver my-mcp-server -n {guid}-{user}
+----
+
+The MCP Lifecycle Operator automatically cleans up the associated `Deployment`,
+`Service`, and other managed resources — no manual cleanup is required.
+
+=== Verify
+
+Confirm no `MCPServer` resources remain for the deleted server:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mcpservers -n {guid}-{user}
+----
+
+Expect `No resources found` (or the server absent from the list), and confirm
+in the dashboard that the server is gone from the *Deployments* tab.
+
+== Module summary
+
+**What you accomplished:**
+
+* Discovered the `MCPServer` CR with `oc api-resources` and inspected its spec and status
+* Monitored health with the `Ready` condition and scaled replicas, including the stateful session-affinity semantics
+* Upgraded a server version from the dashboard and removed the server cleanly
+
+**Key takeaways:**
+
+* The `Ready` condition on the `MCPServer` CR is the health signal; `oc describe mcpserver` is your first troubleshooting stop
+* Servers are stateful by default (`SessionAffinity: ClientIP`) — set `spec.mcp.stateless: true` only for servers that declare themselves stateless
+* Deleting the `MCPServer` CR is enough: the operator cleans up the `Deployment`, `Service`, and other managed resources automatically
+* Support tiers (`Red Hat`, `Partner`, `Community`) are a support-contract statement, not a deployment difference
+
+**Next steps:**
+
+Continue to the conclusion, where you can go deeper with the official
+*Working with the MCP catalog* documentation.

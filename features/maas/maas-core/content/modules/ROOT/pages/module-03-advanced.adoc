@@ -1,0 +1,280 @@
+= Module 03: Advanced Usage
+:navtitle: Module 03: Advanced Usage
+
+In this module you will take the administrator role: create the subscription
+and authorization policy that govern model access, apply the same governance
+as YAML for GitOps workflows, and manage API keys and usage monitoring.
+
+[NOTE]
+====
+This module uses dashboard administrator privileges. If your workshop user does
+not have them, run the CLI steps with a facilitator-provided admin account.
+====
+
+**Learning objectives:**
+
+* Create a subscription and authorization policy from the *MaaS governance* page
+* Apply `MaaSSubscription` and `MaaSAuthPolicy` resources as YAML
+* Revoke API keys, cap key expiration, and monitor token consumption
+
+== Exercise 1: Create a subscription from the dashboard
+
+A subscription grants groups quota for specific models with token rate limits.
+Both the subscription and a matching authorization policy are required before
+users can access a model.
+
+. In the RHOAI dashboard, click *Settings* → *MaaS governance*. The
+Subscriptions tab is displayed by default, listing all configured
+subscriptions with their Status (`Active` or `Failed`), Groups, Models, and
+Priority columns.
+. Click *Create subscription*.
+. In the Create subscription form, configure the subscription:
++
+* *Name*: a descriptive name such as `workshop-quota`
+* *Description* (optional): the purpose of the subscription
+* *Priority*: a numeric value; higher numbers win when a user belongs to
+multiple subscriptions. Recommended scheme: production 100, staging 50,
+development 0, personal -10.
+* *Groups*: select the OpenShift groups whose members get quota (or type a
+group name from an external OIDC provider).
+. Click *Add models*, review the available models and their existing
+subscriptions and policies, then click *Add model* for the workshop model and
+confirm with *Add models*.
+. For each model, click *Add token limit* and enter the number of tokens, the
+time period value, and the time unit (hour, minute, or second). At least one
+token limit is required per model — this is the heart of the token mechanism.
+. Optional: select *Create a matching authorization policy* to create an
+authorization policy with the same groups and models as the subscription.
+. Click *Create subscription*.
+
+[IMPORTANT]
+====
+The matching authorization policy is a snapshot: later changes to the
+subscription (adding or removing groups or models) are *not* propagated to the
+policy. When you modify a subscription, manually update the corresponding
+authorization policy to keep them synchronized.
+====
+
+=== Verify
+
+In the dashboard, the new subscription appears in the list with a status of
+`Active`. Click its name to review the groups, models, token limits, and
+priority. From the CLI, confirm the resource exists:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get maassubscription -n models-as-a-service
+----
+
+With governance defined in the dashboard, apply the same configuration as
+YAML — the declarative path teams use with GitOps.
+
+== Exercise 2: Apply governance by YAML
+
+Create the same access mapping with two custom resources. Subscriptions live
+in the `models-as-a-service` namespace; the `MaaSModelRef` they reference lives
+in the model's project namespace — your workshop project.
+
+. Create the subscription manifest:
++
+[source,bash,role="execute",subs="attributes,callouts"]
+----
+cat > workshop-quota-yaml.yaml <<'EOF'
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSSubscription
+metadata:
+  name: workshop-quota-yaml
+  namespace: models-as-a-service <1>
+spec:
+  owner:
+    groups:
+      - name: system:authenticated:oauth <2>
+        users: []
+  modelRefs:
+    - name: granite-vllm-maas <3>
+      namespace: {guid}-{user} <4>
+  tokenRateLimits: <5>
+    - limit: 100
+      window: 1m
+EOF
+----
+<1> *namespace* — subscriptions are created in the default tenant namespace,
+`models-as-a-service`.
+<2> *owner.groups* — OpenShift groups whose members receive quota. The group
+must match the OAuth identity your users present (`system:authenticated:oauth`)
+exactly; plain `system:authenticated` never matches and every call is denied.
+This example grants all authenticated users; in production, use a specific
+group.
+<3> *modelRefs.name* — the name of the published model (`MaaSModelRef`) — the
+same model you published in module 02 (or `granite-vllm-maas` on the CPU-only
+cluster path).
+<4> *modelRefs.namespace* — the project namespace where the `MaaSModelRef`
+resides; the MaaS controller created it when the model was published.
+<5> *tokenRateLimits* — the token quota: here, 100 tokens per 1-minute window
+for this model.
+
+. Create the authorization policy manifest:
++
+[source,bash,role="execute",subs="attributes,callouts"]
+----
+cat > workshop-access-yaml.yaml <<'EOF'
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSAuthPolicy
+metadata:
+  name: workshop-access-yaml
+  namespace: models-as-a-service
+spec:
+  modelRefs:
+    - name: granite-vllm-maas
+      namespace: {guid}-{user} <1>
+  subjects:
+    groups:
+      - name: system:authenticated:oauth <2>
+        users: []
+EOF
+----
+<1> *modelRefs.namespace* — the model's project namespace, matching the
+subscription's `modelRefs` entry.
+<2> *subjects.groups* — the groups authorized to reach the model endpoint
+through the gateway (`system:authenticated:oauth`). Without this policy, users
+get `403 Forbidden` even with a valid subscription.
+
+. Apply both manifests:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f workshop-quota-yaml.yaml
+oc apply -f workshop-access-yaml.yaml
+----
+
+[IMPORTANT]
+====
+The `metadata.name` of a `MaaSSubscription` cannot be changed after creation.
+If you need a different resource name, delete the subscription and create a
+new one.
+====
+
+=== Verify
+
+Confirm that all resources were created and that the MaaS controller
+generated the per-model gateway policies in the model namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get maassubscription workshop-quota-yaml -n models-as-a-service
+oc get maasauthpolicy workshop-access-yaml -n models-as-a-service
+oc get authpolicy -n {guid}-{user}
+oc get tokenratelimitpolicy -n {guid}-{user}
+----
+
+Your subscription and authorization policy drive the gateway policies that
+the MaaS controller generates: a `TokenRateLimitPolicy` carrying the model's
+token limits, plus the gateway authentication policy that enforces API key
+checks. In OpenShift AI 3.5 the controller aggregates authentication into a
+single gateway-scoped `AuthPolicy` (`maas-gateway-auth`) per gateway rather
+than one policy per model, so the policy list may show the aggregated
+resource instead of per-model entries. If the policies are missing, check the
+controller logs:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc logs -n redhat-ai-gateway-infra -l app=maas-controller --tail=50
+----
+
+Then repeat the chat completion call from module 02 to confirm the new
+subscription and policy are live. Policy changes take effect after the
+Authorino cache expires.
+
+== Exercise 3: Manage keys and monitor usage
+
+As an administrator you can view, revoke, and cap API keys for all users, and
+monitor token consumption on the observability dashboard.
+
+. View all users' keys: in the dashboard, click *Gen AI studio* → *API keys*.
+The table shows Name, Status (`Active`, `Expired`, `Revoked`), Subscription,
+Owner, Created, Last used, and Expires columns. Filter by status or username.
+. Revoke a single key: click the action menu (⋮) for the key and select
+*Revoke*, then confirm by typing the key name. To revoke every key belonging
+to one user, use the table-header action menu (⋮) → *Revoke user API keys*.
+
+[IMPORTANT]
+====
+API keys retain a snapshot of the owner's group memberships from creation
+time. If a user is removed from a group, their existing keys keep working
+until you revoke them — removing a user from a group alone does not revoke
+access.
+====
+
+. Verify that a revoked key no longer works (reuse the `$MAAS_URL` value you
+exported in module 02):
++
+[source,bash,role="execute"]
+----
+curl -s -o /dev/null -w "%{http_code}\n" \
+  -H "Authorization: Bearer %revoked-api-key%" \
+  "$MAAS_URL/maas-api/v1/models"
+----
++
+Expected output is `401 Unauthorized` — the key is no longer valid.
++
+Replace `%revoked-api-key%` with a key you revoked in the previous step.
+
+. Optional: cap the maximum key expiration for all users by editing the
+Tenant custom resource:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch tenants.maas.opendatahub.io default-tenant -n models-as-a-service \
+  --type merge \
+  -p '{"spec":{"apiKeys":{"maxExpirationDays":90}}}'
+----
++
+Changes to `maxExpirationDays` apply only to keys created afterwards; the
+default maximum is 90 days.
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get tenants.maas.opendatahub.io default-tenant -n models-as-a-service -o jsonpath='{.spec.apiKeys.maxExpirationDays}'
+----
++
+Expected output is the value you configured, for example `90`.
+
+. Optional: monitor usage on the observability dashboard (*Observe &
+monitor* → *Dashboard* → *Usage* tab). The Overview section shows Total
+Tokens, Total Requests, Total Errors, Success Rate, and Active Users; the
+*Token Consumption by User* table breaks consumption down by user,
+subscription, and model, and offers *Export as CSV* for showback reporting.
+
+[WARNING]
+====
+The MaaS observability dashboard is a *Technology Preview* feature: it is not
+supported with production SLAs and is designed for showback, not billing-grade
+metering.
+====
+
+=== Verify
+
+* The revoked key returns `401` at the management API.
+* `maxExpirationDays` reports the configured value on the Tenant resource.
+* The Usage dashboard shows non-zero token counts for users with recent
+activity (requires the observability stack to be configured).
+
+== Module summary
+
+**What you accomplished:**
+
+* Created a subscription and authorization policy from the MaaS governance page
+* Applied the same governance as `MaaSSubscription` and `MaaSAuthPolicy` YAML and verified the controller-generated gateway policies
+* Revoked API keys, capped key expiration in the Tenant resource, and reviewed usage monitoring
+
+**Key takeaways:**
+
+* Subscriptions define token quota and authorization policies grant gateway access; both are required, and 403/429 errors tell you which one is missing
+* YAML manifests give you GitOps-friendly, declarative governance equivalent to the dashboard workflow
+* Group membership is snapshotted at key creation time, so revocation is an explicit administrator action
+
+**Next steps:**
+
+You have completed the full MaaS access lifecycle, from platform verification
+to governance and monitoring. Head to the conclusion for the reference
+documentation that covers every command used in this workshop.

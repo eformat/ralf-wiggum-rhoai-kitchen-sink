@@ -1,0 +1,26 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# GPU cluster variant: Node Feature Discovery operator + a sample NVIDIA
+# AcceleratorProfile (no lab creates one — every GPU lab assumes it pre-exists).
+#
+# TWO-STEP: the NodeFeatureDiscovery CR (activation/) must be applied AFTER the
+# NFD operator CSV reaches Succeeded:
+#   oc apply -k cluster/overlays/gpu-config
+#   # wait: oc get csv -n openshift-nfd
+#   oc apply -k cluster/overlays/gpu-config/activation
+#
+# GPU labs mapped here: vllm-serving-runtime-kserve, rhai-fast-release-images,
+# llmd-core, llminferenceservice-config, maas-vllm-deployment, kuberay (module 03),
+# kubeflow-trainer-v2, text-mode-multimodal-training, llama-stack-ogx-core, autorag.
+#
+# GPU worker nodes themselves are a cluster prerequisite (documented in the top
+# README) — this overlay only configures the software side.
+resources:
+  - ../../base
+  - nfd-namespace.yaml
+  # nfd-operatorgroup.yaml intentionally excluded — see that file's NOTE
+  # (clusters shipping NFD pre-installed already have an OperatorGroup)
+  - nfd-subscription.yaml
+  - hardwareprofile-nvidia.yaml

@@ -1,0 +1,101 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will take a guided tour of how the Claude Code agent starter kit
+operates once deployed: how configuration is injected at deploy time, how the agent's
+behavior is observed through MLflow, and how the security posture works under the OpenShift
+restricted-v2 SCC.
+
+**Learning objectives:**
+
+* Explain how skills and MCP server configurations are injected at deploy time through a ConfigMap
+* Describe what the built-in MLflow tracing integration captures about agent behavior
+* Summarize the security and persistence guarantees of the kit
+
+== Exercise 1: Deploy-time configuration and workspace persistence
+
+A defining characteristic of the starter kit is that *configuration happens at deploy
+time, not build time*. Modular skills and Model Context Protocol (MCP) server
+configurations are injected through a ConfigMap, so you can change what the agent knows
+and what tools it can call without rebuilding container images.
+
+. Consider what this means for a workshop or team workflow: adding a new skill or MCP
+  server is an update to the ConfigMap and a redeploy of the Kustomize manifests, not a
+  container image rebuild.
+. Note how workspace storage is maintained across pod restarts, so agent state such as
+  session context survives the pod lifecycle.
+
+NOTE: There is an alternative to ConfigMap-based MCP configuration. Per the RHOAI 3.5
+documentation, agentic starter kits can be configured to *route agent MCP traffic through
+the MCP gateway* rather than using ConfigMap-based MCP server configuration. See the
+RHOAI MCP Catalog and MCP Gateway documentation for that management-focused pattern.
+
+If your facilitator has deployed the starter kit into a shared namespace, take a look at
+the running workloads in that namespace to see the agent pod that the Kustomize manifests
+produce:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n {guid}-{user}
+----
+
+Expect a pod for the Claude Code agent alongside any supporting components; the exact
+names depend on which inference path was deployed, so treat this as an observation rather
+than a fixed output.
+
+== Exercise 2: Observability through built-in MLflow tracing
+
+The kit integrates MLflow tracing so that agent behavior is recorded rather than opaque.
+According to the release notes, the built-in MLflow tracing integration captures:
+
+* **Tool calls** — which tools the agent invoked and when
+* **Token usage** — how many tokens each interaction consumed
+* **Agent execution traces** — the step-by-step path the agent took through a task
+
+Explore what this gives you as an operator:
+
+. Walk through a hypothetical debugging scenario: an agent answers a question but calls
+  the wrong tool. With MLflow tracing enabled, the execution trace shows exactly which
+  tool was selected and why the context led there.
+. Compare this to an untraced agent, where you would only see inputs and outputs.
+
+TIP: The tracing integration is built in, so you do not need to instrument the agent
+yourself — MLflow tracing is part of what the Kustomize deployment sets up.
+
+== Exercise 3: Security posture and persistence guarantees
+
+The final stop on the tour is how the kit keeps workloads safe and stateful:
+
+* **restricted-v2 SCC**: the agent runs under the OpenShift restricted-v2 security
+  context constraint with no special security grants required. This is the same
+  constrained profile your own project uses, so the agent cannot escalate privileges or
+  modify the host.
+* **No custom grants**: deploying the kit does not require cluster-admin or custom SCCs,
+  which keeps it viable in shared workshop clusters.
+* **Persistent workspace storage**: agent workspace data is maintained across pod
+  restarts, so a rescheduled pod does not lose session state.
+
+IMPORTANT: Because these guarantees come from running under restricted-v2, do not modify
+the manifests to grant additional security contexts — doing so undermines the security
+posture that the kit is validated against.
+
+== Module summary
+
+**What you accomplished:**
+
+* Toured how the starter kit injects skills and MCP configurations at deploy time through
+  a ConfigMap without rebuilding images
+* Reviewed what the built-in MLflow tracing integration captures: tool calls, token
+  usage, and agent execution traces
+* Summarized the restricted-v2 SCC security posture and workspace persistence guarantees
+
+**Key takeaways:**
+
+* Configuration is a deploy-time concern: ConfigMaps carry skills and MCP settings, and
+  the MCP gateway is an alternative routing pattern
+* MLflow tracing makes agent behavior observable out of the box
+* The kit is designed to run safely under restricted-v2 with no special grants
+
+**Next steps:**
+
+Continue to the conclusion for resources and pointers to the source documentation.

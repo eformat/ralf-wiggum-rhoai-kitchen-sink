@@ -1,0 +1,20 @@
+name: mcp-lifecycle-operator
+title: "MCP Lifecycle Operator"
+version: ~
+nav:
+  - modules/ROOT/nav.adoc
+
+asciidoc:
+  attributes:
+    source-highlighter: highlight.js
+    experimental: true
+    page-pagination: true
+    rhoai_version: "3.5"
+    feature_maturity: "TP"
+    lab_name: "MCP Lifecycle Operator Workshop"
+    guid: abc123
+    user: user1
+    password: "%password%"
+    openshift_api_url: "https://api.cluster.example.com:6443"
+    openshift_console_url: https://console-openshift-console.apps.cluster.example.com
+    openshift_cluster_ingress_domain: apps.cluster.example.com

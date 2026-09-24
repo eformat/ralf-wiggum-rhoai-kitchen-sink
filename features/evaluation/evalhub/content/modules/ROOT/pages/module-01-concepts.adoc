@@ -1,0 +1,177 @@
+= Module 01: Core Concepts
+:navtitle: Module 01: Core Concepts
+
+In this module you will understand what EvalHub is, how its components fit
+together, and what backs the service in your cluster.
+
+**Learning objectives:**
+
+* Explain the role of EvalHub in RHOAI and name its three components
+* Describe the core concepts: providers, benchmarks, collections, thresholds, and evaluation jobs
+* Trace the job workflow from submission to stored results
+* Verify the EvalHub deployment in your cluster
+
+== Exercise 1: What EvalHub is
+
+EvalHub is an evaluation orchestration service for large language models (LLMs)
+on Red Hat OpenShift AI. It exposes a versioned REST API for submitting
+evaluation jobs, managing benchmark providers, and tracking results through
+MLflow experiment tracking. Each evaluation runs as an isolated job, enabling
+parallel execution and horizontal scalability across namespaces and tenants.
+
+EvalHub consists of three components:
+
+|===
+|Component |What it does
+
+|*EvalHub Server*
+|A REST API service that handles evaluation workflows, job orchestration, and provider management, with PostgreSQL storage. It can also run in local mode on a workstation for development without a cluster.
+
+|*EvalHub SDK and CLI*
+|A Python client library and the `evalhub` command-line tool for submitting evaluations and building framework adapters.
+
+|*Providers*
+|Evaluation framework adapters, packaged as container images in cluster mode. Each provider translates EvalHub job requests into framework-specific commands and reports results back to the server.
+|===
+
+EvalHub ships with built-in providers such as `lm_evaluation_harness`
+(EleutherAI benchmarks), `garak` (LLM vulnerability scanning), and `guidellm`
+(performance benchmarking). Built-in providers are read-only; you can also
+register custom providers.
+
+=== Core concepts
+
+The following concepts are central to working with EvalHub:
+
+* *Providers* — an evaluation framework such as `lm_evaluation_harness`,
+  `garak`, or `guidellm`. Each provider includes a set of benchmarks.
+* *Benchmarks* — a specific evaluation task within a provider. For example,
+  `lm_evaluation_harness` includes `mmlu`, `hellaswag`, `arc_challenge`, and
+  `gsm8k`. Each benchmark has a category such as math, reasoning, safety, or
+  code, along with metrics and optional pass criteria.
+* *Collections* — a reusable evaluation suite that groups benchmarks from one
+  or more providers. The built-in `leaderboardv2` collection, for example,
+  bundles the Open LLM Leaderboard v2 benchmarks.
+* *Pass criteria and thresholds* — the minimum score a benchmark or job must
+  achieve to pass. Thresholds apply at three levels, from most to least
+  specific: benchmark level (overrides everything), collection level, and
+  provider level (the default). A benchmark declares a primary score metric
+  such as `acc_norm` and an optional `lower_is_better` flag.
+* *Evaluation jobs* — a single evaluation run against a model. A job
+  references benchmarks or a collection, a model endpoint, and optional MLflow
+  configuration. Jobs progress through the states `pending`, `running`,
+  `completed`, `failed`, `cancelled`, or `partially_failed`.
+* *Adapters* — code that wraps an evaluation framework and implements the
+  `FrameworkAdapter` interface so EvalHub can orchestrate it. Cluster adapters
+  are packaged as UBI9 container images.
+
+=== How a job executes
+
+When you submit an evaluation job, EvalHub follows this workflow:
+
+. The client submits the job through the REST API, SDK, or CLI.
+. The server validates the request, resolves benchmarks, and persists the job
+  with a status of `pending`.
+. The runtime creates a Kubernetes Job for each benchmark. Each pod contains
+  two containers: the *adapter container* runs the evaluation framework, and
+  the *sidecar proxy container* authenticates to the EvalHub server with a
+  ServiceAccount token and forwards status events and results. The sidecar
+  also proxies authenticated requests to MLflow and OCI registries, keeping
+  credentials out of the adapter container, which can run custom user code.
+. The adapter runs the evaluation and reports status events back through the
+  sidecar.
+. The server aggregates and stores the results, logging them to MLflow if
+  integration is enabled.
+
+[IMPORTANT]
+====
+EvalHub is deployed by the TrustyAI Operator. The TrustyAI component must be
+set to `Managed` in your `DataScienceCluster` and KServe must use
+`RawDeployment` mode before you deploy EvalHub.
+====
+
+=== Verify
+
+You can name the three EvalHub components, the job state progression, and the
+three threshold levels without consulting this page.
+
+With the concepts in place, inspect the deployment in your cluster.
+
+== Exercise 2: Inspect the deployment
+
+This workshop assumes your facilitator deployed EvalHub in the `{guid}-evalhub`
+namespace and registered your working project as a tenant.
+
+. Confirm the TrustyAI component is managed in your `DataScienceCluster`:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get dsc default-dsc -o jsonpath='{.spec.components.trustyai.managementState}'
+----
++
+Expected output: `Managed`
+
+. Confirm the EvalHub pod is running:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -l app=eval-hub -n {guid}-evalhub
+----
++
+----
+NAME                         READY   STATUS    RESTARTS   AGE
+evalhub-7b9f4c6d88-x2k4p     1/1     Running   0          2m
+----
+
+. Capture the EvalHub server route and query the health endpoint:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export EVALHUB_URL=https://$(oc get routes evalhub -o jsonpath='{.spec.host}' -n {guid}-evalhub)
+curl $EVALHUB_URL/api/v1/health | jq .
+----
++
+----
+{
+  "status": "healthy",
+  "timestamp": "2026-04-13T10:00:00Z",
+  "version": "0.3.0",
+  "uptime": 3600000000000
+}
+----
+
+. Confirm the operator provisioned tenant resources in your working project:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get serviceaccount,rolebinding,configmap -n {guid}-{user} | grep evalhub
+----
++
+The output includes a ServiceAccount, RoleBindings, and a service CA ConfigMap
+created automatically by the TrustyAI Operator when it detected the tenant
+label on the namespace.
+
+=== Verify
+
+The TrustyAI component reports `Managed`, the `eval-hub` pod is `Running`, the
+health endpoint returns `"status": "healthy"`, and the tenant resources exist
+in your working project.
+
+== Module summary
+
+**What you accomplished:**
+
+* Explained the EvalHub architecture: server, SDK/CLI, providers, and the job workflow
+* Verified the TrustyAI component and the EvalHub pod in your cluster
+* Queried the EvalHub health endpoint and confirmed the provisioned tenant resources
+
+**Key takeaways:**
+
+* EvalHub orchestrates evaluations as isolated Kubernetes Jobs with a sidecar proxy that keeps credentials out of adapter containers
+* Thresholds apply at benchmark, collection, and provider level, with the most specific winning
+* The TrustyAI Operator deploys EvalHub and auto-provisions tenant resources when it sees the tenant label
+
+**Next steps:**
+
+With the deployment verified, install the EvalHub CLI and submit your first
+evaluation job in the hands-on module.

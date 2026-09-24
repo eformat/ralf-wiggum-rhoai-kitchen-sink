@@ -1,0 +1,41 @@
+= Welcome to the MaaS-specific external OIDC user authentication Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *MaaS-specific external OIDC user authentication*.
+
+**What you will learn:**
+
+* How MaaS authenticates external OIDC users with a two-tier flow: OIDC tokens for platform APIs, API keys for model access
+* Configure the `AITenant` custom resource with your external OIDC provider's issuer URL, client ID, and signing-key cache TTL
+* Create MaaS subscriptions and authorization policies that map external OIDC group claims to model access
+* Verify authentication end to end through the MaaS management API with a real OIDC token
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI 3.5 installed and cluster administrator privileges
+* Models-as-a-Service deployed
+* An external OIDC provider, such as Keycloak, with a registered client application (issuer URL and client ID)
+* User groups defined in the OIDC provider, with group claims included in ID tokens
+* Recommended prerequisite: complete the xref:maas-core::index.adoc[Models-as-a-Service (MaaS) core: access model and token mechanism] workshop first
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Configure external OIDC authentication]
+* xref:module-02-hands-on.adoc[Govern access and verify OIDC authentication]
+* xref:conclusion.adoc[Conclusion]

@@ -1,0 +1,212 @@
+= Module 01: Core Concepts
+:navtitle: Module 01: Core Concepts
+
+In this module you will learn what the Models-as-a-Service (MaaS) access model
+and token mechanism is, how subscriptions, authorization policies, and API keys
+work together to govern access to large language models, and how to verify that
+MaaS is deployed and healthy in your cluster.
+
+**Learning objectives:**
+
+* Explain how MaaS sits between users and model serving infrastructure
+* Identify the custom resources that implement the access model: `MaaSModelRef`, `MaaSSubscription`, and `MaaSAuthPolicy`
+* Verify the MaaS deployment from the CLI and the RHOAI dashboard
+
+== Exercise 1: Where the MaaS access model fits
+
+Models-as-a-Service (MaaS) provides subscription-based governance for large
+language model (LLM) serving across your organization. It acts as a governance
+layer between users and model serving infrastructure: you enforce centralized
+policies without modifying the underlying model serving components.
+
+Since OpenShift AI 3.4, MaaS uses a subscription-based model for quota
+management. Users do not get access with service-account tokens (the 3.3 tier
+model); they authenticate inference requests with subscription-bound API keys.
+
+The access model has three building blocks:
+
+|===
+|Custom resource |Role in the access model
+
+|`MaaSModelRef`
+|Registers a deployed inference server with MaaS. Created automatically when an
+administrator publishes a model; it lives in the model's project namespace.
+
+|`MaaSSubscription`
+|Grants OpenShift groups quota for specific models with configurable token rate
+limits. Users in multiple subscriptions resolve by priority level.
+
+|`MaaSAuthPolicy`
+|Authorizes groups to reach model endpoints through the API gateway.
+Subscriptions control token limits; authorization policies grant gateway access.
+|===
+
+[IMPORTANT]
+====
+Both a subscription *and* an authorization policy are required for a user to
+access a model through MaaS:
+
+* A `MaaSSubscription` without a matching `MaaSAuthPolicy` produces
+`403 Forbidden` responses — the user has no gateway access.
+* A `MaaSAuthPolicy` without a subscription produces `429 Too Many Requests`
+responses — no token quota is defined.
+====
+
+The token mechanism works as follows: users create API keys (with an
+`sk-oai-` prefix) bound to one of their subscriptions, then present the key as
+`Authorization: Bearer <key>` at the gateway. A key snapshots the owner's group
+memberships at creation time, so group changes require revoking and recreating
+keys to take effect.
+
+Users manage everything from two dashboard areas:
+
+* *User surfaces*: *Gen AI studio* → *AI asset endpoints* (discover models,
+view the external endpoint URL, mint a 1-hour temporary key) and *Gen AI
+studio* → *API keys* (create, view, revoke your own keys; browse your
+subscriptions and token limits on the *Subscriptions* tab)
+* *Admin surfaces*: *Settings* → *MaaS governance* (manage subscriptions and
+authorization policies) and *Observe & monitor* → *Dashboard* → *Usage*
+(token consumption and showback)
+
+List the resources that back the access model in your cluster:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get maassubscriptions -n models-as-a-service
+oc get maasauthpolicy -n models-as-a-service
+oc get maasmodelref --all-namespaces
+----
+
+=== Verify
+
+The three commands complete without error. Empty lists are expected if no
+model has been published to MaaS yet — you will create a subscription and
+authorization policy yourself in module 03.
+
+You can name the three custom resources and the dashboard areas where each is
+managed. Next, inspect the platform-level deployment that makes all of this
+work.
+
+== Exercise 2: Inspect the MaaS deployment
+
+MaaS depends on platform prerequisites (User Workload Monitoring, the
+Connectivity Link/Kuadrant gateway stack, a PostgreSQL database secret) and
+exposes itself through a set of `maas.opendatahub.io` custom resource
+definitions. Run a series of checks to confirm the deployment is healthy.
+
+. Verify that the MaaS custom resource definitions (CRDs) are installed:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get crd | grep -E 'maas.opendatahub.io|aitenants'
+----
++
+Expected output shows the following CRDs:
++
+----
+aitenants.maas.opendatahub.io
+maasauthpolicies.maas.opendatahub.io
+maasmodelrefs.maas.opendatahub.io
+maassubscriptions.maas.opendatahub.io
+maastenantconfigs.maas.opendatahub.io
+tenants.maas.opendatahub.io
+----
+
+. Verify that User Workload Monitoring is enabled. MaaS requires it to collect
+and expose usage metrics; without it the MaaS deployment shows a `Degraded`
+status:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get namespace openshift-user-workload-monitoring
+----
++
+The namespace exists when monitoring is enabled.
+
+. Verify that the default tenant is `Ready` and `Reconciled`:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get tenants.maas.opendatahub.io -n models-as-a-service
+----
++
+Expected output shows at least one Tenant resource:
++
+----
+NAME             READY   REASON        AGE
+default-tenant   True    Reconciled    5m
+----
+
+. Drill into the `Ready` condition of the Tenant resource:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get tenants.maas.opendatahub.io default-tenant -n models-as-a-service -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+----
++
+Expected output is `True`. If it is `False` or `Degraded`, read the condition
+message:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get tenants.maas.opendatahub.io default-tenant -n models-as-a-service -o jsonpath='{.status.conditions[?(@.type=="Ready")].message}'
+----
+
+. Verify that the dashboard flags for MaaS are enabled in the
+`OdhDashboardConfig` custom resource:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get odhdashboardconfig odh-dashboard-config -n redhat-ods-applications -o yaml | grep -A 5 "dashboardConfig:"
+----
++
+Look for the MaaS-related flags under `dashboardConfig`:
++
+[source,yaml]
+----
+dashboardConfig:
+  modelAsService: true <1>
+  genAiStudio: true <2>
+  maasAuthPolicies: true <3>
+----
+<1> *modelAsService* — enables the base MaaS features in the dashboard.
+<2> *genAiStudio* — enables the user-facing surfaces: the *AI asset endpoints*
+Models tab and the *API keys* page.
+<3> *maasAuthPolicies* — enables the administrative *MaaS governance* page.
+Your output may list other flags too; only these three matter here.
+
+. In the RHOAI dashboard, confirm the CRs are visible to administrators:
+navigate to *Administration* → *CustomResourceDefinitions* and search for
+`maas.opendatahub.io`. This step requires dashboard administrator privileges.
+
+=== Verify
+
+* All six `maas.opendatahub.io` CRDs are deployed and available.
+* The `openshift-user-workload-monitoring` namespace exists.
+* The default Tenant shows `READY: True` with `REASON: Reconciled`.
+* The MaaS dashboard flags are present in `OdhDashboardConfig`.
+
+If the Tenant status shows `False` or `Degraded`, the usual causes are missing
+User Workload Monitoring, a missing `maas-db-config` secret in the
+infrastructure namespace (default `redhat-ai-gateway-infra` for OpenShift AI
+3.5), or a Kuadrant custom resource that is not ready.
+
+== Module summary
+
+**What you accomplished:**
+
+* Mapped the MaaS access model to the `MaaSModelRef`, `MaaSSubscription`, and `MaaSAuthPolicy` custom resources
+* Verified the MaaS CRDs, User Workload Monitoring, and the default tenant status in your cluster
+* Confirmed the MaaS dashboard flags are enabled for user and admin surfaces
+
+**Key takeaways:**
+
+* MaaS is a governance layer: subscriptions define token quota, authorization policies grant gateway access, and both are required
+* Users authenticate with subscription-bound API keys, not service-account tokens
+* The MaaS observability and degradation signals live in the Tenant status conditions and User Workload Monitoring
+
+**Next steps:**
+
+With the platform verified, move on to the hands-on module where you discover
+a governed model, mint your own API key, and call the model through the
+OpenAI-compatible gateway.

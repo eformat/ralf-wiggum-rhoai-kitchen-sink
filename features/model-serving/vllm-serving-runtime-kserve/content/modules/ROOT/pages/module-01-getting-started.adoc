@@ -1,0 +1,191 @@
+= Module 01: Enable the vLLM ServingRuntime for KServe
+:navtitle: Module 01: Enable the vLLM ServingRuntime for KServe
+
+In this module you will learn what the vLLM ServingRuntime for KServe is,
+enable it on the single-model serving platform, and inspect the
+`ServingRuntime` custom resource (CR) that backs it.
+
+The vLLM ServingRuntime for KServe is a *preinstalled model-serving runtime*
+for the single-model serving (KServe) platform. A `ServingRuntime` resource
+defines the environment in which models are deployed: the container image, the
+entrypoint command, ports, and the model formats the runtime supports. The
+vLLM runtime serves generative AI models with the vLLM engine and exposes an
+OpenAI-compatible REST API over the HTTPS port of your OpenShift router.
+
+**Learning objectives:**
+
+* Explain how the `ServingRuntime` and `InferenceService` CRDs fit together on the single-model serving platform
+* Enable the model serving platform and the vLLM ServingRuntime for KServe from the console
+* Inspect the `ServingRuntime` template and identify its support level from the dashboard badges
+
+== Exercise 1: Enable the model serving platform and the runtime
+
+Two configuration switches stand between you and your first vLLM deployment:
+the model serving platform itself, and the vLLM ServingRuntime that the
+platform uses. Both are enabled from the OpenShift AI dashboard as a user with
+administrator privileges.
+
+. Log in to the OpenShift AI dashboard as a user with administrator
+  privileges.
+. In the left menu, click *Settings → Cluster settings → General settings*.
+. Locate the *Model serving platforms* section and select the *Model serving
+  platform* checkbox.
+. Click *Save changes*.
+. In the left menu, click *Settings → Model resources and operations →
+  Serving runtimes*.
++
+The *Serving runtimes* page shows the preinstalled runtimes and any custom
+runtimes that have been added to the cluster.
+. Set the *vLLM ServingRuntime for KServe* runtime to *Enabled*.
++
+The model serving platform is now available for model deployments in every
+project where KServe is enabled.
+
+NOTE: OpenShift AI also ships accelerator-specific variants — *vLLM NVIDIA
+GPU ServingRuntime for KServe*, *vLLM Intel Gaudi Accelerator ServingRuntime
+for KServe*, *vLLM AMD GPU ServingRuntime for KServe*, and the IBM Spyre
+variants. Each requires the matching accelerator operator and hardware
+profile to be configured on the cluster.
+
+NOTE: On a fresh install no `ServingRuntime` resources are pre-installed —
+only their templates. Enable the vLLM NVIDIA GPU runtime from its template
+(the CLI equivalent of the dashboard toggle in the next step):
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc process -n redhat-ods-applications vllm-cuda-runtime-template | oc apply -n redhat-ods-applications -f -
+----
+
+=== Verify
+
+From a terminal connected to your cluster, confirm the runtime is enabled and
+visible on the platform:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get servingruntimes -n redhat-ods-applications
+----
+
+The output should list the enabled runtimes, including the vLLM GPU runtime
+(similar to):
+
+----
+NAME                DISPLAYNAME                              DESIRED   AVAILABLE
+vllm-cuda-runtime   vLLM NVIDIA GPU ServingRuntime for KServe
+...
+----
+
+You can also confirm the dashboard state: *Settings → Model resources and
+operations → Serving runtimes* shows *vLLM NVIDIA GPU ServingRuntime for
+KServe* with a version badge (for example, `0.6.1`). A version badge with no
+*Limited support* badge indicates full GA support, which is the recommended
+configuration for production workloads.
+
+With the runtime enabled, the next step is to look inside the `ServingRuntime`
+template that KServe will use for your deployments.
+
+== Exercise 2: Inspect the ServingRuntime template
+
+A `ServingRuntime` defines the pod template that KServe instantiates when you
+deploy a model: which container image to run, the vLLM entrypoint command,
+which port to expose, and which model formats the runtime supports. Inspect
+the enabled vLLM GPU runtime to see how these pieces fit together.
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get servingruntime vllm-cuda-runtime -n redhat-ods-applications -o yaml
+----
+
+The runtime definition contains the essential fields from the RHOAI
+documentation:
+
+[source,yaml]
+----
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+  annotations:
+    opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]' <1>
+    openshift.io/display-name: vLLM ServingRuntime for KServe <2>
+  labels:
+    opendatahub.io/dashboard: "true"
+  name: vllm-cuda-runtime
+spec:
+  annotations:
+    prometheus.io/path: /metrics <3>
+    prometheus.io/port: "8080"
+  containers:
+    - args:
+        - --port=8080
+        - --model=/mnt/models <4>
+        - --served-model-name={{.Name}}
+      command:
+        - python
+        - '-m'
+        - vllm.entrypoints.openai.api_server <5>
+      env:
+        - name: HF_HOME
+          value: /tmp/hf_home
+      image: quay.io/modh/vllm@sha256:8a3dd8ad6e15fe7b8e5e471037519719d4d8ad3db9d69389f2beded36a6f5b21
+      name: kserve-container
+      ports:
+        - containerPort: 8080
+          protocol: TCP
+  multiModel: false <6>
+  supportedModelFormats:
+    - autoSelect: true
+      name: vLLM
+----
+
+<1> *recommended-accelerators:* The accelerator that the dashboard recommends
+when this runtime is selected — here, an NVIDIA GPU hardware profile.
+<2> *display-name:* The name under which the runtime appears in the
+dashboard's *Serving runtimes* page and in the deployment wizard.
+<3> *prometheus.io annotations:* The path and port that Prometheus uses to
+scrape runtime metrics for monitoring.
+<4> *--model=/mnt/models:* The path inside the container where KServe mounts
+the model files.
+<5> *command:* The entrypoint that starts the vLLM OpenAI-compatible API
+server.
+<6> *multiModel: false* and *supportedModelFormats:* The runtime is used for
+single-model serving and supports the `vLLM` model format with
+`autoSelect: true`, so KServe can match it to deployments automatically.
+
+=== Verify
+
+Confirm the runtime advertises the `vLLM` model format with auto-selection:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get servingruntime vllm-cuda-runtime -n redhat-ods-applications -o jsonpath='{.spec.supportedModelFormats}'
+----
+
+The output should show the `vLLM` format name with `autoSelect: true`:
+
+----
+[{"autoSelect":true,"name":"vLLM"}]
+----
+
+You now know what the runtime is and that it is enabled. In the next module
+you deploy a model through the *Deploy model* wizard and watch KServe
+instantiate this template.
+
+== Module summary
+
+**What you accomplished:**
+
+* Enabled the model serving platform in *Settings → Cluster settings → General settings*
+* Enabled the vLLM ServingRuntime for KServe from *Settings → Model resources and operations → Serving runtimes*
+* Inspected the `ServingRuntime` CR and identified its image, command, and supported model formats
+
+**Key takeaways:**
+
+* A `ServingRuntime` is the pod template KServe uses to deploy and serve models on the single-model serving platform
+* The vLLM runtime exposes an OpenAI-compatible REST API through the vLLM OpenAI API server entrypoint
+* Dashboard badges distinguish GA (*Pre-installed* + version badge) from limited-support fast builds and user-created custom runtimes
+
+**Next steps:**
+
+In the next module you deploy a generative AI model with the vLLM
+ServingRuntime for KServe through the *Deploy model* wizard and query it over
+the OpenAI-compatible API.

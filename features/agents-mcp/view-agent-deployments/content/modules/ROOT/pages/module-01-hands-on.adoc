@@ -1,0 +1,186 @@
+= Module 01: View Running Agent Deployments
+:navtitle: Module 01: View Running Agent Deployments
+
+In this module you will enable the `agentOps` dashboard feature flag, take a
+guided tour of the running agent deployments view, and trace the Sandbox custom
+resources (CRs) that feed it with the CLI.
+
+Once a playground agent configuration is proven — for example, after saving and
+loading agents as described in the saved agents workshop in this catalog — the
+next question is *what happened to it after deployment*. In RHOAI 3.5, the
+Agent Ops features in Gen AI Studio show a list of running agent deployments
+directly in the dashboard. The list includes agents that were deployed manually
+as OpenShell-managed Sandbox custom resources (CRs), so you do not need to
+switch to the CLI to see which agent instances are up. For each deployed agent
+instance, the dashboard shows the name and status, scoped to each namespace,
+with filtering capabilities to help you manage your deployed agents.
+
+**Learning objectives:**
+
+* Explain what the Agent Ops view shows and where its data comes from
+* Check and enable the `agentOps` dashboard feature flag
+* Explore the running agent deployments list: name, status, namespace, and filtering
+
+ifeval::["{feature_maturity}" == "DP"]
+NOTE: Viewing running agent deployments in the dashboard is a *Developer
+Preview* feature. Developer Preview features are provided as-is with no
+support, might not have complete documentation, are subject to change or
+removal at any time, and have received limited testing. The feature is gated
+behind the `agentOps` dashboard configuration option.
+endif::[]
+
+== Exercise 1: Check and enable the agentOps feature flag
+
+The running agent deployments view is gated behind a dashboard configuration
+option. Before changing anything, observe the current state of the
+`OdhDashboardConfig` custom resource.
+
+. Check whether the `agentOps` flag is already set:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get odhdashboardconfig odh-dashboard-config -n redhat-ods-applications -o jsonpath='{.spec.dashboardConfig.agentOps}'
+----
+
+If the output is empty, the flag is not set yet and the Agent Ops features are
+hidden. If it prints `true`, the feature is already enabled and you can skip
+ahead to Exercise 2.
+
+NOTE: The `OdhDashboardConfig` custom resource lives in the
+`redhat-ods-applications` namespace and is created by the OpenShift AI
+operator. The `agentOps` option enables the Agent Ops features in Gen AI
+Studio — the same mechanism other Developer Preview features use, such as
+`agentConfigManagement` for saved agents or `agentsCatalog` for the Agents
+Catalog page.
+
+IMPORTANT: You need cluster administrator privileges to patch the
+`OdhDashboardConfig` custom resource.
+
+. Patch the `OdhDashboardConfig` custom resource:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch odhdashboardconfig odh-dashboard-config -n redhat-ods-applications --type=merge -p '{"spec":{"dashboardConfig":{"agentOps":true}}}'
+----
+
+Expect the message `odhdashboardconfig.opendatahub.io/odh-dashboard-config
+patched`.
+
+. Clear your browser cache and hard refresh the OpenShift AI dashboard
+(Ctrl+Shift+R or Cmd+Shift+R) so the new configuration applies.
+
+=== Verify
+
+. Confirm the flag was updated correctly:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get odhdashboardconfig odh-dashboard-config -n redhat-ods-applications -o jsonpath='{.spec.dashboardConfig.agentOps}'
+----
+
+The expected output is `true`.
+
+The flag is set. Next, you tour the view it unlocks.
+
+== Exercise 2: Tour the running agent deployments view
+
+With the feature enabled, the dashboard lists running agent deployments from
+the OpenShift AI dashboard itself. In this exercise you observe only — the
+feature is a guided window onto deployed agent instances, not an editing tool.
+
+. From the OpenShift AI dashboard, click *Gen AI studio → Agent ops* in the
+navigation menu.
+
+NOTE: Because this is a Developer Preview, the exact menu label and location
+within Gen AI Studio can change between releases. If you do not see an Agent
+Ops entry, confirm the flag is set (Exercise 1) and check for a related item
+under *Gen AI studio*.
+
+// TODO: capture screenshot
+image::01-agent-ops-list.png[Running agent deployments list in the dashboard,link=self,window=blank,width=700]
+
+. Observe the list of running agent deployments. For each deployed agent
+instance, the view shows its *name* and *status*. This is the fast answer to
+"which of my agents are actually running?" without leaving the dashboard.
+
+. Switch between namespaces using the project selector. The list is scoped to
+each namespace, so what you see depends on the project you have selected.
+Agents deployed by other projects do not appear here.
+
+. Try the filtering capabilities on the list. Filter by name or status to
+narrow the view — for example, isolate the running agent instances in a busy
+namespace, or find a specific agent by the first letters of its name.
+
+. If your project has no deployed agents, the list is empty — that is expected.
+Deploying an agent (for example, as an OpenShell-managed Sandbox CR as covered
+in the secure agent sandboxing preview) makes it appear in this list.
+
+=== Verify
+
+The Agent Ops view opens without error and shows the name and status of each
+deployed agent instance in your selected namespace, with filters that narrow
+the list. If the view is missing, re-check the flag and hard-refresh the
+dashboard.
+
+Now that you know what the dashboard shows, look behind it at the Kubernetes
+resources that produce those entries.
+
+== Exercise 3: Trace the Sandbox CRs behind the list
+
+The dashboard list is a view over Kubernetes resources: the agents it shows
+were deployed manually as OpenShell-managed Sandbox custom resources. In this
+exercise you locate those resources with the CLI and match them to what the
+dashboard displayed.
+
+. Discover the exact resource name of the Sandbox CRD on your cluster:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc api-resources | grep -i sandbox
+----
+
+NOTE: Because OpenShell is itself a Developer Preview using upstream
+artifacts, the API group and resource name can differ between installations.
+`oc api-resources` reports the authoritative name for your cluster — use it in
+the next step rather than assuming one.
+
+. List the Sandbox resources across namespaces, using the resource name
+reported by the previous command:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get sandboxes -A
+----
+
+Observe the namespaces and names in the output. Every running Sandbox CR
+corresponds to an agent instance entry in the dashboard view from Exercise 2.
+
+. Compare the CLI output with the dashboard list: the same namespaces and agent
+names appear in both, with the dashboard adding the status summary and
+filtering on top.
+
+=== Verify
+
+The Sandbox resources you listed with `oc get sandboxes -A` match the agent
+names and namespaces shown in the dashboard's running agent deployments view.
+
+== Module summary
+
+**What you accomplished:**
+
+* Checked and enabled the `agentOps` dashboard feature flag in the `OdhDashboardConfig` custom resource
+* Toured the running agent deployments view, including name, status, namespace scoping, and filtering
+* Traced the OpenShell-managed Sandbox CRs behind the list with the CLI and matched them to the dashboard entries
+
+**Key takeaways:**
+
+* The Agent Ops view lists running agent deployments directly in the dashboard, including agents deployed manually as OpenShell-managed Sandbox custom resources
+* The list shows the name and status of each deployed agent instance per namespace, with filtering to help manage deployed agents
+* The view is gated by the `agentOps` dashboard configuration option, not by a component in the `DataScienceCluster` object
+
+**Next steps:**
+
+To see how these agents get built and saved before deployment, work through
+the saved agents workshop in this catalog. For measuring whether a deployed
+agent actually performs, the automated tool-calling evaluation workshop covers
+tool-calling evaluation end to end.

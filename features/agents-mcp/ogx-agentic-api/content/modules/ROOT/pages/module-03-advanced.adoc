@@ -1,0 +1,276 @@
+= Module 03: RAG, citations, and advanced APIs
+:navtitle: Module 03: RAG, citations, and advanced APIs
+
+In this module you will explore the advanced side of the OGX agentic surface: grounding responses
+in your documents with the `file_search` tool, tracing answers back to sources with file citation
+annotations, opting into Responses API guardrails, and surveying the native Tool Runtime API.
+
+**Learning objectives:**
+
+* Run a complete RAG workflow with the Files, Vector Stores, and Responses APIs
+* Inspect `file_citation` annotations in Responses API output
+* Understand Responses API guardrails opt-in and fail-closed behavior
+* Locate the Tool Runtime API and its support level
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: This feature is a *Technology Preview*. Support levels within the API surface differ — the
+Responses API is listed as generally available in the 3.5 docs, while the Conversations API,
+Tool Runtime, and Vector_IO are Technology Preview or Developer Preview. Endpoints and parameters
+shown here may change between releases.
+endif::[]
+
+== Exercise 1: Ground answers with the file_search tool
+
+The Responses API orchestrates inference and retrieval but relies on separate providers for file
+storage (Files API) and vector indexing (Vector Stores API). The full workflow is: upload a file,
+create a vector store, index the file into the store, then query with the `file_search` tool.
+
+. In a new notebook cell, upload a document and index it into a vector store:
+
+[source,python]
+----
+import time
+
+# Upload the file to the Files API
+with open("your-document.pdf", "rb") as f:
+    file_info = client.files.create(
+        file=("your-document.pdf", f),
+        purpose="assistants"
+    )
+
+# Create a vector store backed by a remote Milvus provider
+vector_store = client.vector_stores.create(
+    name="test_vector_store",
+    extra_body={
+        "embedding_model": embedding_model_id,
+        "embedding_dimension": embedding_dimension,
+        "provider_id": "milvus-remote",
+    },
+)
+
+# Add the uploaded file to the vector store
+vector_store_file = client.vector_stores.files.create(
+    vector_store_id=vector_store.id,
+    file_id=file_info.id,
+    chunking_strategy={
+        "type": "static",
+        "static": {
+            "max_chunk_size_tokens": 700,
+            "chunk_overlap_tokens": 100,
+        }
+    },
+    attributes={
+        "title": "your-document",
+    },
+)
+----
+
+. Indexing is asynchronous. Poll until the file status is `completed`:
+
+[source,python]
+----
+max_wait_time = 300 # 5 minutes
+start_time = time.time()
+while time.time() - start_time < max_wait_time:
+    files = client.vector_stores.files.list(vector_store_id=vector_store.id)
+    if files.data:
+        file_status = files.data[0].status
+        print(f"File status: {file_status}")
+        if file_status == "completed":
+            break
+        elif file_status == "failed":
+            break
+    time.sleep(5)
+----
+
+. Query using the Responses API with the `file_search` tool:
+
+[source,python]
+----
+system_instructions = """You are a precise and reliable AI assistant.
+Use retrieved context when it is available.
+If nothing relevant is found, say so clearly."""
+
+query = "Ask a question that is answered by your uploaded document"
+
+response = client.responses.create(
+    model=model_id,
+    input=query,
+    instructions=system_instructions,
+    tools=[
+        {
+            "type": "file_search",
+            "vector_store_ids": [vector_store.id],
+        }
+    ],
+)
+print(response.output_text)
+----
+
+NOTE: When you include the `file_search` tool with `vector_store_ids`, OGX retrieves relevant
+chunks from the specified vector store and provides them to the model as context for the
+response.
+
+=== Verify
+
+* The polling loop prints `File status: completed` for the indexed file.
+* The `file_search` answer is grounded in your uploaded document; a comparison query asked
+  without `vector_store_ids` returns an ungrounded or non-contextual answer.
+
+Your answers are now grounded. Next, inspect the citation annotations that trace them back to
+sources.
+
+== Exercise 2: View file citation annotations in Responses API output
+
+OGX returns OpenAI-compatible `file_citation` annotations when you use the `file_search` tool,
+enabling applications to trace generated responses back to source documents without changes to
+client code. Annotations are enabled by default and returned only through the Responses API with
+the `file_search` tool.
+
+. Inspect the full response object rather than only `output_text`:
+
+[source,python]
+----
+response.output
+----
+
+. Access the annotations array:
+
+[source,python]
+----
+annotations = response.output[0].content[0].annotations
+print(annotations)
+----
+
+Expected output:
+
+----
+[
+  {
+    "type": "file_citation",
+    "file_id": "file-57610eaac6364459bfefae60377837b7",
+    "filename": "your-document.pdf",
+    "index": 139
+  }
+]
+----
+
+Each `file_citation` annotation identifies the source file by `file_id` and `filename`, and the
+`index` of the cited file position.
+
+NOTE: The accuracy and consistency of citation annotations depend on the capabilities of the
+underlying language model. Smaller or less capable models might produce less precise attributions,
+even when retrieval is functioning correctly. If citation results are incomplete or inconsistent,
+consider using a larger or more capable model.
+
+=== Verify
+
+* The response includes an `annotations` array under `output[].content[]`.
+* Each annotation has `"type": "file_citation"`.
+* `file_id` and `filename` correspond to files stored in the specified vector store.
+
+With citations confirmed, you can layer on guardrails to moderate content before it passes
+through.
+
+== Exercise 3: Opt into Responses API guardrails
+
+OGX's built-in guardrails use a `moderation_endpoint` configuration pointing at any
+OpenAI-compatible `/v1/moderations` endpoint. The configuration lives on the *responses provider*,
+not at the CRD level, and is set by the platform administrator.
+
+Clients opt in per-request by setting `guardrails: true` on the Responses API request:
+
+[source,bash,role="execute",subs="attributes"]
+----
+export OGX_URL="http://ogx-distribution-service.{guid}-{user}.svc.cluster.local:8321"
+curl -s -X POST "$OGX_URL/v1/responses" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "<model-id>",
+    "input": "Ask a question to test moderation",
+    "guardrails": true
+  }'
+----
+
+The guardrails check is designed to *fail closed*: any error blocks content rather than allowing
+it through. HTTP errors or timeouts block content with a "moderation service unavailable" error;
+an invalid JSON response blocks with an "invalid response" error; a missing or malformed results
+array blocks with an "unexpected format" error; and any result flagged `true` blocks content with
+the flagged category names. Only when no errors occur and no result is flagged does content pass.
+
+NOTE: If `guardrails` is set to `true` but no `moderation_endpoint` is configured on the
+responses provider, the server returns a `400` error instructing the client to contact their
+platform administrator.
+
+IMPORTANT: The moderation endpoint connection uses the system CA trust store or the CA bundle
+configured via `spec.tls.trust.caCertificates`. Authentication is handled via
+`moderation_headers`, which are server-side only and never exposed to clients.
+
+For production deployments, the recommended guardrails path is the RHOAI NeMo Guardrails
+integration, managed through the `NemoGuardrails` CRD
+(`trustyai.opendatahub.io/v1alpha1`) and the `MCPGuardrailsMode` toggle on the TrustyAI component
+spec.
+
+=== Verify
+
+* The request with `guardrails: true` either completes normally or returns an explanatory `400`
+  error when no moderation endpoint is configured — it never silently skips moderation.
+* The fail-closed behavior means any moderation service error blocks the response.
+
+Next, survey the native OGX API that lets models call tools dynamically at runtime.
+
+== Exercise 4: Survey the Tool Runtime API
+
+The Tool Runtime API is a native OGX API, distinct from the OpenAI-compatible surface:
+
+[cols="1,2,2"]
+|===
+|Field |Value |Notes
+
+|Endpoint
+|`/v1/tool-runtime`
+|Native OGX API, not OpenAI-compatible
+
+|Providers
+|All tool runtime backends deployed through OpenShift AI
+|Enabled through the run.yaml provider configuration
+
+|Support level
+|Developer Preview
+|Not recommended for production use
+|===
+
+The Tool Runtime API allows a model to dynamically call a tool at runtime. As with other native
+OGX APIs, which APIs are enabled is defined by the `run.yaml` file shipped with the distribution;
+platform administrators can supply a custom `run.yaml` to enable advanced workflows or integrate
+additional providers.
+
+NOTE: The RHOAI 3.5 docs do not include a worked client example for the Tool Runtime API. Treat
+this exercise as a survey of the endpoint and its support level rather than a hands-on lab.
+
+=== Verify
+
+* You can state which layer hosts the Tool Runtime API (native OGX, not OpenAI-compatible) and
+  its support level (Developer Preview).
+* The tool_runtime provider appears in the provider support table of the Working with OGX
+  documentation for your release.
+
+== Module summary
+
+**What you accomplished:**
+
+* Ran a complete RAG workflow with the Files, Vector Stores, and Responses APIs
+* Inspected `file_citation` annotations that trace answers back to source files
+* Exercised Responses API guardrails opt-in and reviewed the fail-closed behavior
+* Surveyed the native Tool Runtime API and its support level
+
+**Key takeaways:**
+
+* The `file_search` tool in the Responses API turns vector stores into grounded answers with no client-side retrieval code
+* `file_citation` annotations are enabled by default and identify source files by ID and filename
+* Guardrails fail closed: any moderation error blocks content rather than letting it through
+
+**Next steps:**
+
+You have explored the full OGX agentic surface. Head to the conclusion for pointers back to the
+source documentation and cleanup notes.

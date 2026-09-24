@@ -1,0 +1,41 @@
+= Welcome to the Multi-provider API passthrough for external models (MaaS) Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *Multi-provider API passthrough for external models (MaaS)*.
+
+**What you will learn:**
+
+* How the MaaS gateway detects API formats and when passthrough activates instead of translation (`/v1/messages`, `/v1/responses` versus `/v1/chat/completions`)
+* Creating the provider API key secret and the `ExternalProvider` custom resource that defines the external endpoint and authentication
+* Mapping a client-facing model name to an external provider with an `ExternalModel` custom resource using a passthrough-eligible `apiFormat` (`messages` or `openai-responses`), and publishing it with a `MaaSModelRef`
+* Verifying external model routing from the dashboard and testing single-URL passthrough with AI coding tools such as Claude Code
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI 3.5 installed and Models-as-a-Service deployed
+* Cluster administrator privileges for the OpenShift cluster
+* At least one MaaS subscription to which you will add the external model
+* An external provider API key (for example, an Anthropic API key)
+* Recommended prerequisite: complete the xref:maas-core::index.adoc[Models-as-a-Service (MaaS) core: access model and token mechanism] workshop first
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

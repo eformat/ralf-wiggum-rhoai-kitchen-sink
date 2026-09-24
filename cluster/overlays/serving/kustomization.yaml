@@ -1,0 +1,18 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# KServe model-serving platform (single-model RawDeployment path). Labs that
+# deploy models via the wizard or ServingRuntimes map here: vllm-*-kserve,
+# rhai-fast-release-images, vllm-cpu-ibm-z-power, guardrails, ogx, evaluation.
+#
+# Enabling kserve also brings the llm-d controllers (llmisvc-controller-manager,
+# workload-variant-autoscaler) on RHOAI 3.5 — overlays/llmd adds the inference
+# Gateway and the serving-path operators (JobSet, LWS) on top.
+#
+# NOTE: the vLLM/vLLM-CPU ServingRuntimes ship with RHOAI; enable them via
+# dashboard Settings → Serving runtimes if disabled (see overlays/cpu-config).
+resources:
+  - ../../base
+patches:
+  - path: dsc-kserve-patch.yaml

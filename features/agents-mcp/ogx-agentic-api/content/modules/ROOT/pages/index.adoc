@@ -1,0 +1,41 @@
+= Welcome to the OGX-native agentic API surface (Tool Runtime, Responses, Conversations) Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *OGX-native agentic API surface (Tool Runtime, Responses, Conversations)*.
+
+**What you will learn:**
+
+* What the OGX agentic API surface is: native OGX APIs (Tool Runtime) versus the OpenAI-compatible surface (Responses, Conversations)
+* Deploy an OGXServer and verify it reaches the Running phase
+* Connect an OpenAI SDK client to the OGX route and drive multi-turn, stateful chats with the Conversations API
+* Ground answers in your documents with the `file_search` tool and inspect `file_citation` annotations
+* Opt into Responses API guardrails and survey the Tool Runtime API support level
+
+== Prerequisites
+
+* RHOAI operator installed
+* OGX enabled
+* An OpenShift cluster with RHOAI 3.5 installed
+
+== Estimated time
+
+About 2 hours
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-concepts.adoc[Module 01: OGX agentic API concepts]
+* xref:module-02-hands-on.adoc[Module 02: Responses and Conversations hands-on]
+* xref:module-03-advanced.adoc[Module 03: RAG, citations, and advanced APIs]
+* xref:conclusion.adoc[Conclusion]

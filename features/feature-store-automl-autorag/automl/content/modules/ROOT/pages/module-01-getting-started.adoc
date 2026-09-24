@@ -1,0 +1,157 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will enable AutoML for your project and validate every
+prerequisite before creating your first optimization run.
+
+**Learning objectives:**
+
+* Explain the AutoML workflow, task types, and Technology Preview limitations
+* Enable AutoML in the DataScienceCluster dashboard configuration
+* Enable AutoML pipelines on your project's pipeline server
+* Validate the prerequisites for an optimization run
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: This feature is a *Technology Preview*. The APIs and fields shown here
+(`spec.dashboardConfig.automl`, `spec.apiServer.managedPipelines`) may change
+between releases. Re-check the RHOAI documentation for your version.
+endif::[]
+
+AutoML is powered by AutoGluon. When you create an optimization run, AutoML
+loads your training data, samples it if needed, splits it into training and
+test sets, and trains candidate models using different algorithms and
+configurations. The leaderboard ranks models by the optimized metric for your
+task type, and you can register a model to a model registry or save a notebook
+for further exploration.
+
+Supported task types:
+
+* *Binary classification* — two distinct categories (pass/fail, approved/denied)
+* *Multiclass classification* — three or more distinct categories
+* *Regression* — continuous numerical values such as price or duration
+* *Time series forecasting* — future values over a date or time range; your data
+  must include a timestamp column, a numeric target column, and an ID column
+
+Technology Preview limitations:
+
+* CSV-format training data only
+* Training data capped at 32 MiB when uploaded through the dashboard, or 100 MB
+  when loaded from S3
+* No custom algorithm selection or hyperparameter tuning — AutoML uses AutoGluon
+  to select and tune candidate models automatically
+* Optimization runs cannot be edited after creation
+
+== Exercise 1: Enable AutoML in the dashboard configuration
+
+An administrator must set the `spec.dashboardConfig.automl` option to `true` on
+the DataScienceCluster. On a workshop cluster where you have cluster-admin
+rights, apply it yourself.
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch dsc default-dsc --type merge \
+  -p '{"spec":{"dashboardConfig":{"automl":true}}}'
+----
+
+WARNING: This modifies the cluster-wide DataScienceCluster resource. In a shared
+workshop environment, confirm with your facilitator that AutoML is already
+enabled instead of patching the DSC yourself.
+
+=== Verify
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get dsc default-dsc -o jsonpath='{.spec.dashboardConfig.automl}'
+----
+
+The output is `true`. If it prints nothing, the patch did not apply — re-run the
+command above before continuing.
+
+With AutoML enabled and every step verified, the next prerequisite is a pipeline
+server with AutoML pipelines switched on.
+
+== Exercise 2: Enable AutoML pipelines on the pipeline server
+
+AutoML runs are managed pipelines that execute on your project's pipeline
+server. First confirm a pipeline server exists in your project:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get dspa -n {guid}-{user}
+----
+
+Enable AutoML and AutoRAG pipelines in one of two ways:
+
+* *Console*: in the RHOAI dashboard, click *Data Science Pipelines*, edit your
+  pipeline server, scroll to *Advanced settings*, select *Enable AutoML and
+  AutoRAG pipelines*, and click *Update workbench*.
+* *CLI*: patch the `DataSciencePipelinesApplication` instance to set
+  `spec.apiServer.managedPipelines` to an empty object:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch dspa data-science-pipelines -n {guid}-{user} --type merge \
+  -p '{"spec":{"apiServer":{"managedPipelines":{}}}}'
+----
+
+Replace `data-science-pipelines` with the name of your pipeline server from the
+`oc get dspa` output.
+
+=== Verify
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get dspa -n {guid}-{user}
+----
+
+The pipeline server reports `READY` as `True`. A pipeline server that is not
+ready blocks every exercise in the next module, so do not continue until this
+succeeds.
+
+The feature flag and the pipeline server are now ready; the last checkpoint is
+your data and the dashboard itself.
+
+== Exercise 3: Validate your data and the AutoML page
+
+. Confirm your training data is a CSV file with UTF-8 encoding, comma
+  delimiters, and a header row, stored in an S3-compatible bucket. Maximum file
+  size is 32 MiB when uploading through the dashboard, or 100 MB when loaded
+  from S3.
+. Confirm an S3 data connection exists in your project. Data connections are
+  stored as secrets:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get secrets -n {guid}-{user}
+----
+
+If no connection exists yet, create one from the dashboard (*Data connections* >
+*Add connection*) with your bucket endpoint and credentials.
+
+. In the RHOAI dashboard, click *Develop and train > AutoML*. The AutoML page
+  loads and lists any existing optimization runs. If the page is missing, the
+  `spec.dashboardConfig.automl` flag from Exercise 1 is not enabled yet.
+
+=== Verify
+
+You have a CSV training file in S3, a working S3 data connection in your
+project, and the AutoML page visible in the dashboard under *Develop and train*.
+
+== Module summary
+
+**What you accomplished:**
+
+* Enabled the AutoML dashboard option on the DataScienceCluster
+* Enabled AutoML and AutoRAG pipelines on your project's pipeline server
+* Validated your CSV training data, S3 connection, and the AutoML dashboard page
+
+**Key takeaways:**
+
+* AutoML trains candidate models with AutoGluon and ranks them on a leaderboard
+* AutoML depends on two settings: the DSC dashboard flag and the pipeline server
+* Technology Preview limits you to CSV data with no custom algorithms or tuning
+
+**Next steps:**
+
+With the environment validated, you are ready to create a real optimization run.
+Continue to the hands-on module to train, evaluate, and deploy your first model.

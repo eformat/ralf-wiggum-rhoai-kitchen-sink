@@ -1,0 +1,590 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will work through the core Connectivity Link workflow end to end: expose
+the example Toystore API through a Gateway, secure it with TLS, and protect it with
+authentication and rate-limiting policies — first as a platform engineer setting gateway
+defaults, then as an application developer overriding them for specific users.
+
+**Learning objectives:**
+
+* Create a Gateway object that Connectivity Link manages and secure its listener with a TLSPolicy
+* Publish an API with an HTTPRoute attached to your Gateway
+* Set a zero-trust gateway-level AuthPolicy and RateLimitPolicy, then override them at the route level
+* Verify the enforced behavior of every policy with `curl`
+
+== Exercise 1: Set up your environment
+
+You will use two namespaces: a gateway namespace for the Gateway object and its policies,
+and your working project for the Toystore application.
+
+. Set the environment variables used throughout this module:
+
+[source,bash,role="execute",subs="attributes"]
+----
+export KUADRANT_GATEWAY_NS={guid}-gateway
+export KUADRANT_GATEWAY_NAME=ingress-gateway
+export KUADRANT_DEVELOPER_NS={guid}-{user}
+export KUADRANT_ZONE_ROOT_DOMAIN=example.com
+export KUADRANT_CLUSTER_ISSUER_NAME=self-signed
+----
+<1> *KUADRANT_GATEWAY_NS* — namespace for your Gateway object.
+<2> *KUADRANT_ZONE_ROOT_DOMAIN* — the root domain your Gateway listener hostname is based on. The workshop uses `example.com`; use your DNS zone root domain if you configure DNSPolicy later.
+
+. Create the gateway namespace and deploy the Toystore example application:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc new-project ${KUADRANT_GATEWAY_NS}
+oc apply -f https://raw.githubusercontent.com/Kuadrant/Kuadrantoperator/main/examples/toystore/toystore.yaml -n ${KUADRANT_DEVELOPER_NS}
+----
+
+NOTE: The Toystore application is an example only and is not intended for production use.
+
+=== Verify
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n ${KUADRANT_DEVELOPER_NS}
+----
+
+The `toystore` pod reports `1/1 Running`.
+
+== Exercise 2: Create your Gateway object
+
+The Gateway object is the instantiation of your entry point: it causes the controller to
+provision a load balancer with specific ports and security credentials.
+
+[source,bash,role="execute"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: ${KUADRANT_GATEWAY_NAME}
+  namespace: ${KUADRANT_GATEWAY_NS}
+  labels:
+    kuadrant.io/gateway: "true"
+spec:
+  gatewayClassName: openshift-default
+  listeners:
+    - allowedRoutes:
+        namespaces:
+          from: All
+      hostname: "api.${KUADRANT_ZONE_ROOT_DOMAIN}"
+      name: api
+      port: 443
+      protocol: HTTPS
+      tls:
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: api-${KUADRANT_GATEWAY_NAME}-tls
+        mode: Terminate
+EOF
+----
+
+[NOTE]
+====
+On clusters **without a LoadBalancer provider** (RHDP workshop clusters,
+bare-metal), a Gateway on `openshift-default` creates a LoadBalancer Service
+that stays `<pending>` externally and never reaches `Programmed=True`. Use
+`gatewayClassName: data-science-gateway-class` (the same class the RHOAI
+platform gateway uses) and expose the gateway with a Route instead; derive the
+gateway address from the Service ClusterIP for the `--resolve` curl checks.
+====
+
+<1> *kuadrant.io/gateway: "true"* — marks this Gateway for Connectivity Link policy attachment.
+<2> *gatewayClassName: openshift-default* — selects the OpenShift Cluster Ingress Operator as the Gateway API controller.
+<3> *from: All* — lets HTTPRoutes from any namespace, such as your Toystore project, attach to this listener.
+<4> *hostname* — the listener host under your root domain; a DNSPolicy reuses this shared hostname for multi-cluster load balancing.
+<5> *mode: Terminate* — TLS terminates at the gateway; the referenced Secret is created by the TLSPolicy you add next.
+
+Check the status of the Gateway and its HTTPS listener:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get gateway ${KUADRANT_GATEWAY_NAME} -n ${KUADRANT_GATEWAY_NS} -o=jsonpath='{.status.conditions[?(@.type=="Accepted")].message}{"\n"}{.status.conditions[?(@.type=="Programmed")].message}{"\n"}'
+----
+
+.Example output
+----
+Resource accepted
+Resource programmed, assigned to service(s)
+ingress-gateway.api-gateway.svc.cluster.local:443
+----
+
+The listener exists but is *not* programmed to accept traffic yet, because no valid
+certificate is available — the TLSPolicy fixes that.
+
+=== Verify
+
+The Gateway reports `Resource accepted` and `Resource programmed, assigned to service(s)`.
+
+== Exercise 3: Secure the Gateway with TLS
+
+Define a certificate issuer and a TLSPolicy CR so Connectivity Link provisions TLS
+certificates for your listener hostnames through cert-manager. The workshop uses a
+self-signed issuer; for production, configure an ACME issuer for your cloud provider
+platform instead.
+
+. Create the self-signed ClusterIssuer:
+
+[source,bash,role="execute"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: ${KUADRANT_CLUSTER_ISSUER_NAME}
+spec:
+  selfSigned: {}
+EOF
+----
+
+. Create the TLSPolicy CR for your Gateway:
+
+[source,bash,role="execute"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: kuadrant.io/v1
+kind: TLSPolicy
+metadata:
+  name: ${KUADRANT_GATEWAY_NAME}-tls
+  namespace: ${KUADRANT_GATEWAY_NS}
+spec:
+  targetRef:
+    name: ${KUADRANT_GATEWAY_NAME}
+    group: gateway.networking.k8s.io
+    kind: Gateway
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: ${KUADRANT_CLUSTER_ISSUER_NAME}
+EOF
+----
+<1> *targetRef* — attaches the policy to your Gateway; cert-manager then issues certificates for every listener hostname.
+<2> *issuerRef* — the ClusterIssuer that signs the certificates. Any cert-manager-supported issuer works; in multicluster environments add the issuer in each cluster.
+
+Certificate issuance might take a few minutes.
+
+=== Verify
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get tlspolicy ${KUADRANT_GATEWAY_NAME}-tls -n ${KUADRANT_GATEWAY_NS} -o=jsonpath='{.status.conditions[?(@.type=="Accepted")].message}{"\n"}{.status.conditions[?(@.type=="Enforced")].message}{"\n"}'
+----
+
+.Example output
+----
+TLSPolicy has been accepted
+TLSPolicy has been successfully enforced
+----
+
+== Exercise 4: Publish the Toystore API with an HTTPRoute
+
+In Gateway API, the HTTPRoute CR specifies the routing behavior of HTTP requests from your
+Gateway to your application.
+
+[source,bash,role="execute"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: toystore
+  namespace: ${KUADRANT_DEVELOPER_NS}
+  labels:
+    deployment: toystore
+    service: toystore
+spec:
+  parentRefs:
+    - name: ${KUADRANT_GATEWAY_NAME}
+      namespace: ${KUADRANT_GATEWAY_NS}
+  hostnames:
+    - api.${KUADRANT_ZONE_ROOT_DOMAIN}
+  rules:
+    - matches:
+        - method: GET
+          path:
+            type: PathPrefix
+            value: /cars
+        - method: GET
+          path:
+            type: PathPrefix
+            value: /health
+      backendRefs:
+        - name: toystore
+          port: 80
+EOF
+----
+<1> *deployment/service labels* — required for some Connectivity Link example dashboard panels to work; they let low-level Istio and Envoy metrics join Gateway API state metrics.
+<2> *parentRefs* — must match the Gateway name and namespace from Module 02 Exercise 2.
+<3> *hostnames* — must match the hostname specified in the Gateway listener.
+<4> *backendRefs* — the Toystore Service in your project.
+
+. Get the load balancer address assigned to your Gateway so you can send traffic without a DNSPolicy:
+
+[source,bash,role="execute",subs="attributes"]
+----
+# --resolve needs an IP: on clusters where the gateway status address is a
+# hostname (no LoadBalancer provider), use the gateway Service ClusterIP
+export GATEWAY_ADDRESS=$(oc get svc ${KUADRANT_GATEWAY_NAME}-openshift-default -n ${KUADRANT_GATEWAY_NS} -o jsonpath='{.spec.clusterIP}')
+echo $GATEWAY_ADDRESS
+----
+
+. Send a request to the API through the gateway, pinning the hostname to the load balancer address:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k --resolve "api.${KUADRANT_ZONE_ROOT_DOMAIN}:443:${GATEWAY_ADDRESS}" "https://api.${KUADRANT_ZONE_ROOT_DOMAIN}/cars"
+----
+
+NOTE: The RHOAI documentation reaches `https://api.example.com/cars` directly once a
+DNSPolicy publishes the hostname to your DNS provider. The workshop uses `--resolve`
+because it does not configure cloud DNS; `-k` skips certificate validation because the
+issuer is self-signed.
+
+=== Verify
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get httproute toystore -n ${KUADRANT_DEVELOPER_NS} -o=jsonpath='{.status.parents[].conditions[?(@.type=="Accepted")].message}{"\n"}'
+----
+
+.Example output
+----
+Route was valid
+----
+
+The `curl` command returns an `HTTP/1.1 200 OK` response with the Toystore JSON payload.
+
+== Exercise 5: Protect the API with AuthPolicy and RateLimitPolicy
+
+As a platform engineer, set a *deny-all* zero-trust default at the Gateway level so no
+traffic flows unless a specific allow rule exists, plus a low global rate limit to protect
+backends from excessive requests.
+
+. Create a gateway-level AuthPolicy with a deny-all setting:
+
+[source,bash,role="execute"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: kuadrant.io/v1
+kind: AuthPolicy
+metadata:
+  name: ${KUADRANT_GATEWAY_NAME}-auth
+  namespace: ${KUADRANT_GATEWAY_NS}
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: ${KUADRANT_GATEWAY_NAME}
+  defaults:
+    when:
+      - predicate: "request.path != '/health'"
+    rules:
+      authorization:
+        deny-all:
+          opa:
+            rego: "allow = false"
+    response:
+      unauthorized:
+        headers:
+          "content-type":
+            value: application/json
+        body:
+          value: |
+            {
+              "error": "Forbidden",
+              "message": "Access denied by default by the gateway operator. If you are the administrator of the service, create a specific auth policy for the route."
+            }
+EOF
+----
+<1> *predicate* — exempts the health endpoint so probes keep working while everything else is denied.
+<2> *deny-all* — an OPA rule that rejects every request; every connection must then be authenticated by a route-level policy.
+<3> *response* — the JSON body returned with HTTP 403 for unprotected endpoints.
+
+. Create a gateway-level default RateLimitPolicy with an artificially low limit for easy testing:
+
+[source,bash,role="execute"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: kuadrant.io/v1
+kind: RateLimitPolicy
+metadata:
+  name: ${KUADRANT_GATEWAY_NAME}-rlp
+  namespace: ${KUADRANT_GATEWAY_NS}
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: ${KUADRANT_GATEWAY_NAME}
+  defaults:
+    limits:
+      "low-limit":
+        rates:
+          - limit: 1
+            window: 10s
+EOF
+----
+<1> *limit: 1* — one request per window; deliberately low so the limit is easy to observe.
+<2> *window: 10s* — the sliding window for the counter. Configure the values that make sense in your use case.
+
+. Confirm both policies are Accepted and Enforced:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get authpolicy ${KUADRANT_GATEWAY_NAME}-auth -n ${KUADRANT_GATEWAY_NS} -o=jsonpath='{.status.conditions[?(@.type=="Accepted")].message}{"\n"}{.status.conditions[?(@.type=="Enforced")].message}{"\n"}'
+oc get ratelimitpolicy ${KUADRANT_GATEWAY_NAME}-rlp -n ${KUADRANT_GATEWAY_NS} -o=jsonpath='{.status.conditions[?(@.type=="Accepted")].message}{"\n"}{.status.conditions[?(@.type=="Enforced")].message}{"\n"}'
+----
+
+.Example output
+----
+AuthPolicy has been accepted
+AuthPolicy has been successfully enforced
+RateLimitPolicy has been accepted
+RateLimitPolicy has been successfully enforced
+----
+
+. Test the deny-all behavior from outside:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k --resolve "api.${KUADRANT_ZONE_ROOT_DOMAIN}:443:${GATEWAY_ADDRESS}" "https://api.${KUADRANT_ZONE_ROOT_DOMAIN}/cars"
+curl -k --resolve "api.${KUADRANT_ZONE_ROOT_DOMAIN}:443:${GATEWAY_ADDRESS}" "https://api.${KUADRANT_ZONE_ROOT_DOMAIN}/health"
+----
+
+The `/cars` request returns HTTP 403 with the "Access denied by default" JSON body; the
+`/health` request returns HTTP 200 because of the predicate.
+
+. Now act as the application developer: create API keys for the `alice` and `bob` users. The keys live in the Connectivity Link system namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+export KUADRANT_SYSTEM_NS=$(oc get kuadrant -A -o jsonpath="{.items[0].metadata.namespace}")
+cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bob-key
+  namespace: ${KUADRANT_SYSTEM_NS}
+  labels:
+    authorino.kuadrant.io/managed-by: authorino
+    app: toystore
+  annotations:
+    secret.kuadrant.io/user-id: bob
+stringData:
+  api_key: IAMBOB
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alice-key
+  namespace: ${KUADRANT_SYSTEM_NS}
+  labels:
+    authorino.kuadrant.io/managed-by: authorino
+    app: toystore
+  annotations:
+    secret.kuadrant.io/user-id: alice
+stringData:
+  api_key: IAMALICE
+type: Opaque
+EOF
+----
+<1> *authorino.kuadrant.io/managed-by: authorino* — tells Authorino this Secret is an API key credential it must load.
+<2> *app: toystore* — the label the route-level AuthPolicy selects on.
+<3> *secret.kuadrant.io/user-id* — the identity injected as `auth.identity.userid` for counters and predicates.
+<4> *api_key* — the credential value clients send as `Authorization: APIKEY <key>`.
+
+NOTE: Writing to the Connectivity Link system namespace requires elevated permissions.
+If you cannot write there, ask your facilitator to create the key Secrets.
+
+. Create a route-level AuthPolicy that overrides the gateway deny-all for API-key users:
+
+[source,bash,role="execute"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: kuadrant.io/v1
+kind: AuthPolicy
+metadata:
+  name: toystore-auth
+  namespace: ${KUADRANT_DEVELOPER_NS}
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: toystore
+  defaults:
+    when:
+      - predicate: "request.path != '/health'"
+    rules:
+      authentication:
+        "api-key-users":
+          apiKey:
+            selector:
+              matchLabels:
+                app: toystore
+            credentials:
+              authorizationHeader:
+                prefix: APIKEY
+      response:
+        success:
+          filters:
+            "identity":
+              json:
+                properties:
+                  "userid":
+                    selector: auth.identity.metadata.annotations.secret\.kuadrant\.io/user-id
+EOF
+----
+<1> *targetRef* — this route-level policy takes precedence over the gateway-level deny-all defaults.
+<2> *selector* — matches the `app: toystore` label on the API key Secrets.
+<3> *prefix: APIKEY* — clients send `Authorization: APIKEY IAMALICE` (or `IAMBOB`).
+<4> *identity filter* — exposes the user ID from the Secret annotation for use in rate-limit counters.
+
+. Create a route-level RateLimitPolicy that overrides the gateway low-limit with per-user limits:
+
+[source,bash,role="execute"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: kuadrant.io/v1
+kind: RateLimitPolicy
+metadata:
+  name: toystore-rlp
+  namespace: ${KUADRANT_DEVELOPER_NS}
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: toystore
+  limits:
+    "general-user":
+      rates:
+        - limit: 5
+          window: 10s
+      counters:
+        - expression: auth.identity.userid
+      when:
+        - predicate: "auth.identity.userid != 'bob'"
+    "bob-limit":
+      rates:
+        - limit: 2
+          window: 10s
+      when:
+        - predicate: "auth.identity.userid == 'bob'"
+EOF
+----
+<1> *limit: 5* — five requests per 10-second window for everyone except Bob.
+<2> *counters* — one counter bucket per user identity, so limits apply per user rather than globally.
+<3> *limit: 2* — Bob gets a tighter two-request limit in the same window.
+
+Wait a few minutes for the policies to be applied, then confirm they are enforced:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get ratelimitpolicy toystore-rlp -n ${KUADRANT_DEVELOPER_NS} -o=jsonpath='{.status.conditions[?(@.type=="Accepted")].message}{"\n"}{.status.conditions[?(@.type=="Enforced")].message}{"\n"}'
+----
+
+. Send requests as `alice`, one per second:
+
+[source,bash,role="execute",subs="attributes"]
+----
+while :; do curl -k --write-out '%{http_code}\n' --silent --output /dev/null --resolve "api.${KUADRANT_ZONE_ROOT_DOMAIN}:443:${GATEWAY_ADDRESS}" -H 'Authorization: APIKEY IAMALICE' "https://api.${KUADRANT_ZONE_ROOT_DOMAIN}/cars" | grep -E --color "\b(429)\b|$"; sleep 1; done
+----
+
+. Stop the loop and send requests as `bob`:
+
+[source,bash,role="execute",subs="attributes"]
+----
+while :; do curl -k --write-out '%{http_code}\n' --silent --output /dev/null --resolve "api.${KUADRANT_ZONE_ROOT_DOMAIN}:443:${GATEWAY_ADDRESS}" -H 'Authorization: APIKEY IAMBOB' "https://api.${KUADRANT_ZONE_ROOT_DOMAIN}/cars" | grep -E --color "\b(429)\b|$"; sleep 1; done
+----
+
+=== Verify
+
+The `alice` loop prints HTTP 200 every second for 5 seconds, then HTTP 429 for the rest of
+the 10-second window. The `bob` loop prints HTTP 200 for 2 seconds, then HTTP 429 — the
+per-user overrides replaced the gateway default. Requests without an API key still get
+HTTP 403.
+
+With the core workflow verified, the next module explores advanced policies, observability,
+and LLM-specific traffic protection.
+
+== Exercise 6 (optional): Connect your Gateway with DNSPolicy
+
+If your workshop environment has credentials for a supported cloud DNS provider
+(Amazon Route 53, Google Cloud DNS, or Microsoft Azure DNS), you can automate the link
+between your Gateway IP address and a human-readable hostname. Create the DNS provider
+credentials Secret in the same namespace as the Gateway:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc -n ${KUADRANT_GATEWAY_NS} create secret generic aws-credentials \
+  --type=kuadrant.io/aws \
+  --from-literal=AWS_ACCESS_KEY_ID=$KUADRANT_AWS_ACCESS_KEY_ID \
+  --from-literal=AWS_SECRET_ACCESS_KEY=$KUADRANT_AWS_SECRET_ACCESS_KEY
+----
+
+Then create a DNSPolicy with a load balancing strategy:
+
+[source,bash,role="execute"]
+----
+cat <<EOF | oc apply -f - -n ${KUADRANT_GATEWAY_NS}
+apiVersion: kuadrant.io/v1
+kind: DNSPolicy
+metadata:
+  name: ${KUADRANT_GATEWAY_NAME}-dnspolicy
+  namespace: ${KUADRANT_GATEWAY_NS}
+spec:
+  healthCheck:
+    failureThreshold: 3
+    interval: 1m
+    path: /health
+  loadBalancing:
+    defaultGeo: true
+    geo: GEO-NA
+    weight: 120
+  targetRef:
+    name: ${KUADRANT_GATEWAY_NAME}
+    group: gateway.networking.k8s.io
+    kind: Gateway
+  providerRefs:
+    - name: aws-credentials
+EOF
+----
+<1> *healthCheck* — flags a published endpoint as unhealthy after three failed probes on `/health`; unhealthy endpoints are not published.
+<2> *defaultGeo: true* — makes this cluster the default geo target when no other geo applies.
+<3> *geo* — the geographically relevant load balancer group, for example `GEO-NA`. Change this to match your requirements.
+<4> *providerRefs* — the Secret containing your DNS provider credentials; it must live in the Gateway namespace.
+
+With a DNSPolicy applied, `https://api.${KUADRANT_ZONE_ROOT_DOMAIN}/cars` resolves through
+your DNS provider without `--resolve`.
+
+=== Verify
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get dnspolicy ${KUADRANT_GATEWAY_NAME}-dnspolicy -n ${KUADRANT_GATEWAY_NS} -o=jsonpath='{.status.conditions[?(@.type=="SubResourcesHealthy")].message}'
+----
+
+The DNSPolicy reports healthy sub-resources; this process might take a few minutes.
+
+== Module summary
+
+**What you accomplished:**
+
+* Created a Connectivity Link-managed Gateway and programmed its HTTPS listener with a ClusterIssuer and TLSPolicy
+* Published the Toystore API through an HTTPRoute and reached it via the gateway load balancer
+* Enforced a gateway-level deny-all and low-limit default, then overrode them with per-user API-key auth and rate limits for alice and bob
+
+**Key takeaways:**
+
+* Gateway-level policies are defaults that route-level policies override, giving platform engineers a zero-trust baseline and developers controlled exceptions
+* Policy CRs attach to Gateways, HTTPRoutes, and GRPCRoutes with a consistent `targetRef` pattern
+* HTTP 403 means the AuthPolicy denied the request; HTTP 429 means the RateLimitPolicy tripped — both are observable with plain `curl`
+
+**Next steps:**
+
+In the next module you add rate-limit headers to API responses, enforce token-based limits
+for LLM inference traffic, and turn on Connectivity Link observability.

@@ -1,0 +1,15 @@
+---
+# Node Feature Discovery Operator — required for GPU support on the CUDA
+# fast-release images and the GPU ServingRuntimes (detects nvidia.com/gpu
+# labels for scheduling).
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: nfd
+  namespace: openshift-nfd
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: nfd
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

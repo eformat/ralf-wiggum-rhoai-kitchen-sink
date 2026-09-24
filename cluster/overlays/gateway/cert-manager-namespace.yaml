@@ -1,0 +1,22 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager-operator
+# NOTE: the OperatorGroup is intentionally NOT included. Many lab clusters
+# already ship an OperatorGroup (`cert-manager-operator-og`) in the
+# `cert-manager-operator` namespace — a namespace may hold only ONE OperatorGroup,
+# and a second one makes OLM refuse to resolve the CSV with:
+#   "csv created in namespace with multiple operatorgroups, can't pick one automatically"
+#
+# If `oc get operatorgroup -n cert-manager-operator` returns nothing, create it:
+#   oc apply -f - <<EOF
+#   apiVersion: operators.coreos.com/v1
+#   kind: OperatorGroup
+#   metadata:
+#     name: cert-manager-operator
+#     namespace: cert-manager-operator
+#   spec:
+#     targetNamespaces:
+#       - cert-manager-operator
+#   EOF

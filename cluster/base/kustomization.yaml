@@ -1,0 +1,16 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# RHOAI base: operator install + core DataScienceCluster/DSCInitialization.
+# Apply order is preserved (operator first, then DSCI reconciles before the DSC).
+#
+# The OdhDashboardConfig flags patch is NOT applied here — the dashboard
+# component must create `odh-dashboard-config` in redhat-ods-applications first.
+# After the operator CSV reaches Succeeded, run `make dashboard-flags`.
+resources:
+  - operator/namespace.yaml
+  - operator/operatorgroup.yaml
+  - operator/subscription.yaml
+  - dsc/dscinitialization.yaml
+  - dsc/datasciencecluster.yaml

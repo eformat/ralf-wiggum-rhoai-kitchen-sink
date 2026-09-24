@@ -1,0 +1,24 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the OGX File Processors API workshop.
+
+== What you covered
+
+* xref:module-01-getting-started.adoc[Tour the File Processors API]
+* xref:module-02-hands-on.adoc[Walk the document-processing path]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/working_with_ogx/index[Working with OGX] — the *OGX APIs* chapter (File Processors API endpoint, providers, and support levels) and the *OGX API provider support* table
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/building_rag_applications_with_ogx/index[Building RAG applications with OGX] — deploying a OGXServer, preparing documents with Docling for OGX retrieval, and querying ingested content
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/release_notes/index[RHOAI 3.5 release notes] — the *File Processors API on OGX* Developer Preview announcement
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:ogx-agentic-api::index.adoc[OGX-native agentic API surface (Tool Runtime, Responses, Conversations)]
+* xref:llama-stack-ogx-core::index.adoc[Llama Stack / OGX core: RAG, agentic workflows, vector DB integration]

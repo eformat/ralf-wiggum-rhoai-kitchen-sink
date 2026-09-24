@@ -1,0 +1,55 @@
+= Welcome to the Loki-based showback and user-scoped usage dashboards (MaaS) Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete. Red Hat does not recommend using them in
+production. The MaaS observability dashboard APIs and manifests shown in this
+workshop may change between releases.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+Models-as-a-Service (MaaS) in {rhoai_version} ships an observability stack for
+usage tracking and *showback reporting*: a metrics-based dashboard embedded in
+the OpenShift AI console (built on Perses, querying Prometheus), plus a
+Loki-based structured log pipeline for showback data with 30-day retention on
+object storage. Together they let platform administrators answer the
+question *"who consumed how many tokens, on which models, through which
+subscriptions?"* and hand a CSV export to finance teams for cost attribution.
+
+This workshop walks through enabling the observability stack, reading the
+per-user usage dashboard, and exporting showback data.
+
+**What you will learn:**
+
+* Verify the MaaS and observability prerequisites on your cluster (CRDs, User Workload Monitoring, Tenant readiness)
+* Enable Kuadrant observability (`PodMonitor` for Limitador rate-limiting metrics) and MaaS telemetry on the Tenant custom resource
+* Enable per-user metrics collection with `captureUser` and understand its Prometheus cardinality cost
+* Navigate the MaaS observability dashboard: overview metrics, filters, and the Token Consumption by User table
+* Export usage data as CSV for showback reporting to finance teams
+* Explore the underlying Prometheus metrics (`authorized_hits_total`, `authorized_calls_total`, `limited_calls_total`) and the Loki-based log pipeline
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI {rhoai_version} installed and the RHOAI operator running
+* Models-as-a-Service deployed and enabled, with at least one model published through the MaaS gateway
+* The observability stack for OpenShift AI configured, including metrics storage in the `DSCInitialization` resource
+* `spec.dashboardConfig.observabilityDashboard` set to `true` in the `OdhDashboardConfig` custom resource
+* The Cluster Observability Operator installed and configured (required for the CSV export)
+* Cluster administrator privileges — access to the observability dashboard is restricted to cluster administrators
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

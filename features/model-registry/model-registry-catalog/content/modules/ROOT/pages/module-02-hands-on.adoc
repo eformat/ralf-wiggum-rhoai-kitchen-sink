@@ -1,0 +1,226 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will work through the core model registry workflow end to
+end: create a model registry as an administrator, grant access to it, register
+a model and a new version, and deploy a registered version through the model
+serving platform.
+
+**Learning objectives:**
+
+* Create a model registry with a default or external database and manage its permissions
+* Register a model and an additional version from the *AI hub → Registry* page
+* Deploy a registered model version and confirm the inference service in your project
+
+== Exercise 1: Create a model registry and grant access (administrator)
+
+Before data scientists can register models, an administrator must create a
+model registry and grant users, groups, and projects access to it.
+
+. From the RHOAI dashboard, click *Settings → Model resources and operations →
+Model registry settings*.
++
+NOTE: Some 3.5 chapters refer to this page as *AI registry settings*.
+
+. Click *Create model registry*. The *Create model registry* dialog opens.
+
+. In the *Name* field, enter `workshop-registry`.
++
+Optionally click *Edit resource name* to set a specific OpenShift resource
+name. By default, the resource name matches the registry name.
++
+IMPORTANT: Resource names cannot exceed 253 characters, must consist of
+lowercase alphanumeric characters or `-`, and must start and end with an
+alphanumeric character. Resource names are not editable after creation and
+must not match the name of any other model registry resource in your cluster.
+
+. Optional: in the *Description* field, enter a description.
+
+. In the *Database* section, choose where model data is stored. For the
+workshop, select *Default database (non-production)*, the PostgreSQL database
+enabled by default on your cluster.
++
+NOTE: The default database is designed for evaluation, development, and
+testing only. Red Hat does not support it for production use cases.
++
+For production, select *External database* (PostgreSQL 16.x, or MySQL — best
+on 9.x, at least 5.x) and provide the connection details: *Database type*,
+*Host* (only the hostname if the database runs in `rhoai-model-registries`,
+otherwise `<hostname>.<namespace>.svc.cluster.local`), *Port* (MySQL defaults
+to 3306, PostgreSQL to 5432), *Username*, *Password*, and *Database*. If the
+external database enforces TLS, add a CA certificate (the cluster-wide
+`ca-bundle.crt` bundle or the RHOAI `odh-ca-bundle.crt` bundle in the
+`odh-trusted-ca-bundle` ConfigMap, an existing certificate from the
+`rhoai-model-registries` namespace, or an uploaded PEM file — uploading
+creates a `db-credential` ConfigMap with the `ca.crt` key).
+
+. Click *Create*.
++
+TIP: To find the resource name or type of a model registry, click the help
+icon beside the registry name. Resource names and types are used to find your
+resources in OpenShift.
+
+. Grant access to the registry. From *Settings → Model resources and
+operations → AI registry settings*, click *Manage permissions* beside
+`workshop-registry`.
+
+. On the *Users* tab, in the *Groups* section, click *Add group* and select a
+group to confirm. To enable access for all cluster users, add
+`system:authenticated`.
++
+In the *Users* section, click *Add user* and type the username of a user to
+grant individual access.
++
+IMPORTANT: The users and groups you grant access to must already exist in
+OpenShift.
+
+. On the *Projects* tab, click *Add project* and select or enter your working
+project to grant all service accounts in that project access to the registry.
+
+=== Verify
+
+The new model registry is displayed on the *Model registry settings* page; the
+*Users*, *Groups*, and *Projects* sections of the permissions page show what
+you granted access to. Check the registry from the CLI:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get modelregistries
+----
++
+Expected output lists the registry resource with the name you configured. If
+this resource type is not available in your deployment, verify the registry
+from the dashboard's *Model registry settings* page instead.
+
+The model registry operator uses OpenShift RBAC: for each registry instance it
+creates a `registry-users-<registry-name>` role and a
+`<registry-name>-users` OpenShift group with a role binding to that role.
+Check the RBAC resources in the registries namespace:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get roles -n rhoai-model-registries | grep registry-users
+oc get rolebindings -n rhoai-model-registries
+----
++
+Expected output shows the `registry-users-workshop-registry` role and its role
+bindings.
+
+With the registry created and access granted, register your first model.
+
+== Exercise 2: Register a model and a version from the registry
+
+As a data scientist or AI engineer, you can register a model from the
+dashboard and create its first version, then add more versions as the model
+evolves.
+
+. From the RHOAI dashboard, click *AI hub → Registry*. From the *Model
+registry* drop-down list, select `workshop-registry`.
+
+. Click *Register model*. The *Register model* dialog opens.
++
+// TODO: capture screenshot
+image::02-register-model-dialog.png[The Register model dialog with model details, version details, and model location fields,link=self,window=blank,width=700]
+
+. In the *Model details* section, enter a name that applies to all versions of
+the model, for example `fraud-detection-demo`, and an optional description.
+
+. In the *Version details* section, enter details for the first version: a
+*Version name* (for example, `v1`), an optional description, a *Source model
+format* (for example, `ONNX`), and a *Source model format version*.
+
+. In the *Model location* section, specify where the model artifact lives:
++
+* *Object storage*: click *Autofill from connection* and select a project and
+connection that contains a bucket, or fill in the *Endpoint*, *Bucket*,
+*Region*, and *Path* manually. The path cannot point to a root folder.
+* *URI*: enter the URI for the model.
++
+IMPORTANT: Deployment of models that are registered by using a URI is
+currently supported for public OCI repositories only.
+
+. Click *Register model*.
+
+. Register a second version: on the *Model registry* page, click the model
+name, then click the *Versions* tab and click *Register new version*. Enter
+`v2` as the version name, set the source model format, and provide the model
+location, then click *Register new version*.
+
+. Optional: edit the model metadata. On the model's *Overview* tab, click
+*Edit* in the *Labels* section to add a label such as `text-to-text`, click
+*Edit* in the *Description* section, or click *Add property* in the
+*Properties* section with `Key: license, Value: apache`.
++
+TIP: If you enter a property value as a URL, the dashboard displays it as a
+clickable link.
+
+=== Verify
+
+The new model and version details are displayed on the *Details* tab for the
+model version, and both appear on the *Model registry* page. After registering
+`v2`, the *Overview* tab shows both entries in the *Latest versions* section
+and the *Model registry* page shows `v2` in the *Latest version* column.
+
+With two versions registered, deploy the first version in the next exercise.
+
+== Exercise 3: Deploy a registered model version
+
+You can deploy a version of a registered model directly from the registry,
+which creates an inference service through the model serving platform.
+
+. From the RHOAI dashboard, click *AI hub → Registry* and select
+`workshop-registry`.
+
+. In the *Model name* column, click `fraud-detection-demo`.
+
+. Click the action menu (⋮) beside the model version you want to deploy, and
+then click *Deploy*.
+
+. In the *Deploy model* dialog, select your target project from the *Project*
+list. When you select a project, OpenShift AI scans the project's connections
+for one that matches the connection the model was registered with: a single
+match is autoselected, multiple matches are shown in the *Connection* list,
+and no matches take you straight to the deployment wizard with the model
+location data autofilled as a new connection. Click *Deploy*.
+
+. On the *Model details* page of the deployment wizard, confirm the autofilled
+*Model location* and note the *Model deployment name* — this is the name of
+the inference service that is created. Click *Next*.
+
+. Configure the *Model deployment* and *Advanced settings* pages as described
+in *Deploying models on the model serving platform*, review your settings on
+the *Review* page, and click *Deploy*.
+
+=== Verify
+
+The model deployment is displayed on the *AI hub → Deployments* page, in the
+*Latest deployments* section of the model details page, and on the
+*Deployments* tab for the model version. Confirm the inference service from
+the CLI:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get inferenceservices -n {guid}-{user}
+----
++
+Expected output shows an inference service named after the *Model deployment
+name* you configured in the wizard.
+
+== Module summary
+
+**What you accomplished:**
+
+* Created `workshop-registry` with the default database and granted groups, users, and projects access through the permissions page
+* Registered a model with two versions from the *AI hub → Registry* page, using object storage or a URI as the model location
+* Deployed a registered version through the model serving platform and confirmed the inference service in your project
+
+**Key takeaways:**
+
+* The registry operator manages access with OpenShift RBAC — a `registry-users-<name>` role and a `<name>-users` group per registry instance
+* The default database is for development and testing only; production registries need an external MySQL or PostgreSQL database
+* The model deployment name from the wizard becomes the name of the `InferenceService` created in your project
+
+**Next steps:**
+
+Continue to the advanced module, where you register models directly from the
+model catalog, store models as OCI images, and govern catalog sources.

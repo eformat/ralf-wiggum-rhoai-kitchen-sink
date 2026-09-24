@@ -1,0 +1,146 @@
+= Module 01: LLMInferenceService Core Concepts
+:navtitle: Module 01: Core Concepts
+
+In this module you will understand what the llm-d-native `LLMInferenceService` custom
+resource (CR) is, how it differs from the classic `InferenceService`, and how
+`LLMInferenceServiceConfig` templates drive the dashboard's topology selector. You will
+also inspect the cluster resources that back the feature.
+
+**Learning objectives:**
+
+* Explain what `LLMInferenceService` replaces and what each section of its spec controls
+* Describe the four llm-d deployment topology patterns and how `opendatahub.io/config-type` labels discover them
+* Verify that the inference gateway and controllers are present in your cluster
+
+== Exercise 1: What LLMInferenceService changes
+
+`LLMInferenceService` (apiVersion `serving.kserve.io/v1alpha1`) replaces the default
+`InferenceService` for generative LLM serving. One declarative CR describes the whole
+serving stack: the model location, the workload template, and the llm-d routing
+components. The controller then composes the underlying Deployment, Gateway API objects,
+HTTPRoutes, and scheduler from that single resource.
+
+The `spec` sections you will touch most:
+
+* `model` — the model location (`uri`, such as `hf://`, `s3://`, `pvc://`, or `oci://`) and the model `name` used in chat-completion requests
+* `router` — the HTTPRoute and gateway handling; leave it empty (`route: {}`, `gateway: {}`) to have the controller create them automatically
+* `scheduler` — the llm-d Endpoint Picker (EPP) scheduler; leave empty to use built-in defaults
+* `template` — the pod template (containers, resources) for the workload
+* `baseRefs` — a list of `LLMInferenceServiceConfig` templates merged into your spec, lower entries in the list take precedence
+
+`LLMInferenceServiceConfig` is the template counterpart: reusable configuration snippets
+that a `LLMInferenceService` references via `baseRefs`. The dashboard uses labels on
+these templates to discover them.
+
+LLM deployment topology patterns
+
+The dashboard's topology selector offers four validated deployment patterns, plus the Wide
+expert parallelism (WideEP) pattern for MoE models — a Developer Preview in RHOAI 3.5. For
+the full pattern-by-pattern table (when to use each pattern and its model-size band), follow
+xref:llmd-core:ROOT:module-01-concepts.adoc[Module 01 of the Distributed Inference with
+llm-d (core) workshop].
+
+What this workshop adds is how the wizard discovers those patterns: topology configuration
+templates carry an `opendatahub.io/config-type` label whose value —
+`workload-single-node`, `workload-multi-node-data-parallel`, `workload-single-node-pd`, or
+`workload-multi-node-data-parallel-pd` — must match the selected topology.
+
+Router templates carry the same label with the value `router`, plus an
+`opendatahub.io/supported-topologies` annotation (a JSON array of topology strings) that
+the dashboard uses to filter which routers appear for a given topology selection.
+
+Locate the feature in the RHOAI dashboard:
+
+. Sign in to the RHOAI dashboard.
+. Navigate to *Data Science Projects* → your project → *Models*.
+. Click *Deploy model*; the wizard offers *Distributed inference with llm-d* as a
+deployment method for generative AI models.
+
+[IMPORTANT]
+====
+`LLMInferenceService` itself is GA in RHOAI 3.5, but the *LLM deployment topology
+selector wizard* (chapter 2 of the llm-d deployment guide) is a *Technology Preview*
+feature. Treat wizard-only capabilities as subject to change.
+====
+
+=== Verify
+
+You can name the five spec sections of `LLMInferenceService` (`model`, `router`,
+`scheduler`, `template`, `baseRefs`) and you found the *Distributed inference with
+llm-d* deployment method in the wizard.
+
+With the concepts in place, inspect the cluster resources that back the feature.
+
+== Exercise 2: Inspect the cluster
+
+. Check that the `LLMInferenceService` API is registered:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc api-resources | grep -i llminference
+----
+
+. Verify the shared inference gateway. The llm-d Helm chart creates a `GatewayClass`
+and a `Gateway` named `openshift-ai-inference` in the `openshift-ingress` namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get gatewayclass openshift-ai-inference
+oc get gateway openshift-ai-inference -n openshift-ingress -o wide
+----
+
+. Confirm the gateway pod is running:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n openshift-ingress \
+  -l gateway.networking.k8s.io/gateway-name=openshift-ai-inference
+----
+
+. Confirm the KServe/llm-d controllers are running in `redhat-ods-applications`:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n redhat-ods-applications
+----
+
+=== Verify
+
+Expected output for the gateway:
+
+----
+NAME                    CONTROLLER                                      ACCEPTED   PROGRAMMED
+openshift-ai-inference  istio.io/gateway-controller                     True       True
+----
+
+* `PROGRAMMED` shows `True` — the gateway is ready to accept traffic.
+* The `openshift-ai-inference` gateway pod is in `Running` state.
+* The controller manager pods in `redhat-ods-applications` are in `Running` state.
+
+[TIP]
+====
+If the gateway shows `Programmed: False`, check the Istio control plane logs with
+`oc logs deploy/istiod -n istio-system | grep gateway` — a common cause is a missing or
+misconfigured `Gateway` resource.
+====
+
+If you have not completed the xref:llmd-core::index.adoc[Distributed Inference with llm-d (core)] workshop, the summary below covers what you need.
+
+== Module summary
+
+**What you accomplished:**
+
+* Mapped the `LLMInferenceService` spec sections and the `LLMInferenceServiceConfig` template model
+* Followed the llmd-core topology patterns walkthrough and mapped their `opendatahub.io/config-type` labels
+* Verified the inference gateway, its pod, and the RHOAI controllers in your cluster
+
+**Key takeaways:**
+
+* `LLMInferenceService` composes model, routing, and workload configuration into one declarative CR
+* `LLMInferenceServiceConfig` templates plus config-type labels are what make the dashboard topology selector work
+* The shared `openshift-ai-inference` gateway in `openshift-ingress` fronts all llm-d inference traffic
+
+**Next steps:**
+
+With the gateway confirmed, deploy your first model with a real `LLMInferenceService`
+manifest in the next module.

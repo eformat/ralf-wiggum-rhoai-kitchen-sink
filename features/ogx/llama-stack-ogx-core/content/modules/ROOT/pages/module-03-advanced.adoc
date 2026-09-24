@@ -1,0 +1,506 @@
+= Module 03: Advanced Usage
+:navtitle: Module 03: Advanced Usage
+
+In this module you will explore advanced configuration for your OGX server: retrieval search
+modes, high availability and autoscaling, external S3-compatible file storage, and OAuth token
+authentication for the OGX API.
+
+**Learning objectives:**
+
+* Compare keyword, vector, and hybrid search modes for RAG retrieval
+* Configure high availability and autoscaling for OGX server pods
+* Offload Files API storage to an external S3-compatible object store
+* Secure the OGX API with OAuth token authentication and role-based access policies
+
+== Exercise 1: Choose a retrieval search mode
+
+OGX supports keyword, vector, and hybrid search modes for retrieving context in RAG workloads.
+Each mode offers different tradeoffs in precision, recall, semantic depth, and computational cost:
+
+* *Keyword search* — lexical matching (TF-IDF, BM25). Effective when precise term-matching is
+required, such as searching for identifiers, names, or regulatory terms.
+* *Vector search* — encodes documents and queries as embeddings and measures similarity with
+cosine similarity or inner product. Captures semantic meaning beyond exact word overlap.
+* *Hybrid search* — blends lexical and semantic relevance scores to balance exact term matching
+with semantic similarity.
+
+Run the same query with each mode against the vector store from Module 02:
+
+[source,python]
+----
+query_result = client.vector_io.query(
+    vector_store_id=vector_store_id,
+    query="FRBNY",
+    params={
+        "mode": "keyword",
+        "max_chunks": 3,
+        "score_threshold": 0.7,
+    },
+)
+print(query_result)
+----
+
+[source,python]
+----
+query_result = client.vector_io.query(
+    vector_store_id=vector_store_id,
+    query="FRBNY",
+    params={
+        "mode": "vector",
+        "max_chunks": 3,
+        "score_threshold": 0.7,
+    },
+)
+print(query_result)
+----
+
+[source,python]
+----
+query_result = client.vector_io.query(
+    vector_store_id=vector_store_id,
+    query="FRBNY",
+    params={
+        "mode": "hybrid",
+        "max_chunks": 3,
+        "score_threshold": 0.7,
+    },
+)
+print(query_result)
+----
+
+NOTE: Search mode availability depends on the selected vector store provider and its configured
+capabilities. Not all providers support every search mode — some support vector search only, and
+keyword or hybrid search might return empty results. Always verify the supported modes for your
+chosen provider.
+
+While you are exploring retrieval, note that the Gen AI Studio playground in the RHOAI dashboard
+can also auto-provision a pgvector-backed RAG store for quick experiments — see the exploration
+step below before moving on.
+
+. (Optional, explore) If you created a Gen AI Studio playground in this project, inspect the
+auto-provisioned pgvector resources. All of them use the `genai-pgvector-` naming prefix and carry
+the `gen-ai.opendatahub.io/pgvector` label:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get deployment,service,pvc,configmap,secret,networkpolicy -l gen-ai.opendatahub.io/pgvector -n {guid}-{user}
+----
+
+Expected output: a Deployment and Service named `genai-pgvector` (PostgreSQL 16 with the pgvector
+extension), a PVC named `genai-pgvectorstorage` (5 GiB), an init ConfigMap, a credentials Secret,
+and a namespace-scoped NetworkPolicy.
+
+WARNING: The auto-provisioned pgvector instance is intended for development and experimentation
+only, and the auto-provisioned playground vector store is a Technology Preview feature. Deleting
+the playground removes all auto-provisioned resources, and manually deleting or modifying a
+resource means you must delete and recreate the playground to restore it. For production
+workloads, provide your own PostgreSQL instance as in Module 02.
+
+=== Verify
+
+The three `vector_io.query()` calls complete without errors, and you can articulate the precision
+versus recall tradeoff between the keyword, vector, and hybrid results for your corpus.
+
+With retrieval tuned, configure the OGX server itself to survive failures and scale under load.
+
+== Exercise 2: Enable high availability and autoscaling
+
+You can configure OGX servers to remain available if a pod restarts, an application crashes, or
+node maintenance occurs, and enable autoscaling to adjust capacity automatically based on
+resource usage.
+
+WARNING: Changing the replica configuration recreates OGX server pods. Keep a record of the
+values you change so you can restore them.
+
+. To enable high availability, add the following parameters to your OGXServer CR:
++
+
+[source,yaml]
+----
+spec:
+  replicas: 2 <1>
+  server:
+    podDisruptionBudget:
+      maxUnavailable: 1 <2>
+    topologySpreadConstraints: <3>
+      - maxSkew: 1 <4>
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/instance: ogx-rag-server <5>
+----
+
+<1> *replicas* — runs two OGX pods for high availability.
+<2> *podDisruptionBudget.maxUnavailable* — voluntary disruption tolerance; this keeps at least one server pod available during voluntary disruptions.
+<3> *topologySpreadConstraints* — specifies how matching pods are spread across the cluster topology.
+<4> *maxSkew* — minimizes replica imbalance across zones, using the `topology.kubernetes.io/zone` node label as the failure domain; `ScheduleAnyway` allows scheduling to proceed even if the constraint cannot be fully satisfied.
+<5> *labelSelector* — ensures only pods from the same application instance are considered when calculating spread.
+
+. To enable autoscaling, add the following parameters to your OGXServer CR:
++
+
+[source,yaml]
+----
+spec:
+  server:
+    autoscaling: <1>
+      minReplicas: 1 <2>
+      maxReplicas: 5 <3>
+      targetCPUUtilizationPercentage: 75 <4>
+      targetMemoryUtilizationPercentage: 70 <5>
+----
+
+<1> *autoscaling* — configures a HorizontalPodAutoscaler (HPA) for the server pods.
+<2> *minReplicas* — the minimum number of replicas maintained by the HPA.
+<3> *maxReplicas* — the maximum number of replicas maintained by the HPA.
+<4> *targetCPUUtilizationPercentage* — enables CPU-based scaling.
+<5> *targetMemoryUtilizationPercentage* — enables memory-based scaling.
+
+=== Verify
+
+Check that the HPA was created and that replica counts stay within the configured bounds:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get hpa -n {guid}-{user}
+oc get pods -n {guid}-{user} -l app=ogx
+----
+
+Expected output: an HPA targeting your OGX server with the configured minimum and maximum
+replicas, and a running pod count within those bounds.
+
+With availability configured, offload file storage so uploaded documents survive pod restarts and
+rescheduling.
+
+== Exercise 3: Use external S3-compatible storage for the Files API
+
+By default, the OGX Files API uses the `inline::localfs` provider, which stores files on the local
+file system of the OGX pod. The `remote::s3` provider stores file content in an external
+S3-compatible object storage service — Amazon S3, MinIO, Ceph Object Gateway, or any storage
+system that implements the S3 API — while file metadata stays in the PostgreSQL metadata store.
+
+. Create a secret that contains the S3 credentials:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc create secret generic s3-files-credentials \
+  --from-literal=AWS_ACCESS_KEY_ID="<access_key_id>" \
+  --from-literal=AWS_SECRET_ACCESS_KEY="<secret_access_key>" \
+  -n {guid}-{user}
+----
+
+. Update your OGXServer CR to enable the `remote::s3` files provider. Click *Home → Search*, search
+for `OGXServer` (not the internal `OGXOperator` resource), select your instance, click the *YAML*
+tab, and add the following environment entries:
++
+[source,yaml,subs="attributes,callouts"]
+----
+spec:
+  server:
+    containerSpec:
+      env:
+        - name: ENABLE_S3 <1>
+          value: "true"
+        - name: S3_BUCKET_NAME <2>
+          value: "<bucket_name>"
+        - name: AWS_DEFAULT_REGION <3>
+          value: "<region>"
+        - name: S3_ENDPOINT_URL <4>
+          value: "<s3_endpoint_url>"
+        - name: S3_AUTO_CREATE_BUCKET <5>
+          value: "false"
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: s3-files-credentials
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: s3-files-credentials
+              key: AWS_SECRET_ACCESS_KEY
+----
+
+<1> *ENABLE_S3* — enables the `remote::s3` files provider.
+<2> *S3_BUCKET_NAME* — the S3 bucket where files are stored; bucket names must be globally unique.
+<3> *AWS_DEFAULT_REGION* — the region for the bucket, for example `us-east-1`; the default is appropriate for many S3-compatible backends, including MinIO.
+<4> *S3_ENDPOINT_URL* — optional; required for S3-compatible backends other than AWS S3 (MinIO, Ceph Object Gateway, OCI Object Storage). Omit when using AWS S3.
+<5> *S3_AUTO_CREATE_BUCKET* — when `"true"`, allows the provider to create the bucket if it does not exist; leave `"false"` in production.
+
+WARNING: If the configured bucket does not exist and `S3_AUTO_CREATE_BUCKET` is `"false"`, the
+OGX pod enters `CrashLoopBackOff` and the logs report
+`RuntimeError: S3 bucket '<bucket_name>' does not exist`. Either create the bucket manually or
+set auto-create to `"true"` in development environments.
+
+=== Verify
+
+. Confirm the OGX pod restarts and reaches the `Running` state, then check that the S3 provider
+registered by querying the OGX providers endpoint:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export OGX_URL="http://ogx-custom-server-service.{guid}-{user}.svc.cluster.local:8321"
+curl -s "${OGX_URL}/v1/providers" | jq .
+----
+
+Expected output: the provider list contains an entry with `"api": "files"`, `"provider_id": "s3"`,
+and `"provider_type": "remote::s3"`. The pod logs also show the resolved OGX configuration with
+the same Files provider entry.
+
+. Upload a file through the OpenAI-compatible `/v1/files` endpoint:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+echo "workshop test file" > test.txt
+curl -X POST "${OGX_URL}/v1/files" \
+  -F purpose="assistants" \
+  -F file="@test.txt"
+----
+
+Expected output:
+
+----
+{
+  "object": "file",
+  "id": "file-53b3fd75ca2c421c9a292ac63ff924ce",
+  "bytes": 19,
+  "created_at": 1778608944,
+  "expires_at": null,
+  "filename": "test.txt",
+  "purpose": "assistants"
+}
+----
+
+The `id` field is the identifier for subsequent operations, and the file content is stored in
+your S3 bucket while its metadata is stored in PostgreSQL.
+
+With storage offloaded, lock down the OGX API itself with OAuth token authentication.
+
+== Exercise 4: Secure the OGX API with OAuth token authentication
+
+Every request you have made to the OGX API in this lab has been unauthenticated. That is the
+documented default: authentication is disabled unless `AUTH_ISSUER` is set. For any server exposed
+beyond your project, enable OAuth token authentication. The `oauth2_token` authentication provider
+validates the `Authorization: Bearer` token on each request against the issuer's JWKS endpoint —
+using asymmetric signature algorithms only — and extracts user principals and role claims straight
+from the JWT.
+
+WARNING: This exercise requires an OIDC issuer, for example a Keycloak instance, reachable from
+your cluster. A workshop cluster might not provide one; if it does not, read along or ask your
+facilitator before continuing, because tokens cannot be issued without it.
+
+The documented example configuration uses a Keycloak realm `ogx-demo` with a client `ogx` (direct
+access grants enabled), a role `inference_max`, a protocol mapper that adds realm roles to the
+access token under the `ogx_roles` claim, and two test users: `user1` with no assigned roles and
+`user2` assigned the `inference_max` role.
+
+. Request an access token for the non-privileged user with an OAuth password grant:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -d client_id=ogx \
+  -d client_secret="<client_secret>" \
+  -d username=user1 \
+  -d password="<user1-password>" \
+  -d grant_type=password \
+  "https://<keycloak-host>/realms/ogx-demo/protocol/openid-connect/token" \
+  | jq -r .access_token > user1.token
+----
+
+. Request a token for the privileged user and inspect the token claims:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -d client_id=ogx \
+  -d client_secret="<client_secret>" \
+  -d username=user2 \
+  -d password="<user2-password>" \
+  -d grant_type=password \
+  "https://<keycloak-host>/realms/ogx-demo/protocol/openid-connect/token" \
+  | jq -r .access_token > user2.token
+cat user2.token | cut -d . -f 2 | base64 -d 2>/dev/null | jq .
+----
+
+Expected output: the decoded JWT payload, including the issuer (`iss`), the subject (`sub`), the
+username (`preferred_username`), and the role claim:
+
+----
+{
+  "iss": "https://<keycloak-host>/realms/ogx-demo",
+  "sub": "761cdc99-80e5-4506-9b9e-26a67a8566f7",
+  "preferred_username": "user2",
+  "ogx_roles": [
+    "inference_max"
+  ]
+}
+----
+
+. Save the following as `run.yaml` to enable the `oauth2_token` provider and add role-based access
+policies for model access:
++
+[source,yaml,subs="attributes,callouts"]
+----
+server:
+  port: 8321
+  auth:
+    provider_config:
+      type: "oauth2_token" <1>
+      jwks:
+        uri: "https://<keycloak-host>/realms/ogx-demo/protocol/openid-connect/certs" <2>
+        key_recheck_period: 3600
+      issuer: "https://<keycloak-host>/realms/ogx-demo" <3>
+      audience: "account"
+      verify_tls: true
+      claims_mapping:
+        ogx_roles: "roles" <4>
+    access_policy:
+      - permit:
+          actions: [read]
+          resource: model::vllm-inference/llama-3-2-3b
+          description: Allow all authenticated users to access the Llama 3.2 model
+      - permit:
+          actions: [read]
+          resource: model::openai/gpt-4o-mini
+          when: user with inference_max in roles <5>
+          description: Allow only users with the inference_max role to access OpenAI models
+----
+
+<1> *type* — enables the `oauth2_token` authentication provider, which validates Bearer tokens by
+JWKS or RFC 7662 introspection.
+<2> *jwks.uri* — the JWKS endpoint of your OIDC issuer, polled every `key_recheck_period` seconds to
+pick up rotated keys.
+<3> *issuer* — the OIDC issuer URL of the realm that issued the tokens; when `AUTH_ISSUER` is unset,
+authentication remains disabled.
+<4> *claims_mapping* — maps the `ogx_roles` claim from the token to the `roles` field used by the
+access policy conditions.
+<5> *when* — an access policy condition; `user with inference_max in roles` restricts the resource
+to tokens carrying the `inference_max` role.
+
+NOTE: The `oauth2_token` provider uses a static allowlist of asymmetric-only algorithms — RS256,
+RS384, RS512, PS256, PS384, PS512, ES256, ES384, and ES512. Symmetric algorithms such as HS256 are
+explicitly excluded to prevent algorithm confusion attacks.
+
+. Create a ConfigMap from the configuration file:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc create configmap ogx-auth-config --from-file=run.yaml=run.yaml -n {guid}-{user}
+----
+
+. Create an `ogxserver.yaml` file that mounts the custom configuration on a dedicated server
+instance, keeping the Module 02 RAG server untouched. Reuse the provider environment from Module 02
+so the server reaches the same vLLM inference service, PostgreSQL metadata store, and pgvector
+instance:
++
+[source,yaml,subs="attributes,callouts"]
+----
+apiVersion: ogx.io/v1beta1
+kind: OGXServer
+metadata:
+  name: ogx-auth-server
+  namespace: {guid}-{user}
+spec:
+  distribution:
+    name: rh-dev
+  workload:
+    replicas: 1
+  overrides:
+    env:
+      # provider env from Module 02: VLLM_*, POSTGRES_*, PGVECTOR_*
+  userConfig:
+    configMapName: ogx-auth-config <1>
+    configMapNamespace: {guid}-{user} <2>
+----
+
+<1> *userConfig.configMapName* — the ConfigMap containing your custom `run.yaml`; its `auth` and
+`access_policy` sections override the distribution defaults.
+<2> *userConfig.configMapNamespace* — the namespace of the ConfigMap; use the same project as the
+OGXServer.
+
+. Apply the CR and wait for the server to become ready:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f ogxserver.yaml -n {guid}-{user}
+oc wait --for=jsonpath='{.status.phase}'=Ready ogxserver/ogx-auth-server -n {guid}-{user} --timeout=300s
+----
+
+IMPORTANT: When you access OGX APIs, the required base URL depends on the client that you use.
+For OpenAI-compatible clients or raw HTTP requests, include the `/v1` path suffix in the base URL,
+for example `http://ogx-auth-server-service:8321/v1`. For the OGXClient SDK, do not include the
+`/v1` path suffix. If you use an incorrect base URL, requests fail.
+
+=== Verify
+
+. Requests without a Bearer token are denied:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export OGX_URL="http://ogx-auth-server-service.{guid}-{user}.svc.cluster.local:8321"
+curl -s -o /dev/null -w "%{http_code}\n" \
+  -X POST "${OGX_URL}/v1/openai/chat/completions" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"vllm-inference/llama-3-2-3b","messages":[{"role":"user","content":"Hello!"}],"max_tokens":50}'
+----
+
+Expected output: `401`.
+
+. An authenticated request with a valid token reaches the permitted model. The model identifier is
+`<provider_id>/<model>` as listed by `client.models.list()` in Module 02:
++
+[source,bash,role="execute",subs="attributes"]
+----
+USER1_TOKEN=$(cat user1.token)
+curl -s -o /dev/null -w "%{http_code}\n" \
+  -X POST "${OGX_URL}/v1/openai/chat/completions" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${USER1_TOKEN}" \
+  -d '{"model":"vllm-inference/llama-3-2-3b","messages":[{"role":"user","content":"Hello!"}],"max_tokens":50}'
+----
+
+Expected output: `200`. The same request with `user2.token` also returns `200` because the first
+policy rule permits all authenticated users.
+
+. The restricted model denies tokens without the required role:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -o /dev/null -w "%{http_code}\n" \
+  -X POST "${OGX_URL}/v1/openai/chat/completions" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${USER1_TOKEN}" \
+  -d '{"model":"openai/gpt-4o-mini","messages":[{"role":"user","content":"Hello!"}],"max_tokens":50}'
+----
+
+Expected output: `403`.
+
+NOTE: The restricted-model check follows the documented example, which assumes an OpenAI provider
+configured with `OPENAI_API_KEY` on the server. If your cluster has no OpenAI provider, skip this
+check — the `401` and `200` results above already demonstrate token authentication.
+
+You have completed the OGX feature tour. Head to the conclusion for the full documentation
+references and next steps on your RAG journey.
+
+== Module summary
+
+**What you accomplished:**
+
+* Compared keyword, vector, and hybrid search modes against your ingested corpus
+* Configured high availability with replicas, pod disruption budgets, and topology spread, plus autoscaling targets
+* Offloaded Files API storage to an external S3-compatible provider and verified file upload
+* Secured the OGX API with the `oauth2_token` provider and verified 401, 200, and 403 responses for unauthenticated, permitted, and restricted requests
+
+**Key takeaways:**
+
+* Search mode support varies by vector store provider, so verify capabilities before committing to a retrieval strategy
+* HA and autoscaling are declared on the OGXServer CR, not managed as separate HPA objects you create by hand
+* The `remote::s3` provider decouples file content from the OGX pod lifecycle while metadata remains in PostgreSQL
+* Authentication is disabled until `AUTH_ISSUER` is set; the `oauth2_token` provider validates Bearer tokens against the issuer's JWKS endpoint using asymmetric algorithms only
+
+**Next steps:**
+
+You have completed the OGX feature tour. Head to the conclusion for the full documentation
+references and next steps on your RAG journey.

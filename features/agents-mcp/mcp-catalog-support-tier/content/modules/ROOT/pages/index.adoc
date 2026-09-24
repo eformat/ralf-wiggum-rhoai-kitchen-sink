@@ -1,0 +1,45 @@
+= Welcome to the MCP Catalog support-tier labeling Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *MCP Catalog support-tier labeling*: every MCP server card in
+the AI Hub MCP Catalog carries a support tier — *Red Hat*, *Partner*, or *Community* —
+that tells you who maintains and supports the server. You enable the MCP Lifecycle
+Operator behind the catalog, read the tier labels to pick a server, deploy it into your
+namespace, and verify the resulting `MCPServer` workload.
+
+**What you will learn:**
+
+* What the AI Hub MCP Catalog is and how the MCP Lifecycle Operator provides its deploy runtime
+* How to enable MCP server lifecycle management with the `DataScienceCluster` and `OdhDashboardConfig` resources
+* How to read the support-tier labels (`Red Hat`, `Partner`, `Community`) on MCP server cards
+* How to deploy an MCP server from the catalog and confirm its `READY` status from the CLI
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI 3.5 installed (OpenShift 4.22 or later)
+* The RHOAI operator installed
+* Cluster administrator access for the enablement exercise (you patch the
+  `DataScienceCluster` and `OdhDashboardConfig` resources)
+* Optional: the MCP Gateway Operator (Red Hat Connectivity Link) if you route MCP
+  traffic through the gateway; it is a separate Technology Preview installation
+
+== Estimated time
+
+About 45 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

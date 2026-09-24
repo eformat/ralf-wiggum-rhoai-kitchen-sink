@@ -1,0 +1,25 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the Distributed Inference with llm-d (core) workshop.
+
+== What you covered
+
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:module-03-advanced.adoc[Advanced Usage]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/deploy_models_using_distributed_inference_with_llm-d/index[Deploy models using Distributed Inference with llm-d — RHOAI 3.5] — the feature guide covering *Deploy models by using Distributed Inference with llm-d* (the `LLMInferenceService` CR), *Deploy models using the topology selector* (topology patterns, hardware requirements, the dashboard wizard), gateway configuration, authentication and authorization, controlled deployment, autoscaling, and disaggregated prefill/decode serving
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/configuring_your_model-serving_platform/index[Configuring your model-serving platform — RHOAI 3.5] — enabling the model serving platform and its runtimes that back this feature
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5[RHOAI 3.5 documentation]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:llmd-priority-flow-control::index.adoc[Distributed Inference with llm-d: priority-based flow control]
+* xref:llminferenceservice-config::index.adoc[LLMInferenceService / LLMInferenceServiceConfig (llm-d-native)]

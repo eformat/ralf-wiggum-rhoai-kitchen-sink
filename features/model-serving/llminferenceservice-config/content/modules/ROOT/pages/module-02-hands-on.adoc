@@ -1,0 +1,172 @@
+= Module 02: Deploy a Model with LLMInferenceService
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will create an `LLMInferenceService` CR with the CLI, watch it reach
+`Ready`, and send an authenticated chat-completion request to the deployed model.
+
+**Learning objectives:**
+
+* Create an `LLMInferenceService` with automatic routing and scheduler defaults
+* Watch the deployment reconcile and read its status conditions and addresses
+* Complete the authenticated chat-completion request flow from the llmd-core workshop
+
+Prerequisites (from the RHOAI 3.5 llm-d deployment guide):
+
+* The model serving platform is enabled in your `DataScienceCluster`.
+* OpenShift 4.19.9 or later, and OpenShift Service Mesh v2 is *not* installed.
+* A `GatewayClass` and `Gateway` named `openshift-ai-inference` exist in `openshift-ingress` (verified in Module 01).
+* Network access to pull the model from Hugging Face, or the model available in S3/PVC/OCI storage.
+
+== Exercise 1: Create the LLMInferenceService
+
+This lab deploys the same reference manifest used across the llm-d workshops: a single
+`serving.kserve.io/v1alpha1` `LLMInferenceService` with two replicas, the
+`RedHatAI/Qwen3-8B-FP8-dynamic` model, empty `router` and `scheduler` maps (the controller
+creates the HTTPRoute, gateway wiring, and Endpoint Picker with built-in defaults), and a
+one-GPU pod template.
+
+. Create the file `sample-llm-inference-service.yaml` in your working project
+(the same reference manifest the llmd-core workshop walks through field by
+field, with `namespace: {guid}-{user}` added so the service lands in your
+working project):
+
+[source,bash,role="execute",subs="attributes"]
+----
+cat > sample-llm-inference-service.yaml <<'EOF'
+apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  name: sample-llm-inference-service
+  namespace: {guid}-{user}
+spec:
+  replicas: 2
+  model:
+    uri: hf://RedHatAI/Qwen3-8B-FP8-dynamic
+    name: RedHatAI/Qwen3-8B-FP8-dynamic
+  router:
+    route: {}
+    gateway: {}
+    scheduler: {}
+  template:
+    containers:
+      - name: main
+        resources:
+          limits:
+            cpu: '4'
+            memory: 32Gi
+            nvidia.com/gpu: "1"
+          requests:
+            cpu: '2'
+            memory: 16Gi
+            nvidia.com/gpu: "1"
+EOF
+----
+
+. Apply the manifest:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f sample-llm-inference-service.yaml
+----
+
+. Confirm the resource was created:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llminferenceservices sample-llm-inference-service -n {guid}-{user}
+----
+
+=== Verify
+
+Expected output (status advances as the model downloads and pods start):
+
+----
+NAME                          URL   READY   AGE
+sample-llm-inference-service        True    5m
+----
+
+The `READY` column shows `True` when all replicas are serving. This can take several
+minutes while the model weights download.
+
+Now that the service is running, validate its status details and test the endpoint.
+
+== Exercise 2: Validate and test the endpoint
+
+. Watch the workload pods reach `Running`:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n {guid}-{user} | grep sample-llm-inference-service
+----
+
+. Check the `Ready` condition directly:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llminferenceservices sample-llm-inference-service -n {guid}-{user} \
+  -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+----
+
+Expected output: `True`.
+
+. Inspect the externally reachable addresses the controller discovered:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llmisvc -n {guid}-{user} -o jsonpath='{.items[*].status.addresses}'
+----
+
+Look for entries with `origin.kind: Route` — the controller discovered OpenShift Routes
+and uses them to provide external URLs. Copy the URL of your service.
+
+. Store the endpoint URL and token as shell variables, replacing the placeholder with
+the URL you copied:
+
+[source,bash,role="execute",subs="attributes"]
+----
+ENDPOINT=https://<inference-endpoint-url>
+----
+
+. Next, complete the authenticated request flow from
+xref:llmd-core:ROOT:module-02-hands-on.adoc[Make authenticated inference requests] in the
+llmd-core workshop: create a ServiceAccount, a Role granting `get` on the
+`sample-llm-inference-service` resource, and a rolebinding, mint a JWT with
+`oc create token llm-user --duration=1h`, and send the chat-completion request with
+`Authorization: Bearer $TOKEN` to the `$ENDPOINT` URL you stored above.
+
+=== Verify
+
+* The authenticated request returns HTTP `200` with a chat-completion response body.
+* A request without the `Authorization` header returns `401 Unauthorized` with a message
+that authentication is required (when platform authentication is enabled on the service).
+* A request with an invalid or expired token also returns `401 Unauthorized`.
+
+[NOTE]
+====
+Authentication and authorization are automatically enabled for `LLMInferenceService`
+resources when Red Hat Connectivity Link is configured. To explicitly enable it (for
+example, after it was disabled), annotate the service with
+`security.opendatahub.io/enable-auth: "true"`. To run without platform authentication,
+set the annotation to `"false"`.
+====
+
+If you have not completed the xref:llmd-core::index.adoc[Distributed Inference with llm-d (core)] workshop, the summary below covers what you need.
+
+== Module summary
+
+**What you accomplished:**
+
+* Applied an `LLMInferenceService` CR with default routing and scheduler composition
+* Verified the `Ready` condition and the controller-discovered external addresses
+* Generated a ServiceAccount JWT and completed an authenticated chat-completion request against your deployment, following the llmd-core request flow
+
+**Key takeaways:**
+
+* Empty `router` and `scheduler` maps are the fast path — the controller builds HTTPRoutes, gateway wiring, and the Endpoint Picker for you
+* `status.addresses` with `origin.kind: Route` entries show the externally reachable URLs on bare-metal and disconnected clusters
+* Inference auth is per-service via the `security.opendatahub.io/enable-auth` annotation, with JWTs minted from ServiceAccounts
+
+**Next steps:**
+
+In the final module you will work with the admin side: topology and router
+configuration templates, and the disaggregated prefill/decode topology.

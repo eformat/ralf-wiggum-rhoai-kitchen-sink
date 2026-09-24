@@ -1,0 +1,48 @@
+= Welcome to the Latency-aware routing for llm-d Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *Latency-aware routing for llm-d*: a Developer Preview
+feature that lets platform operators declare per-request latency targets for
+Time To First Token (TTFT) and Time Per Output Token (TPOT). The routing layer
+then places each request on a pod predicted to meet its specific target, so
+latency-sensitive interactive traffic lands on pods with available capacity
+while throughput-sensitive traffic fills pods that are already handling longer
+work.
+
+**What you will learn:**
+
+* What latency-aware routing for llm-d does and where it fits in RHOAI 3.5
+* How the llm-d Endpoint Picker's two layers decide *when* and *where* requests are dispatched
+* Which optional scheduler plugins (`latency-scorer`, `predicted-latency-producer`, `weighted-random-picker`) implement latency-aware routing
+* How to recognize, select, and verify a latency-aware router configuration
+* Which `llm_d_epp_request_` metrics reveal TTFT, TPOT, and ITL behavior for SLO monitoring
+
+== Prerequisites
+
+* RHOAI operator installed
+* Distributed Inference with llm-d enabled (see the prerequisites in the RHOAI
+* Recommended prerequisite: complete the xref:llmd-core::index.adoc[Distributed Inference with llm-d (core)] workshop first
+  documentation for Distributed Inference with llm-d)
+* An OpenShift cluster with RHOAI 3.5 installed
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

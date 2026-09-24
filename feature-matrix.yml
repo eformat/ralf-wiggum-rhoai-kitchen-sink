@@ -1,0 +1,591 @@
+# RHOAI Feature Matrix
+# Drives the ralf-wiggum-loop skill: each feature with scaffolded: false gets a workshop.
+# Source: https://micytao.github.io/rhoai-version-tracker/matrix.html
+# Maturity: GA | TP (Technology Preview) | DP (Developer Preview). Deprecated features excluded.
+rhoai_version: "3.5"
+generated_from: "RHOAI 3.5 release feature list"
+
+categories:
+  - name: "Agents & MCP"
+    slug: agents-mcp
+    features:
+      - name: "AI Available Assets page"
+        slug: ai-available-assets
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Browse and discover available AI assets from the RHOAI dashboard"
+        prerequisites: ["RHOAI operator installed", "RHOAI dashboard accessible"]
+        version_introduced: "3.5"
+        tags: [dashboard, discovery, model-catalog]
+      - name: "Automated tool-calling evaluation-data generation for custom MCP servers"
+        slug: automated-tool-calling-eval
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Generate evaluation datasets for validating MCP server tool-calling"
+        prerequisites: ["RHOAI operator installed", "MCP server deployed"]
+        version_introduced: "3.5"
+        tags: [mcp, evaluation, tool-calling]
+      - name: "OpenCode coding-agent deployment"
+        slug: opencode-coding-agent
+        maturity: TP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Deploy OpenCode coding agents on RHOAI"
+        prerequisites: ["RHOAI operator installed", "LLM serving endpoint available"]
+        version_introduced: "3.5"
+        tags: [agents, opencode, deployment]
+      - name: "Validated tool-calling configuration in Model Catalog"
+        slug: validated-tool-calling-config
+        maturity: TP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Use validated tool-calling configurations from the Model Catalog"
+        prerequisites: ["RHOAI operator installed", "Model Catalog accessible"]
+        version_introduced: "3.5"
+        tags: [model-catalog, tool-calling, validation]
+      - name: "MCP Catalog support-tier labeling"
+        slug: mcp-catalog-support-tier
+        maturity: TP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 1
+        description: "Support-tier labeling for MCP Catalog entries"
+        prerequisites: ["RHOAI operator installed", "MCP Catalog enabled"]
+        version_introduced: "3.5"
+        tags: [mcp, catalog]
+      - name: "MCP Lifecycle Operator"
+        slug: mcp-lifecycle-operator
+        maturity: TP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Manage MCP server lifecycles with the MCP Lifecycle Operator"
+        prerequisites: ["RHOAI operator installed"]
+        version_introduced: "3.5"
+        tags: [mcp, operator, lifecycle]
+      - name: "MCP gateway Operator"
+        slug: mcp-gateway-operator
+        maturity: TP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Deploy and manage MCP gateways with the MCP gateway Operator"
+        prerequisites: ["RHOAI operator installed", "MCP Lifecycle Operator enabled"]
+        version_introduced: "3.5"
+        tags: [mcp, operator, gateway]
+      - name: "OGX-native agentic API surface (Tool Runtime, Responses, Conversations)"
+        slug: ogx-agentic-api
+        maturity: TP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Use the OGX-native agentic APIs: Tool Runtime, Responses, and Conversations"
+        prerequisites: ["RHOAI operator installed", "OGX enabled"]
+        version_introduced: "3.5"
+        tags: [ogx, agents, api]
+      - name: "Agent Catalog in AI Hub"
+        slug: agent-catalog-ai-hub
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Browse and deploy agents from the Agent Catalog in AI Hub"
+        prerequisites: ["RHOAI operator installed", "AI Hub accessible"]
+        version_introduced: "3.5"
+        tags: [agents, ai-hub, catalog]
+      - name: "CSV export for Model Catalog data"
+        slug: csv-export-model-catalog
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 1
+        description: "Export Model Catalog data as CSV"
+        prerequisites: ["RHOAI operator installed", "Model Catalog accessible"]
+        version_introduced: "3.5"
+        tags: [model-catalog, export]
+      - name: "Claude Code agent starter kit"
+        slug: claude-code-starter-kit
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Get started with Claude Code agents using the starter kit"
+        prerequisites: ["RHOAI operator installed", "Anthropic API access"]
+        version_introduced: "3.5"
+        tags: [agents, claude-code, starter-kit]
+      - name: "Gen AI Studio saved-agent configuration"
+        slug: genai-studio-saved-agent
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Save and reuse agent configurations in Gen AI Studio"
+        prerequisites: ["RHOAI operator installed", "Gen AI Studio accessible"]
+        version_introduced: "3.5"
+        tags: [genai-studio, agents]
+      - name: "Kale JupyterLab extension"
+        slug: kale-jupyterlab
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Author and run pipelines from notebooks with the Kale JupyterLab extension"
+        prerequisites: ["RHOAI operator installed", "Workbench with JupyterLab", "Pipelines enabled"]
+        version_introduced: "3.5"
+        tags: [kale, jupyterlab, pipelines]
+      - name: "MiDojo adversarial testing engine"
+        slug: midojo-adversarial-testing
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Run adversarial tests against models with MiDojo"
+        prerequisites: ["RHOAI operator installed", "Model serving endpoint"]
+        version_introduced: "3.5"
+        tags: [midojo, testing, adversarial]
+      - name: "OpenClaw agent starter kit"
+        slug: openclaw-starter-kit
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Get started with OpenClaw agents using the starter kit"
+        prerequisites: ["RHOAI operator installed"]
+        version_introduced: "3.5"
+        tags: [agents, openclaw, starter-kit]
+      - name: "OpenShell (secure agent sandboxing and policy enforcement)"
+        slug: openshell-agent-sandboxing
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Run agents in secure sandboxes with policy enforcement via OpenShell"
+        prerequisites: ["RHOAI operator installed", "Agent deployment"]
+        version_introduced: "3.5"
+        tags: [security, sandboxing, agents]
+      - name: "Text-mode training for multimodal models in Training Hub"
+        slug: text-mode-multimodal-training
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Fine-tune multimodal models with text-mode training in Training Hub"
+        prerequisites: ["RHOAI operator installed", "Training Hub enabled"]
+        version_introduced: "3.5"
+        tags: [training, multimodal]
+      - name: "View running agent deployments in dashboard"
+        slug: view-agent-deployments
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 1
+        description: "View and monitor running agent deployments from the RHOAI dashboard"
+        prerequisites: ["RHOAI operator installed", "Agent deployment running"]
+        version_introduced: "3.5"
+        tags: [dashboard, agents, monitoring]
+      - name: "MCP Catalog administrative interface"
+        slug: mcp-catalog-admin
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 1
+        description: "Administer the MCP Catalog through its administrative interface"
+        prerequisites: ["RHOAI operator installed", "MCP Catalog enabled"]
+        version_introduced: "3.5"
+        tags: [mcp, catalog, admin]
+      - name: "OGX File Processors API"
+        slug: ogx-file-processors
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Process documents and files with the OGX File Processors API"
+        prerequisites: ["RHOAI operator installed", "OGX enabled"]
+        version_introduced: "3.5"
+        tags: [ogx, rag, documents]
+      - name: "OGX remote::anthropic and remote::gemini providers"
+        slug: ogx-remote-providers
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Use remote Anthropic and Gemini providers with OGX"
+        prerequisites: ["RHOAI operator installed", "OGX enabled", "External API keys"]
+        version_introduced: "3.5"
+        tags: [ogx, providers, anthropic, gemini]
+      - name: "External metering integration for MaaS"
+        slug: external-metering-maas
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Integrate external metering systems with MaaS"
+        prerequisites: ["RHOAI operator installed", "MaaS enabled"]
+        version_introduced: "3.5"
+        tags: [maas, metering]
+      - name: "External metering: per-user token usage and cost"
+        slug: external-metering-per-user
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Track per-user token usage and cost with external metering"
+        prerequisites: ["RHOAI operator installed", "MaaS enabled", "External metering configured"]
+        version_introduced: "3.5"
+        tags: [maas, metering, usage]
+      - name: "Hierarchical KV Cache Tiering (llm-d)"
+        slug: llmd-kv-cache-tiering
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Hierarchical KV cache tiering with llm-d for inference efficiency"
+        prerequisites: ["RHOAI operator installed", "Distributed Inference with llm-d enabled"]
+        version_introduced: "3.5"
+        tags: [llmd, serving, cache]
+      - name: "Latency-aware routing for llm-d"
+        slug: llmd-latency-routing
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Route inference requests with latency awareness using llm-d"
+        prerequisites: ["RHOAI operator installed", "Distributed Inference with llm-d enabled"]
+        version_introduced: "3.5"
+        tags: [llmd, serving, routing]
+      - name: "LoRA-aware routing for llm-d"
+        slug: llmd-lora-routing
+        maturity: DP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Route requests to LoRA adapters with llm-d"
+        prerequisites: ["RHOAI operator installed", "Distributed Inference with llm-d enabled"]
+        version_introduced: "3.5"
+        tags: [llmd, serving, lora]
+
+  - name: "Distributed Training"
+    slug: distributed-training
+    features:
+      - name: "KubeRay (CodeFlare Operator successor)"
+        slug: kuberay
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Run Ray workloads on OpenShift with KubeRay"
+        prerequisites: ["RHOAI operator installed", "Distributed workloads enabled"]
+        version_introduced: "3.5"
+        tags: [training, ray, kuberay]
+      - name: "Kueue (Red Hat build of Kueue Operator)"
+        slug: kueue
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Queue and manage batch workloads with the Red Hat build of Kueue Operator"
+        prerequisites: ["RHOAI operator installed"]
+        version_introduced: "3.5"
+        tags: [training, kueue, scheduling]
+      - name: "Kubeflow Trainer v2"
+        slug: kubeflow-trainer-v2
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Distributed model training with Kubeflow Trainer v2"
+        prerequisites: ["RHOAI operator installed", "Training enabled in DSC"]
+        version_introduced: "3.5"
+        tags: [training, kubeflow]
+
+  - name: "Evaluation"
+    slug: evaluation
+    features:
+      - name: "Automated Red Teaming (powered by Garak)"
+        slug: automated-red-teaming-garak
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Run automated red-team probes against models with Garak"
+        prerequisites: ["RHOAI operator installed", "Model serving endpoint"]
+        version_introduced: "3.5"
+        tags: [evaluation, security, garak]
+      - name: "Evaluation Stack (EvalHub)"
+        slug: evalhub
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Evaluate models with the EvalHub evaluation stack"
+        prerequisites: ["RHOAI operator installed", "Model serving endpoint"]
+        version_introduced: "3.5"
+        tags: [evaluation, evalhub]
+
+  - name: "Feature Store / AutoML / AutoRAG"
+    slug: feature-store-automl-autorag
+    features:
+      - name: "Feature Store (Feast-based)"
+        slug: feature-store-feast
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Manage and serve features with the Feast-based Feature Store"
+        prerequisites: ["RHOAI operator installed", "Feature Store enabled in DSC"]
+        version_introduced: "3.5"
+        tags: [feature-store, feast]
+      - name: "AutoML"
+        slug: automl
+        maturity: TP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Automated machine learning model selection and training"
+        prerequisites: ["RHOAI operator installed"]
+        version_introduced: "3.5"
+        tags: [automl]
+      - name: "AutoRAG"
+        slug: autorag
+        maturity: TP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Automatically optimize RAG configurations"
+        prerequisites: ["RHOAI operator installed", "OGX enabled"]
+        version_introduced: "3.5"
+        tags: [rag, autorag]
+
+  - name: "Guardrails"
+    slug: guardrails
+    features:
+      - name: "NeMo Guardrails"
+        slug: nemo-guardrails
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Add conversational guardrails to LLM applications with NeMo Guardrails"
+        prerequisites: ["RHOAI operator installed", "Guardrails enabled in DSC"]
+        version_introduced: "3.5"
+        tags: [guardrails, nemo]
+      - name: "NeMo Guardrails integration with MCP Gateway"
+        slug: nemo-guardrails-mcp-gateway
+        maturity: TP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Apply NeMo Guardrails through the MCP Gateway"
+        prerequisites: ["RHOAI operator installed", "MCP Gateway deployed", "Guardrails enabled"]
+        version_introduced: "3.5"
+        tags: [guardrails, mcp, gateway]
+
+  - name: "MLOps"
+    slug: mlops
+    features:
+      - name: "MLflow experiment tracking / MLOps integration"
+        slug: mlflow-experiment-tracking
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Track experiments and manage models with MLflow"
+        prerequisites: ["RHOAI operator installed", "MLflow enabled in DSC"]
+        version_introduced: "3.5"
+        tags: [mlflow, mlops, tracking]
+
+  - name: "MaaS (Models-as-a-Service)"
+    slug: maas
+    features:
+      - name: "MaaS-specific external OIDC user authentication"
+        slug: maas-oidc-auth
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Authenticate MaaS users through external OIDC providers"
+        prerequisites: ["RHOAI operator installed", "MaaS enabled", "OIDC provider"]
+        version_introduced: "3.5"
+        tags: [maas, auth, oidc]
+      - name: "Models-as-a-Service (MaaS) core: access model and token mechanism"
+        slug: maas-core
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Consume models through MaaS with API tokens"
+        prerequisites: ["RHOAI operator installed", "MaaS enabled"]
+        version_introduced: "3.5"
+        tags: [maas, tokens]
+      - name: "Loki-based showback and user-scoped usage dashboards (MaaS)"
+        slug: maas-loki-showback
+        maturity: TP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Showback reporting and per-user usage dashboards with Loki"
+        prerequisites: ["RHOAI operator installed", "MaaS enabled", "Loki stack"]
+        version_introduced: "3.5"
+        tags: [maas, observability, loki]
+      - name: "MaaS deployment/routing path for Distributed Inference with llm-d"
+        slug: maas-llmd-deployment
+        maturity: TP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Serve MaaS models through the llm-d distributed inference path"
+        prerequisites: ["RHOAI operator installed", "MaaS enabled", "llm-d enabled"]
+        version_introduced: "3.5"
+        tags: [maas, llmd, serving]
+      - name: "MaaS multi-tenancy with per-tenant gateway and identity isolation"
+        slug: maas-multi-tenancy
+        maturity: TP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Isolate MaaS tenants with per-tenant gateways and identity"
+        prerequisites: ["RHOAI operator installed", "MaaS enabled"]
+        version_introduced: "3.5"
+        tags: [maas, multi-tenancy, isolation]
+      - name: "Multi-provider API passthrough for external models (MaaS)"
+        slug: maas-multi-provider-passthrough
+        maturity: TP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Expose external model providers through the MaaS API"
+        prerequisites: ["RHOAI operator installed", "MaaS enabled", "External provider keys"]
+        version_introduced: "3.5"
+        tags: [maas, providers, passthrough]
+      - name: "vLLM model deployment directly through MaaS"
+        slug: maas-vllm-deployment
+        maturity: TP
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Deploy vLLM models directly through the MaaS interface"
+        prerequisites: ["RHOAI operator installed", "MaaS enabled"]
+        version_introduced: "3.5"
+        tags: [maas, vllm, deployment]
+
+  - name: "Model Registry"
+    slug: model-registry
+    features:
+      - name: "Model registry and model catalog"
+        slug: model-registry-catalog
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Register, version, and discover models with the Model Registry and Model Catalog"
+        prerequisites: ["RHOAI operator installed", "Model registry enabled in DSC"]
+        version_introduced: "3.5"
+        tags: [registry, catalog]
+
+  - name: "Model Serving"
+    slug: model-serving
+    features:
+      - name: "Distributed Inference with llm-d (core)"
+        slug: llmd-core
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Deploy distributed LLM inference with llm-d"
+        prerequisites: ["RHOAI operator installed", "Distributed Inference enabled in DSC"]
+        version_introduced: "3.5"
+        tags: [llmd, serving]
+      - name: "Distributed Inference with llm-d: priority-based flow control"
+        slug: llmd-priority-flow-control
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Control inference traffic with priority-based flow control in llm-d"
+        prerequisites: ["RHOAI operator installed", "Distributed Inference with llm-d deployed"]
+        version_introduced: "3.5"
+        tags: [llmd, serving, scheduling]
+      - name: "LLMInferenceService / LLMInferenceServiceConfig (llm-d-native)"
+        slug: llminferenceservice-config
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Deploy LLMs with the llm-d-native LLMInferenceService CR"
+        prerequisites: ["RHOAI operator installed", "Distributed Inference enabled in DSC"]
+        version_introduced: "3.5"
+        tags: [llmd, kserve, crd]
+      - name: "Red Hat AI Inference fast-release images as custom ServingRuntime"
+        slug: rhai-fast-release-images
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Use Red Hat AI Inference fast-release images in custom ServingRuntimes"
+        prerequisites: ["RHOAI operator installed", "KServe enabled"]
+        version_introduced: "3.5"
+        tags: [serving, vllm, runtime]
+      - name: "vLLM CPU ServingRuntime on IBM Z / Power"
+        slug: vllm-cpu-ibm-z-power
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Serve models with vLLM CPU runtimes on IBM Z and Power architectures"
+        prerequisites: ["RHOAI operator installed", "KServe enabled", "IBM Z or Power cluster"]
+        version_introduced: "3.5"
+        tags: [serving, vllm, cpu, ibm-z, power]
+      - name: "vLLM ServingRuntime for KServe"
+        slug: vllm-serving-runtime-kserve
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Serve vLLM models with the KServe ServingRuntime"
+        prerequisites: ["RHOAI operator installed", "KServe enabled"]
+        version_introduced: "3.5"
+        tags: [serving, vllm, kserve]
+
+  - name: "OGX (Open GenAI Stack)"
+    slug: ogx
+    features:
+      - name: "Llama Stack / OGX core: RAG, agentic workflows, vector DB integration"
+        slug: llama-stack-ogx-core
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Build RAG and agentic workflows with the OGX (Llama Stack) core"
+        prerequisites: ["RHOAI operator installed", "OGX enabled in DSC"]
+        version_introduced: "3.5"
+        tags: [ogx, rag, agents]
+
+  - name: "Platform / Gateway API & Authentication"
+    slug: platform-gateway
+    features:
+      - name: "Gateway API and Red Hat Connectivity Link (RHCL)"
+        slug: gateway-api-rhcl
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 3
+        description: "Manage inference gateway traffic with Gateway API and RHCL"
+        prerequisites: ["RHOAI operator installed", "RHCL installed"]
+        version_introduced: "3.5"
+        tags: [gateway, networking, rhcl]
+      - name: "Platform-wide direct OIDC authentication (GatewayConfig CR)"
+        slug: platform-oidc-auth
+        maturity: GA
+        scaffolded: true
+        enriched: true
+        modules_estimate: 2
+        description: "Configure platform-wide direct OIDC authentication with the GatewayConfig CR"
+        prerequisites: ["RHOAI operator installed", "OIDC provider"]
+        version_introduced: "3.5"
+        tags: [auth, oidc, gateway]

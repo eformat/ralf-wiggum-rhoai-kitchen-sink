@@ -1,0 +1,14 @@
+---
+# Strategic-merge patch enabling TrustyAI (guardrails). Required by the
+# nemo-guardrails, evalhub, garak, and tool-calling-eval labs (no
+# NemoGuardrails CRD is served without it; the Gen AI playground also requires
+# TrustyAI per RHOAIENG-85769).
+apiVersion: datasciencecluster.opendatahub.io/v2
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+  namespace: redhat-ods-operator
+spec:
+  components:
+    trustyai:
+      managementState: Managed

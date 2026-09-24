@@ -1,0 +1,333 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will work through the core MaaS access workflow end to end:
+discover a model published to MaaS, generate a subscription-bound API key, and
+call the model through the OpenAI-compatible gateway while reading token usage
+and rate-limit responses.
+
+[NOTE]
+====
+This module assumes your facilitator has published a model to MaaS and assigned
+your group a subscription. If the Subscription dropdown is empty, ask your
+facilitator to complete the administrator steps covered in module 03.
+====
+
+**Learning objectives:**
+
+* Discover MaaS-published models in the dashboard and copy the external endpoint URL
+* Generate a temporary API key and create a persistent API key bound to your subscription
+* Call models through the gateway and read token usage and rate-limit headers
+
+== Exercise 1: Find MaaS models in the dashboard
+
+Models published to MaaS appear on the AI asset endpoints page with a
+*Model as a Service* badge and an external endpoint URL.
+
+. Log in to the RHOAI dashboard (reachable from the OpenShift console
+application launcher at {openshift_console_url}) and click *Gen AI studio* →
+*AI asset endpoints*.
+. The Models tab displays a table of available model deployments. Each row
+shows the model deployment name and model ID, the use case (such as LLM), the
+operational status (Ready, Not ready, or Unknown), an Endpoints *View* button,
+and a Playground link.
+. Click *View* in the Endpoints column for the workshop model. Models
+published to MaaS display a *Model as a Service* badge at the top of the
+Endpoints dialog. The dialog shows:
++
+* The API endpoint URL for accessing the model through the MaaS gateway
+* A subscription selector for choosing which subscription to use
+* A *Generate API key* button for creating 1-hour temporary API keys
+* A link to the API keys page for managing persistent keys
+. Keep the Endpoints dialog open — you will use it to mint a quick temporary
+key in the next exercise.
+
+// TODO: capture screenshot
+image::02-endpoints-dialog.png[Model as a Service badge and external endpoint URL in the Endpoints dialog,link=self,window=blank,width=700]
+
+=== Verify
+
+The Endpoints dialog shows the *Model as a Service* badge, and the
+Subscription dropdown lists at least one subscription that includes this model.
+If no subscription is listed, your group is not yet assigned to one — see the
+NOTE at the top of this module.
+
+With the model located and the endpoint URL at hand, mint an API key and wire
+up your terminal.
+
+== Exercise 2: Generate your API key
+
+You have two options for API keys: a 1-hour temporary key from the Endpoints
+dialog (ideal for a quick test) or a persistent key from the API keys page
+(what you will use for the rest of this workshop).
+
+. In the Endpoints dialog from Exercise 1, select your subscription from the
+Subscription dropdown and click *Generate API key*. Copy the generated key
+immediately — it is displayed only once and expires after 1 hour. Temporary
+keys carry the `sk-oai-` prefix like all MaaS API keys.
+. For a persistent key, navigate to *Gen AI studio* → *API keys* and click
+*Create API key*.
+. In the Create API key dialog, configure the key:
++
+* *Name*: a descriptive name such as `maas-workshop-key`
+* *Description* (optional): what the key is for
+* *Subscription*: select the subscription that determines which models the key
+can access and the applicable token limits. The dialog shows the models
+included in the selected subscription.
+* *Expiration*: 30 days, 60 days, 90 days (default), 180 days, 1 year, or
+Custom (days, between 1 and 365). Your administrator can cap this with a
+maximum expiration limit in the Tenant custom resource.
+. Click *Create*. The generated key is displayed with the `sk-oai-` prefix.
+
+[IMPORTANT]
+====
+The plaintext API key is displayed only during creation and cannot be retrieved
+later. Save it before closing the dialog. If you lose the key, you must revoke
+it and create a new one.
+====
+
+. In your terminal, export the gateway URL and your API key as environment
+variables. The MaaS gateway host is `maas.` followed by your cluster ingress
+domain, so derive it from the cluster rather than pasting it:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export MAAS_URL="https://maas.$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')"
+export MAAS_API_KEY=%maas-api-key%
+----
++
+Replace `%maas-api-key%` with the key you copied. The derived `$MAAS_URL` is
+the base of the external endpoint URL you saw in the Endpoints dialog — the
+per-model path is appended by the API, not by you.
+
+=== Verify
+
+Confirm that your key is valid and bound to the models in your subscription by
+listing models through the MaaS management API:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -H "Authorization: Bearer $MAAS_API_KEY" "$MAAS_URL/maas-api/v1/models"
+----
+
+A successful response returns a JSON list of the models available to the
+groups in your key. An empty list means the key is valid but has no matching
+subscription — check with your facilitator.
+
+Also confirm the key appears on the *API keys* page with a Status of `Active`.
+
+== Exercise 3: Call a model through the gateway
+
+MaaS inference endpoints are OpenAI-compatible: use the standard
+`/v1/chat/completions` endpoint with the model name in the request body
+(body-based routing). Legacy per-model URL paths
+(`/llm/<model-name>/v1/...`) are also supported for backwards compatibility —
+both routing modes apply the same subscription and token-limit policies.
+
+. List the models available to you through the gateway endpoint:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -X GET "$MAAS_URL/v1/models" -H "Authorization: Bearer $MAAS_API_KEY"
+----
++
+Example response in OpenAI-compatible format:
++
+----
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "facebook-opt-125m",
+      "object": "model",
+      "created": 1234567890,
+      "owned_by": "llm",
+      "ready": true
+    }
+  ]
+}
+----
+
+. Export the model ID from the list so the following commands are executable
+as-is:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export MODEL_NAME=%model-name%
+----
++
+Replace `%model-name%` with the model ID from the `/v1/models` response, such
+as `facebook-opt-125m`. The model name in the request body must match a name
+returned by `/v1/models` exactly.
+
+. Call the model using body-based routing:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -X POST "$MAAS_URL/v1/chat/completions" \
+  -H "Authorization: Bearer $MAAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"model\":\"$MODEL_NAME\",\"messages\":[{\"role\":\"user\",\"content\":\"Explain quantum computing in simple terms.\"}],\"max_tokens\":150,\"temperature\":0.7}"
+----
++
+Example response:
++
+----
+{
+  "id": "chatcmpl-abc123",
+  "object": "chat.completion",
+  "created": 1234567890,
+  "model": "facebook-opt-125m",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Quantum computing is a type of computing that..."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 12,
+    "completion_tokens": 45,
+    "total_tokens": 57
+  }
+}
+----
++
+The `usage` object is the token mechanism made visible: `prompt_tokens` plus
+`completion_tokens` equal `total_tokens`, and those tokens are deducted from
+your subscription's token quota.
+
+. Optional: repeat the call with legacy path-based routing to see that it
+behaves identically:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -X POST "$MAAS_URL/llm/$MODEL_NAME/v1/chat/completions" \
+  -H "Authorization: Bearer $MAAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"model\":\"$MODEL_NAME\",\"messages\":[{\"role\":\"user\",\"content\":\"Explain quantum computing in simple terms.\"}],\"max_tokens\":150}"
+----
+
+. Optional: use the Python `openai` SDK — body-based routing means drop-in
+compatibility, no custom URL paths. Replace `%maas-url%` with the `$MAAS_URL`
+value you exported, and the other `%...%` placeholders with your model ID and
+API key:
++
+[source,python]
+----
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="%maas-url%/v1",
+    api_key="%maas-api-key%",
+)
+response = client.chat.completions.create(
+    model="%model-name%",
+    messages=[{"role": "user", "content": "Explain quantum computing in simple terms."}],
+    max_tokens=150,
+    temperature=0.7,
+)
+print(response.choices[0].message.content)
+print(response.usage)
+----
+
+=== Verify
+
+* The `/v1/models` response includes the workshop model with `"ready": true`.
+* Chat completion requests return HTTP 200 with responses in the
+OpenAI-compatible JSON format, including a `usage` object with
+`prompt_tokens`, `completion_tokens`, and `total_tokens`.
+
+== Exercise 4: See the token mechanism at work
+
+Token limits are enforced per model, per time window, by your subscription.
+Probe them: an invalid key should be rejected outright, and rapid requests
+should eventually hit the rate limiter.
+
+. Confirm that unauthorized requests are rejected — send a request with an
+invalid key:
++
+[source,bash,role="execute"]
+----
+curl -s -o /dev/null -w "%{http_code}\n" \
+  -H "Authorization: Bearer invalid-key" \
+  "$MAAS_URL/maas-api/v1/models"
+----
++
+Expected output is `401` (or `403`), confirming that only valid MaaS API keys
+authenticate at the gateway.
+
+. Test rate limiting by sending rapid requests to the model:
++
+[source,bash,role="execute"]
+----
+for i in $(seq 1 20); do
+  curl -s -o /dev/null -w "%{http_code}\n" \
+    -X POST "$MAAS_URL/v1/chat/completions" \
+    -H "Authorization: Bearer $MAAS_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"model\":\"$MODEL_NAME\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":50}"
+done | sort | uniq -c
+----
++
+Expected output is a mix of `200` and `429` status codes, confirming that
+token rate limits are enforced:
++
+----
+  18 200
+   2 429
+----
+
+[NOTE]
+====
+If your subscription's token limit is high, 20 requests may not exhaust it and
+you will see only `200` responses. That still verifies the endpoint; the
+enforcement itself is visible in the per-model `TokenRateLimitPolicy`
+resource, which you will inspect in module 03.
+====
+
+When you exceed the token limit, the API returns a structured error with
+retry headers:
+
+[source,json]
+----
+{
+  "error": {
+    "message": "Token limit exceeded. You have consumed the maximum number of tokens allowed for this model in your subscription.",
+    "type": "token_limit_error",
+    "code": 429
+  }
+}
+----
+
+The response includes headers for retry logic: `X-RateLimit-Limit`,
+`X-RateLimit-Remaining`, `X-RateLimit-Reset`, and `Retry-After`.
+
+=== Verify
+
+* The invalid key returns `401` or `403`.
+* The rapid-request loop shows a mix of `200` and `429` codes, or only `200`
+codes if your subscription's token limit is high (see the NOTE above).
+
+== Module summary
+
+**What you accomplished:**
+
+* Located a MaaS-published model in the dashboard and copied its external endpoint URL
+* Generated a temporary 1-hour key and created a persistent subscription-bound API key
+* Called the model through the OpenAI-compatible gateway and observed token usage and rate-limit responses
+
+**Key takeaways:**
+
+* MaaS API keys carry the `sk-oai-` prefix, are displayed only once, and are bound to a subscription that determines accessible models and token limits
+* Body-based routing via `/v1/chat/completions` is the recommended integration; the `usage` object in each response shows the tokens charged to your quota
+* `429` responses carry `X-RateLimit-*` and `Retry-After` headers that clients should respect
+
+**Next steps:**
+
+You have consumed a governed model as a user. Continue to module 03 to see the
+administrator side: how the subscription and authorization policy that gated
+your access are created, edited, and monitored.

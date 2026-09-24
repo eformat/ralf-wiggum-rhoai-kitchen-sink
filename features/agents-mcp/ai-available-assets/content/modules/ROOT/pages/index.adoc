@@ -1,0 +1,47 @@
+= Welcome to the AI Available Assets page Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+The *AI Available Assets page* is a new dashboard page in RHOAI 3.5 that enables
+AI engineers and application developers to view and consume deployed AI
+resources within their projects. It provides a filterable list of the models and
+Model Context Protocol (MCP) servers in the selected project, so you can
+identify accessible endpoints and integrate them directly into the Gen AI
+playground or other applications. In the dashboard the page appears as
+*Gen AI studio → AI asset endpoints*.
+
+**What you will learn:**
+
+* What the AI Available Assets page lists, where it lives in the dashboard navigation, and how it scopes assets to your project
+* Publish an MCP server into the available assets by creating the `gen-ai-aa-mcp-servers` ConfigMap in `redhat-ods-applications`
+* Deploy a generative AI model with the *Add as AI asset endpoint* option and verify the endpoint from the CLI
+* Consume an available asset by launching a configured Gen AI playground directly from the AI Available Assets page
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI 3.5 installed and the dashboard accessible
+* The RHOAI operator installed
+* Access to the RHOAI dashboard with your workshop user
+* Cluster administrator privileges for the MCP server and custom endpoint exercises
+* A generative AI model available in an OCI registry or S3-compatible object store
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Discover AI assets in the dashboard]
+* xref:module-02-hands-on.adoc[Publish and consume a model asset]
+* xref:conclusion.adoc[Conclusion]

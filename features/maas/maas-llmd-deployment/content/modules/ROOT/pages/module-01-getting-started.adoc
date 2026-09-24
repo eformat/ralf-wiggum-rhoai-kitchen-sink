@@ -1,0 +1,181 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will verify that Models-as-a-Service (MaaS) and Distributed
+Inference with llm-d are enabled on your workshop cluster, then deploy a
+generative model through the dashboard wizard using the *Distributed inference
+with llm-d* deployment resource and publish it to MaaS.
+
+**Learning objectives:**
+
+* Explain how MaaS and the llm-d distributed inference path fit together in RHOAI 3.5
+* Verify the MaaS custom resources, tenant configuration, and llm-d inference gateway
+* Deploy a model with the Distributed inference with llm-d runtime and publish it as MaaS
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: This feature is a *Technology Preview*. APIs and manifests shown
+here may change between releases.
+endif::[]
+
+IMPORTANT: Both capabilities must be enabled by a cluster administrator before
+you deploy. MaaS requires `kserve.modelsAsService` set to `Managed` in the
+DataScienceCluster resource, and distributed inference requires the Gateway API
+with a Gateway named `openshift-ai-inference` in the `openshift-ingress`
+namespace. Models deployed for MaaS use the `LLMInferenceService` architecture,
+which integrates with the MaaS gateway for subscription-based quota enforcement.
+
+== Exercise 1: Verify the MaaS and llm-d prerequisites
+
+In this exercise you confirm that the MaaS custom resources, tenant
+configuration, and llm-d inference gateway are in place before deploying a
+model.
+
+. Confirm that the MaaS custom resource definitions are installed:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get crd | grep -E 'maas.opendatahub.io|aitenants'
+----
+
+Expected output shows the MaaS CRDs:
+
+----
+aitenants.maas.opendatahub.io
+maasauthpolicies.maas.opendatahub.io
+maasmodelrefs.maas.opendatahub.io
+maassubscriptions.maas.opendatahub.io
+maastenantconfigs.maas.opendatahub.io
+----
+
+. Confirm that the Tenant custom resource exists and shows a `Ready` status:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get tenants.maas.opendatahub.io default-tenant -n models-as-a-service
+----
+
+The resource should show `Ready` in the status column. If it shows `False` or
+`Degraded`, verify that User Workload Monitoring is enabled on the cluster and
+that all platform prerequisites are met.
+
+. Confirm that MaaS is enabled in the DataScienceCluster resource:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get datasciencecluster default-dsc -o jsonpath='{.spec.components.kserve.modelsAsService.managementState}'
+----
+
+The output is `Managed` when MaaS is enabled.
+
+. Confirm that the llm-d inference gateway exists:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get gatewayclass openshift-ai-inference
+oc get gateway openshift-ai-inference -n openshift-ingress -o wide
+----
+
+Both commands should return the `openshift-ai-inference` resources. The
+Gateway uses `type: LoadBalancer` by default; on bare-metal clusters an
+external entry point must be configured for this Gateway service.
+
+=== Verify
+
+* The five `maas.opendatahub.io` CRDs are listed
+* The `default-tenant` Tenant resource shows `Ready`
+* `modelsAsService` management state is `Managed`
+* The `openshift-ai-inference` GatewayClass and Gateway both exist
+
+With the platform verified, you are ready to deploy a model through the
+dashboard wizard.
+
+== Exercise 2: Deploy a model and publish it as MaaS
+
+In this exercise you deploy a generative model from your project using the
+wizard and select the *Distributed inference with llm-d* deployment resource.
+
+. Log in to the OpenShift AI dashboard. In the left navigation menu, click
+*Projects*, then click the name of your workshop project (`{guid}-{user}`).
+
+. Click the *Deployments* tab, then click *Deploy model* to open the wizard.
+
+. In the *Model details* section, select your storage connection and model path,
+select *Generative AI model (Example, LLM)* as the model type, make sure the
+*Use legacy deployment method* checkbox is unchecked, then click *Next*.
+
+. In the *Model deployment* section, enter a unique deployment name using
+lowercase letters, numbers, and hyphens, for example `maas-llmd-demo`, select
+an appropriate hardware profile, and select *Distributed inference with llm-d*
+as the deployment resource.
+
+// TODO: capture screenshot
+image::01-deploy-wizard-llmd.png[Model deployment section with the Distributed inference with llm-d deployment resource selected,link=self,window=blank,width=700]
+
+. In the *Number of replicas* field, enter the number of replicas to deploy.
+The default is `1`; for production workloads Red Hat recommends at least `2`
+replicas for high availability. Click *Next*.
+
+. In the *Advanced settings* section, under *Model availability*, select
+*Publish as MaaS* to make the model accessible to users through the MaaS
+gateway, then click *Next*.
+
+. In the *Review* section, verify your configuration settings and click
+*Deploy model*.
+
+NOTE: Publishing as MaaS creates a `MaaSModelRef` object that registers the
+model with MaaS for subscription assignment. After publishing, an
+administrator must create a subscription and add this model before users can
+access it. You do that in Module 02.
+
+=== Verify
+
+. Verify that the model appears on the *Deployments* tab with a checkmark in
+the *Status* column.
+
+. Verify that the model was published to MaaS:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get maasmodelref -n {guid}-{user}
+----
+
+You should see a `MaaSModelRef` object for your deployed model.
+
+. Verify that the model uses the LLMInferenceService architecture:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llminferenceservice -n {guid}-{user}
+----
+
+Your `maas-llmd-demo` model is listed. The gateway reference appears under
+`spec.router.gateway` in the resource YAML.
+
+Your model is now deployed through the llm-d path and registered with MaaS.
+Next you grant user access to it with subscriptions and authorization policies.
+
+== Module summary
+
+**What you accomplished:**
+
+* Verified the MaaS CRDs, tenant status, and llm-d inference gateway on the cluster
+* Deployed a generative model through the dashboard wizard with the Distributed inference with llm-d runtime
+* Published the model to MaaS and confirmed the MaaSModelRef and LLMInferenceService resources
+
+**Key takeaways:**
+
+* Models deployed for MaaS use the `LLMInferenceService` architecture, not the legacy KServe serving path
+* *Publish as MaaS* creates a `MaaSModelRef` that registers the model for subscription assignment
+* The `openshift-ai-inference` Gateway fronts all Distributed Inference with llm-d traffic
+
+**Next steps:**
+
+A published model is not yet accessible to users. Continue to Module 02 to
+grant access with a subscription and authorization policy, then call the model
+through the MaaS gateway.

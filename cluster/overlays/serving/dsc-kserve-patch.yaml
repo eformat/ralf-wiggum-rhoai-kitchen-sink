@@ -1,0 +1,19 @@
+---
+# Strategic-merge patch enabling the KServe model-serving platform.
+# Only touches the kserve component key — other overlays patch their own keys.
+apiVersion: datasciencecluster.opendatahub.io/v2
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+  namespace: redhat-ods-operator
+spec:
+  components:
+    kserve:
+      managementState: Managed
+      # RawDeployment mode: the workshop does NOT use Service Mesh (llm-d labs
+      # explicitly assume OpenShift Service Mesh v2 is ABSENT).
+      rawDeploymentServiceConfig: Headless
+      # Workload Variant Autoscaler — the llmd-core lab expects the WVA
+      # controller deployment running; it defaults to Removed.
+      wva:
+        managementState: Managed

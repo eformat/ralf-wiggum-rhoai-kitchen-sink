@@ -1,0 +1,197 @@
+= Module 01: Core Concepts
+:navtitle: Module 01: Core Concepts
+
+In this module you will understand what Red Hat Connectivity Link (RHCL) is, how it
+controls the Gateway API data plane in OpenShift, and how it fits into Red Hat OpenShift AI.
+You will then verify the installation in your cluster and enable the Connectivity Link
+console plugin.
+
+**Learning objectives:**
+
+* Describe how Connectivity Link applies policies to standard Gateway API resources
+* Identify the four Operators that make up Connectivity Link and the policy CRs each enables
+* Verify the Connectivity Link installation from the CLI and enable the console plugin
+
+== Exercise 1: Where Connectivity Link fits
+
+Red Hat Connectivity Link is a *control plane for configuring the Gateway API data plane*
+in OpenShift Container Platform clusters. You apply authentication, rate limiting, TLS,
+and DNS policies to gateway resources instead of embedding networking code into your
+applications. In a RHOAI environment you use the same pattern to expose, secure, and
+observe inference gateway traffic for your model-serving APIs.
+
+Connectivity Link consists of four Operators bundled into a single catalog:
+
+* The *Connectivity Link Operator* (Kuadrant) manages policy attachment and Gateway API integration
+* The *Authorino Operator* handles authentication and authorization
+* The *Limitador Operator* manages rate limiting
+* The *DNS Operator* manages multi-cluster DNS
+
+The Connectivity Link Operator declares the other three as dependencies through
+Operator Lifecycle Manager (OLM), so updates are automatic. Each policy CR maps to a
+backing component:
+
+|===
+|Policy CR |Backing component |What it controls
+
+|`AuthPolicy`
+|Authorino
+|Authentication and authorization for Gateway, HTTPRoute, and GRPCRoute resources
+
+|`RateLimitPolicy`, `TokenRateLimitPolicy`
+|Limitador
+|Request-rate and token-consumption limits
+
+|`DNSPolicy`
+|DNS Operator
+|Multi-cluster DNS records, load balancing, health checks, remediation
+
+|`TLSPolicy`
+|cert-manager
+|Automatic TLS certificate provisioning for gateway listeners
+|===
+
+By default, the OpenShift Container Platform *Cluster Ingress Operator* is the Gateway API
+controller. Connectivity Link uses Gateways with `gatewayClassName: openshift-default` and
+the controller name `openshift.io/gateway-controller/v1`. On OpenShift Container Platform
+4.18 or older you must instead use Red Hat OpenShift Service Mesh as the Gateway API
+provider; Service Mesh is also required if you want mTLS or full control over your Istio
+configuration.
+
+IMPORTANT: Connectivity Link uses `kuadrant.io/*` labels to search and filter resources on
+the cluster. Do not remove labels with this prefix — removal can cause unexpected behavior
+and degradation of Connectivity Link.
+
+Locate the feature in the console: from the Administrator perspective navigate to
+*Ecosystem > Installed Operators* and select *Red Hat Connectivity Link*. The *Kuadrant* tab
+shows the Connectivity Link CR that activates the control plane.
+
+=== Verify
+
+You can describe what each of the four Connectivity Link Operators does, and you found the
+*Red Hat Connectivity Link* Operator in *Ecosystem > Installed Operators* in the console.
+
+== Exercise 2: Inspect the installation
+
+Your facilitator installed Connectivity Link as `cluster-admin`. Inspect what was installed
+and confirm the control plane is ready.
+
+. Derive the namespace where Connectivity Link was installed:
+
+[source,bash,role="execute",subs="attributes"]
+----
+export KUADRANT_SYSTEM_NS=$(oc get kuadrant -A -o jsonpath="{.items[0].metadata.namespace}")
+echo $KUADRANT_SYSTEM_NS
+----
+
+. Confirm the Connectivity Link CR is ready:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc wait kuadrant/kuadrant --for="condition=Ready=true" -n ${KUADRANT_SYSTEM_NS} --timeout=300s
+----
+
+----
+kuadrant.kuadrant.io/kuadrant Ready
+----
+
+. Verify that all component Operator pods are running:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n ${KUADRANT_SYSTEM_NS}
+----
+
+.Example output
+----
+NAME                                                 READY   STATUS    RESTARTS   AGE
+authorino-operator-controller-manager-<hash>         2/2     Running   0          5m
+dns-operator-controller-manager-<hash>               2/2     Running   0          5m
+kuadrant-operator-controller-manager-<hash>          2/2     Running   0          7m
+limitador-operator-controller-manager-<hash>         2/2     Running   0          5m
+----
+
+For reference, these are the manifests your facilitator applied. *Do not run them unless
+you have `cluster-admin`* — the Subscription, OperatorGroup, and Connectivity Link CR are
+already in place:
+
+[source,yaml]
+----
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: rhcl-operator
+  namespace: kuadrant-system
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: rhcl-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+----
+<1> *name: rhcl-operator* — the Connectivity Link Operator package from the Red Hat Operator catalog.
+<2> *channel: stable* — the supported update channel for Connectivity Link 1.4.
+
+[source,yaml]
+----
+apiVersion: kuadrant.io/v1beta1
+kind: Kuadrant
+metadata:
+  name: kuadrant
+  namespace: kuadrant-system
+spec: {}
+----
+<3> *spec: {}* — an empty spec activates the Connectivity Link control plane with defaults; the Operator installs Authorino, Limitador, and DNS automatically.
+
+If you install Connectivity Link yourself in another cluster, the console flow is
+*Ecosystem > Software Catalog*, filter by `Connectivity`, install with update channel
+`stable`, installation mode *All namespaces on the cluster*, installed namespace
+`kuadrant-system`, then create the Kuadrant CR from the Operator's *Kuadrant* tab.
+
+=== Verify
+
+The `oc wait` command prints `kuadrant.kuadrant.io/kuadrant Ready` and all four component
+Operator pods report `2/2 Running`.
+
+With the control plane verified, the next step is to expose its web UI: enable the
+Connectivity Link dynamic plugin in the console.
+
+== Exercise 3: Enable the Connectivity Link console plugin
+
+The Connectivity Link dynamic plugin lets you view and manage gateways and policies in the
+OpenShift Container Platform web console. This step requires `cluster-admin` — your
+facilitator may have already completed it.
+
+. In the console navigation menu, select the Administrator perspective.
+. Click *Home > Overview*.
+. In the Status panel, click *Dynamic Plugins > View all*.
+. On the Console plugins tab, find the `kuadrant-console-plugin` entry, which is listed but disabled.
+. In the `kuadrant-console-plugin` row, click *Disabled*.
+. Select the *Enable* option, and click *Save*.
+. Wait for the plugin status to change to *Loaded*.
+
+=== Verify
+
+Refresh the web console. A new *Connectivity Link* menu item appears in the navigation
+sidebar. Click *Connectivity Link > Overview* to explore the available resources and get
+started with creating a Gateway and configuring policies in the console.
+
+== Module summary
+
+**What you accomplished:**
+
+* Mapped the four Connectivity Link Operators to the AuthPolicy, RateLimitPolicy, DNSPolicy, and TLSPolicy CRs
+* Verified the Connectivity Link control plane is installed and Ready in `kuadrant-system`
+* Enabled the Connectivity Link console plugin and explored the Connectivity Link Overview page
+
+**Key takeaways:**
+
+* Connectivity Link is a policy control plane on top of standard Gateway API resources, not a custom ingress implementation
+* The Cluster Ingress Operator is the default Gateway API controller; OpenShift Service Mesh is required on OpenShift 4.18 or older and for mTLS
+* `kuadrant.io/*` labels are load-bearing — never remove them
+
+**Next steps:**
+
+In the next module you use Connectivity Link to expose and secure a real API through a
+Gateway, starting with the platform-engineer workflow your facilitator would run to
+provision gateway infrastructure.

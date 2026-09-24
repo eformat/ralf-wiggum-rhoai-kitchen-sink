@@ -1,0 +1,29 @@
+---
+# Activation CR for the RHBoK operator. The operator waits for a singleton
+# Kueue CR named `cluster` and, once created, rolls out the Kueue controllers
+# and registers the kueue.x-k8s.io CRDs. Apply AFTER the kueue-operator CSV
+# reaches Succeeded:
+#   oc apply -k cluster/overlays/distributed/activation
+#
+# integrations.frameworks lists the job frameworks Kueue manages (max 14).
+apiVersion: kueue.openshift.io/v1
+kind: Kueue
+metadata:
+  name: cluster
+spec:
+  managementState: Managed
+  config:
+    integrations:
+      frameworks:
+        - BatchJob
+        - RayJob
+        - RayCluster
+        - JobSet
+        - MPIJob
+        - PyTorchJob
+        - TFJob
+        - TrainJob
+        - AppWrapper
+        - Pod
+        - Deployment
+        - LeaderWorkerSet

@@ -1,0 +1,37 @@
+= Welcome to the Gateway API and Red Hat Connectivity Link (RHCL) Workshop
+:navtitle: Overview
+
+This workshop introduces *Gateway API and Red Hat Connectivity Link (RHCL)*:
+Red Hat Connectivity Link is a control plane for configuring the Gateway API data
+plane in OpenShift Container Platform clusters. You use it to apply authentication,
+rate limiting, TLS, and DNS policies to gateway resources — an
+infrastructure-as-code approach to ingress traffic management. In a
+Red Hat OpenShift AI environment, this is how you manage and protect inference
+gateway traffic for your model-serving APIs.
+
+**What you will learn:**
+
+* How Connectivity Link controls the Gateway API data plane, and how its four Operators (Connectivity Link, Authorino, Limitador, DNS) work together
+* How to verify the RHCL installation and enable the Connectivity Link console plugin
+* How to expose an API through a Gateway with TLS, then protect it with `AuthPolicy` and `RateLimitPolicy` custom resources (CRs)
+* How to enforce token-based rate limits for LLM inference APIs and observe gateways, policies, and requests
+
+== Prerequisites
+
+* An OpenShift cluster with Red Hat OpenShift AI 3.5 installed (RHOAI operator installed)
+* Red Hat Connectivity Link 1.4.1 or later installed by a cluster administrator
+* cert-manager Operator for Red Hat OpenShift installed
+* `cluster-admin` access for the install and console-plugin steps; write access to your project namespaces for everything else
+* The OpenShift CLI (`oc`) installed
+
+== Estimated time
+
+About 2 hours
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:module-03-advanced.adoc[Advanced Usage]
+* xref:conclusion.adoc[Conclusion]

@@ -1,0 +1,129 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will learn what the Agent Catalog in AI Hub is, enable the
+`agentsCatalog` feature flag on your cluster, and open the catalog for the
+first time. The Agent Catalog is a centralized interface for discovering and
+exploring agent starter kits: it ships pre-loaded with agent starter kits built
+on LangGraph, CrewAI, LlamaIndex, and other agentic frameworks.
+
+**Learning objectives:**
+
+* Explain the role of the Agent Catalog in AI Hub in RHOAI
+* Enable the `agentsCatalog` dashboard feature flag
+* Open the catalog from *AI hub → Agents* in the dashboard
+
+ifeval::["{feature_maturity}" == "DP"]
+NOTE: This feature is a *Developer Preview*. Developer Preview features are not
+supported by Red Hat in any way, might not have any documentation, are subject
+to change or removal at any time, and have received limited testing. The
+catalog is for exploring agent starter kits; it is not a production registry.
+endif::[]
+
+== Exercise 1: Check the current dashboard configuration
+
+The Agent Catalog UI is gated behind a dashboard configuration option. Before
+changing anything, observe the current state of the `OdhDashboardConfig`
+custom resource.
+
+. Check whether the `agentsCatalog` flag is already set:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get odhdashboardconfig odh-dashboard-config -n redhat-ods-applications -o jsonpath='{.spec.dashboardConfig.agentsCatalog}'
+----
+
+If the output is empty, the flag is not set yet and the catalog is hidden. If
+it prints `true`, the catalog is already enabled and you can skip ahead to
+Exercise 3.
+
+NOTE: The `OdhDashboardConfig` custom resource lives in the
+`redhat-ods-applications` namespace and is created by the OpenShift AI
+operator. It controls the visibility of dashboard features such as the model
+catalog, MCP catalog, and Agent Catalog.
+
+=== Verify
+
+You know the current state of the `agentsCatalog` flag and whether the
+*AI hub → Agents* menu item should already be visible in the dashboard.
+
+With the current state observed, the next step is to enable the feature flag.
+
+== Exercise 2: Enable the agentsCatalog feature flag
+
+To enable this Developer Preview feature, set the `agentsCatalog` feature flag
+to `true` in the `OdhDashboardConfig` custom resource. This is the same
+dashboard configuration mechanism used by other AI Hub catalogs, such as the
+MCP catalog flag.
+
+IMPORTANT: You need cluster administrator privileges to patch the
+`OdhDashboardConfig` custom resource.
+
+. Patch the `OdhDashboardConfig` custom resource:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch odhdashboardconfig odh-dashboard-config -n redhat-ods-applications --type=merge -p '{"spec":{"dashboardConfig":{"agentsCatalog":true}}}'
+----
+
+Expect the message `odhdashboardconfig.opendatahub.io/odh-dashboard-config
+patched`.
+
+=== Verify
+
+. Confirm the flag was updated correctly:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get odhdashboardconfig odh-dashboard-config -n redhat-ods-applications -o jsonpath='{.spec.dashboardConfig.agentsCatalog}'
+----
+
+The expected output is `true`.
+
+. Clear your browser cache and hard refresh the OpenShift AI dashboard
+(Ctrl+Shift+R or Cmd+Shift+R) so the new configuration applies.
+
+TIP: If the *Agents* menu item still does not appear, check the dashboard pod
+logs for errors:
+`oc logs -n redhat-ods-applications $(oc get pods -n redhat-ods-applications -o name | grep dashboard | head -1) --tail=50`.
+
+The flag is set. Next, you open the catalog from the dashboard.
+
+== Exercise 3: Open the catalog
+
+With the feature flag enabled, the Agent Catalog is reachable from the AI Hub
+section of the OpenShift AI dashboard.
+
+. From the OpenShift AI dashboard, click *AI hub → Agents*.
+
+. Observe the list of agent starter kits that the catalog ships pre-loaded
+with. Each entry is an agent starter kit built on an agentic framework such as
+LangGraph, CrewAI, or LlamaIndex.
+
+. Without opening an entry yet, scan the list and note the variety of
+frameworks represented.
+
+=== Verify
+
+The *AI hub → Agents* page shows a browsable list of agent starter kits. If
+you see the menu item but an empty list, confirm the flag is set (Exercise 2)
+and hard refresh the dashboard.
+
+== Module summary
+
+**What you accomplished:**
+
+* Checked the current state of the `agentsCatalog` dashboard flag on your cluster
+* Enabled the Agent Catalog feature flag in the `OdhDashboardConfig` custom resource
+* Opened the Agent Catalog from *AI hub → Agents* and viewed the pre-loaded starter kits
+
+**Key takeaways:**
+
+* The Agent Catalog UI is gated by the `agentsCatalog` dashboard configuration option, not by a component in the `DataScienceCluster` object
+* Dashboard feature flags take effect after the configuration propagates — a hard browser refresh is often required
+* The catalog ships pre-loaded with agent starter kits built on LangGraph, CrewAI, LlamaIndex, and other agentic frameworks
+
+**Next steps:**
+
+Now that the catalog is open, continue to Module 02 to browse, filter, and
+search the starter kits and to explore what a catalog entry tells you.

@@ -1,0 +1,147 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will take a guided tour of the building blocks of a real
+MiDojo adversarial testing session: the suite format, the reference MiniBank
+scenario, pluggable backends, and the agent protocols this release supports.
+Because MiDojo is a Developer Preview, this is a descriptive tour of what a
+testing session looks like — not a deployment walkthrough.
+
+**Learning objectives:**
+
+* Describe the pieces that make up a MiDojo testing session
+* Compare the agent protocols MiDojo supports in this release
+* Interpret utility and security results from a graded run
+
+[NOTE]
+====
+This feature is a *Developer Preview*. It is provided as-is with no support and
+no guarantee of future availability. The suite format, protocol names, and
+deployment model described here come from the RHOAI 3.5 release notes and may
+change between releases.
+====
+
+== Exercise 1: The building blocks of a testing session
+
+The RHOAI 3.5 release notes list what the MiDojo release supports:
+
+* **Custom external suites** — beyond built-in scenarios, you can author your
+  own external suites using the declarative YAML scenario format from
+  xref:module-01-getting-started.adoc[Module 01], covering environment state,
+  tasks, and injection vectors.
+* **The reference MiniBank suite** — MiDojo ships with a reference suite built
+  around a mock banking domain, giving you a realistic agent environment
+  (accounts, balances, transactions) to attack before writing your own.
+* **Pluggable backends** — the engine that runs the agent under test is
+  pluggable, so the same scenario suite can exercise different agent stacks.
+* **Kubernetes-native deployment** — MiDojo itself deploys on Kubernetes, in
+  the same cluster as the agents it tests.
+* **Multiple agent protocols** — a single testing engine can target agents
+  that speak different protocols.
+
+The protocol list matters in practice: an adversarial testing engine is only
+useful if it can reach the agent you actually built. This release supports:
+
+[options="header"]
+|===
+|Agent protocol |Notes
+
+|A2A
+|Agent-to-agent protocol
+
+|OGX
+|The OpenShift AI inference gateway protocol (see the OGX workshops in this
+catalog)
+
+|PI
+|Protocol interface supported in this release
+
+|OpenAI Responses API
+|The OpenAI-compatible responses API many agents are built against
+
+|Simple HTTP
+|Plain HTTP endpoints
+|===
+
+TIP: If you completed the garak workshop (Automated Risk Assessment) in the
+*evaluation* category, compare the two: garak probes model safety by sending
+probes directly to a model, while MiDojo tests *agent* behavior by attacking
+the tool layer the agent depends on. They are complementary layers of an
+adversarial testing strategy.
+
+Notice how the pieces compose: you author a scenario suite (or start from
+MiniBank), point it at an agent through one of the supported protocols, and
+MiDojo's Kubernetes-native deployment runs the combinations of legitimate and
+injection tasks — without rebuilding your infrastructure or modifying the
+agent.
+
+== Exercise 2: Reading a graded run
+
+Each MiDojo execution produces a graded result with the full tool trace. When
+you review results from a session, you are reading two grades per run:
+
+* **Utility grade** — the agent completed its legitimate task. Read the trace
+  to confirm the agent still reached its goal (for example, still transferred
+  the right amount in a MiniBank scenario) while under attack.
+* **Security grade** — the agent resisted the injection. Read the trace to
+  confirm the agent did not act on the injected payload — for example, did not
+  follow instructions hidden in a tool response.
+
+The interesting outcomes are the mixed ones:
+
+[options="header"]
+|===
+|Utility |Security |What it means
+
+|Pass |Pass
+|The agent stayed useful and resisted the attack — the goal
+
+|Pass |Fail
+|The agent finished its task *and* the attacker's instructions — the most
+dangerous failure, because nothing looks broken
+
+|Fail |Pass
+|The agent resisted the attack but stopped completing its task — brittle
+under attack
+
+|Fail |Fail
+|The agent was compromised and derailed — the clearest failure
+|===
+
+The full tool trace is your diagnostic for every row of that table: it shows
+the payload's delivery vector (prompt, data source, or tool response) and the
+exact point where the agent's behavior diverged.
+
+. As an orientation exercise, confirm the tooling you would use to inspect a
+  MiDojo deployment in your cluster is available:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc version --client
+----
+
+The client version confirms your `oc` CLI from xref:getting-connected.adoc[Getting Connected] is ready. When MiDojo is deployed Kubernetes-natively, the same CLI is how you would observe its pods and resources in your project.
+
+== Module summary
+
+**What you accomplished:**
+
+* Toured the building blocks of a MiDojo session: custom suites, the MiniBank
+  reference suite, pluggable backends, and Kubernetes-native deployment
+* Compared the five agent protocols supported in this release
+* Interpreted the four utility/security outcome combinations and how the tool
+  trace diagnoses each
+
+**Key takeaways:**
+
+* The reference MiniBank suite gives you a realistic starting scenario before
+  authoring your own external suites in declarative YAML
+* Protocol support (A2A, OGX, PI, OpenAI Responses API, Simple HTTP) lets one
+  testing engine reach agents built on different stacks
+* A *pass + fail* security result is the most dangerous outcome: the agent
+  works fine while following the attacker's instructions
+
+**Next steps:**
+
+Continue to the conclusion for the release-notes reference and the related
+workshops in this catalog that pair with MiDojo.

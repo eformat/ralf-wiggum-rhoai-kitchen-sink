@@ -1,0 +1,120 @@
+= Module 01: Explore vLLM runtime support levels
+:navtitle: Module 01: Explore vLLM runtime support levels
+
+In this module you will learn where Red Hat AI Inference fast-release images fit into the three
+vLLM runtime support levels in OpenShift AI, and how to identify each level in the dashboard and
+from the CLI.
+
+**Learning objectives:**
+
+* Explain the difference between supported (GA), limited-support (fast builds), and unsupported (custom) runtimes
+* Identify runtime support levels using the dashboard badges
+* Inspect the support-status gating annotations that control runtime visibility
+
+== Exercise 1: Tour the runtime support levels in the dashboard
+
+vLLM runtimes and accelerator configurations in OpenShift AI have three support levels, enabling
+you to balance production stability with access to newer features:
+
+* *Supported (GA)* — standard vLLM runtimes with full Red Hat support coverage for the entire
+OpenShift AI product lifecycle. Stable, tested, and recommended for production workloads.
+* *Limited support (fast builds)* — Red Hat-built vLLM container images published to
+`registry.redhat.io/rhaii-early-access`. These runtimes are released more frequently than
+standard GA vLLM runtimes, providing faster access to upstream vLLM features and model format
+support, and carry a support coverage window of 1 month after release.
+* *Unsupported (custom)* — user-created serving runtimes with no Red Hat support coverage. You
+are responsible for building, maintaining, and licensing these runtimes.
+
+Unlike custom runtimes, fast builds are built and maintained by Red Hat. OpenShift AI displays
+badges in the dashboard so you can identify each level at a glance.
+
+. Open the RHOAI dashboard from the OpenShift console.
+. Click *Settings* -> *Model resources and operations* -> *Serving runtimes*.
+. Inspect the badges next to each runtime:
+
+[cols="1,3",options="header"]
+|===
+|Badge combination
+|Support level
+
+|*Pre-installed* label + version badge (for example, `0.6.1`)
+|Supported (GA) — full Red Hat support for the entire product lifecycle
+
+|*Pre-installed* label + *Limited support* badge + version badge + *fast-N* badge (for example, `fast-1`)
+|Limited support — Red Hat-built, 1-month support coverage window after release
+
+|No *Pre-installed* label
+|Unsupported (custom) — user-created, no Red Hat support coverage
+|===
+
+// TODO: capture screenshot
+image::01-serving-runtime-badges.png[Serving runtimes page showing badge combinations,link=self,window=blank,width=700]
+
+TIP: The same badges appear in the model deployment wizard *Serving runtime template* dropdown,
+so data scientists can check the support level before deploying a model.
+
+=== Verify
+
+You can identify at least one runtime in each support level on the *Serving runtimes* page. The
+*fast-N* badge number is the monthly fast-build iteration — higher `fast-N` numbers represent
+newer monthly fast builds.
+
+With the badges decoded, inspect what your cluster actually ships from the CLI.
+
+== Exercise 2: Inspect runtimes and gating annotations from the CLI
+
+Limited-support vLLM runtimes are hidden from data scientists until an administrator explicitly
+accepts the risk through an annotation-based gating mechanism. OpenShift AI uses two annotations
+to control runtime visibility and acceptance:
+
+* `opendatahub.io/support-status: unsupported` — marks a runtime as limited support and requires acceptance
+* `opendatahub.io/unsupported-status-accepted: "true"` — records the administrator acceptance
+
+. List the serving runtimes installed across the cluster:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get servingruntimes -A
+----
+. Compare the container images: the shipped GA `vllm-runtime` pulls from
+`quay.io/modh/vllm`, while fast builds pull from
+`registry.redhat.io/rhaii-early-access/...`. Red Hat AI Inference images
+referenced in supported configs live in `registry.redhat.io/rhaiis`.
+. Inspect the gating annotations on a limited-support runtime template:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get template <runtime-name> -o yaml | grep unsupported-status-accepted
+----
+
+=== Verify
+
+For a limited-support runtime that has been accepted, the command reports:
+
+----
+opendatahub.io/unsupported-status-accepted: "true"
+----
+
+For a GA runtime, the same command returns nothing — the support-status gating applies only to
+limited-support runtimes. Existing custom runtimes without support status annotations continue
+to work unchanged: the annotations are purely additive, and absence of the
+`opendatahub.io/support-status` annotation is treated as supported.
+
+== Module summary
+
+**What you accomplished:**
+
+* Explored the three vLLM runtime support levels in the OpenShift AI dashboard
+* Identified runtimes by their badge combinations, including the `fast-N` fast-build badge
+* Inspected the support-status gating annotations on runtime templates from the CLI
+
+**Key takeaways:**
+
+* Fast builds are Red Hat-built images in `registry.redhat.io/rhaii-early-access` with a 1-month support window
+* Limited-support runtimes stay hidden until an administrator accepts the risk
+* Custom runtimes without support-status annotations remain visible and unchanged
+
+**Next steps:**
+
+In the next module you will create your own custom ServingRuntime that references a fast-release
+image, and deploy a model on it.

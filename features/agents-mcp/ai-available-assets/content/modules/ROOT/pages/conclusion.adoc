@@ -1,0 +1,24 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the AI Available Assets page workshop.
+
+== What you covered
+
+* xref:module-01-getting-started.adoc[Discover AI assets in the dashboard]
+* xref:module-02-hands-on.adoc[Publish and consume a model asset]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/release_notes/index[RHOAI 3.5 release notes — AI Available Assets page for deployed models and MCP servers]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/experimenting_with_models_in_the_gen_ai_playground/index[Experimenting with models in the gen AI playground — about the AI assets endpoints page and configuring a playground]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/deploying_models/index[Deploying models — adding a model as an AI asset endpoint]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:validated-tool-calling-config::index.adoc[Validated tool-calling configuration in Model Catalog]
+* xref:csv-export-model-catalog::index.adoc[CSV export for Model Catalog data]

@@ -1,0 +1,46 @@
+= Welcome to the Models-as-a-Service (MaaS) core: access model and token mechanism Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+Models-as-a-Service (MaaS) is the governance layer that sits between your users
+and model serving infrastructure in Red Hat OpenShift AI. Instead of handing out
+service-account tokens, users discover governed models, authenticate with
+subscription-bound API keys, and consume OpenAI-compatible endpoints under
+per-group token quotas.
+
+**What you will learn:**
+
+* How the MaaS access model works: registered models (`MaaSModelRef`), subscriptions (`MaaSSubscription`), and authorization policies (`MaaSAuthPolicy`)
+* How to find MaaS-published models in the dashboard and generate your own API key
+* How to call governed models through the OpenAI-compatible gateway and read token usage and rate-limit responses
+* How administrators create subscriptions and authorization policies, revoke keys, and monitor token consumption
+
+== Prerequisites
+
+* RHOAI operator installed
+* MaaS enabled
+* An OpenShift cluster with RHOAI 3.5 installed
+* A model published to MaaS with your group assigned to a subscription (your
+facilitator provides this; module 03 covers the administrator steps)
+
+== Estimated time
+
+About 2 hours
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:module-03-advanced.adoc[Advanced Usage]
+* xref:conclusion.adoc[Conclusion]

@@ -1,0 +1,42 @@
+= Welcome to the MaaS multi-tenancy with per-tenant gateway and identity isolation Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *MaaS multi-tenancy with per-tenant gateway and identity isolation*.
+
+**What you will learn:**
+
+* How MaaS multi-tenancy isolates teams: each tenant gets a dedicated Gateway, identity realm, namespace, and API infrastructure, while GPU compute and model weights stay shared
+* How the `AITenant` custom resource bootstraps a tenant and which resources the controller creates (`MaasTenantConfig`, per-tenant `maas-api`, AuthPolicy, RBAC Roles)
+* Provision a tenant by creating a dedicated Gateway and an `AITenant` custom resource, then verify isolation with cross-tenant API tests
+* Grant tenant-admin access with RoleBindings, tune per-tenant `MaasTenantConfig` settings, and delete a tenant safely
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI 3.5 installed and cluster administrator privileges
+* Models-as-a-Service deployed, with the default tenant `models-as-a-service` in Ready state
+* Gateway API CRDs and the `openshift-default` GatewayClass available on the cluster
+* cert-manager installed on the cluster
+* Red Hat Connectivity Link installed with Kuadrant v1.4.2 or later (the gateway-scoped AuthPolicy requires `spec.defaults.rules` support introduced in Kuadrant v1.4.2)
+
+== Estimated time
+
+About 2 hours
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:module-03-advanced.adoc[Advanced Usage]
+* xref:conclusion.adoc[Conclusion]

@@ -1,0 +1,43 @@
+= Welcome to the MCP Catalog administrative interface Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces the *MCP Catalog administrative interface*: a Developer
+Preview feature that lets OpenShift AI administrators add, edit, and remove MCP server
+catalog entries directly from the dashboard Settings page using YAML-based creation —
+no more manual edits to Kubernetes `ConfigMap` resources. You verify your cluster is
+ready, tour the Settings page, and walk the full entry lifecycle.
+
+**What you will learn:**
+
+* What the MCP Catalog administrative interface does and why access is restricted to OpenShift AI administrators
+* How to verify that the MCP Lifecycle Operator and the `mcpCatalog` dashboard feature flag are enabled
+* How to add, edit, and remove MCP catalog entries with YAML-based creation from the Settings page
+* How the interface replaces the ConfigMap-driven approach and aligns with the Model Catalog administrative interface
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI 3.5 installed (OpenShift 4.22 or later)
+* The RHOAI operator installed
+* MCP Catalog enabled (MCP Lifecycle Operator installed and the `mcpCatalog` dashboard flag on)
+* OpenShift AI administrator access to the dashboard for the catalog management operations
+
+== Estimated time
+
+About 30 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

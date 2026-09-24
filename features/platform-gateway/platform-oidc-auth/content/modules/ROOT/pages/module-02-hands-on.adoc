@@ -1,0 +1,424 @@
+= Module 02: Verify, authorize, and troubleshoot OIDC access
+:navtitle: Module 02: Verify, authorize, and troubleshoot OIDC access
+
+In this module you verify the OIDC configuration end to end — from the console
+login redirect through your identity provider down to the gateway status — map
+external IdP groups to OpenShift ClusterRoles for authorization, diagnose a
+GatewayConfig that is not ready, and exercise the second authentication method
+of the central authentication service: service account token authentication for
+programmatic and CLI access.
+
+**Learning objectives:**
+
+* Verify the `GatewayConfig` conditions, the `kube-auth-proxy` deployment, and the OIDC discovery endpoint after configuration
+* Log in to the OpenShift console through your external OIDC provider
+* Map external IdP groups to OpenShift ClusterRoles so RHOAI components are accessible
+* Diagnose a GatewayConfig that reports `Ready: False` and add custom CA trust for your IdP
+* Access the gateway programmatically by minting a ServiceAccount token and calling a service through the Gateway with it
+
+== Exercise 1: Verify the OIDC flow end to end
+
+Configuration alone does not prove the flow works. You confirm the provisioned
+resources on the cluster side, then log in through your identity provider.
+
+. Access the gateway by getting the Console link:
++
+[source,bash,role="execute"]
+----
+oc get consolelink
+----
+Expected output:
+----
+NAME      URL
+console   https://console-openshift-console.apps.cluster.example.com
+----
+
+. Open the console URL in a browser and log in with your OIDC credentials.
+  Verify the following:
+* You are redirected to the OIDC provider login page. A successful
+  authentication redirects back to the gateway.
+* Your OpenShift AI components are accessible — for example, the Dashboard and
+  Notebooks.
++
+// TODO: capture screenshot
+image::02-oidc-console-login.png[OIDC provider login page redirecting back to the OpenShift console,link=self,window=blank,width=700]
+
+. Check the GatewayConfig status to verify that the OIDC configuration was
+  successfully provisioned:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get gatewayconfig default-gateway -o yaml
+----
+The expected output is the full YAML of the `GatewayConfig` resource, showing
+the OIDC configuration details under `spec.oidc` and confirming successful
+deployment by displaying both the `Ready` and `ProvisioningSucceeded`
+conditions with `status: "True"`.
+
+. Verify the `kube-auth-proxy` deployment is running in the
+  `openshift-ingress` namespace:
++
+[source,bash,role="execute"]
+----
+oc get deployment kube-auth-proxy -n openshift-ingress
+----
+Expected output:
+----
+NAME              READY   UP-TO-DATE   AVAILABLE   AGE
+kube-auth-proxy   1/1     1            1           5m
+----
+
+. Check the status and accessibility of the `data-science-gateway`:
++
+[source,bash,role="execute"]
+----
+oc get gateway data-science-gateway -n openshift-ingress
+----
+Expected output:
+----
+NAME                    CLASS                        ADDRESS                                PROGRAMMED   AGE
+data-science-gateway    data-science-gateway-class   <gateway-elb-address>                  True         5m
+----
+
+. Test the OIDC discovery endpoint:
++
+[source,bash,role="execute"]
+----
+curl -s "$IDP_ISSUER_URL/.well-known/openid-configuration"
+----
+NOTE: Re-export the `IDP_*` environment variables from Module 01 if this is a
+new terminal session.
++
+The expected output is a JSON object containing the OIDC configuration
+endpoints (`issuer`, `authorization_endpoint`, `token_endpoint`, and so on),
+which confirms the OIDC provider is publicly discoverable.
+
+=== Verify
+
+The `Ready` and `ProvisioningSucceeded` conditions report `True`, the console
+login redirects through your OIDC provider and back, and RHOAI components load
+after authentication. One command confirms the health condition:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get gatewayconfig default-gateway -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+----
+
+Expected output:
+----
+True
+----
+
+With authentication proven end to end, the next exercise handles the other half
+of the story: authorization — which users from your IdP are allowed into which
+projects.
+
+== Exercise 2: Map external IdP groups to OpenShift roles
+
+Once external OIDC is configured and authenticated, the cluster administrator
+must map external Identity Provider (IdP) groups to specific OpenShift
+ClusterRoles to grant access to projects and resources. Until you do, users
+authenticated through your IdP can log in but cannot see any projects.
+
+. Create a ClusterRole that grants users read and list access to OpenShift
+  projects. Save the manifest as `odh-projects-read.yaml`:
++
+[source,yaml]
+----
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: odh-projects-read <1>
+rules:
+  - apiGroups: ["project.openshift.io"] <2>
+    resources: ["projects"] <3>
+    verbs: ["get", "list"] <4>
+----
+<1> *odh-projects-read:* The ClusterRole that users authenticated through your IdP receive.
+<2> *apiGroups:* The OpenShift project API group.
+<3> *projects:* The project resources the role covers.
+<4> *verbs:* Read-only access — users can see projects but not create or delete them.
++
+Apply the manifest:
++
+[source,bash,role="execute"]
+----
+oc apply -f odh-projects-read.yaml
+----
+
+. Bind the `odh-projects-read` ClusterRole to your IdP group (for example,
+  `odh-users`):
++
+[source,bash,role="execute"]
+----
+oc adm policy add-cluster-role-to-group odh-projects-read odh-users
+----
+
+. Grant the ability to create and manage new projects by assigning the
+  built-in `self-provisioner` ClusterRole to your group:
++
+[source,bash,role="execute"]
+----
+oc adm policy add-cluster-role-to-group self-provisioner odh-users
+----
+
+=== Verify
+
+Confirm the binding now carries your IdP group:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get clusterrolebinding odh-projects-read -o jsonpath='{.subjects[0].name}'
+----
+
+Expected output:
+----
+odh-users
+----
+
+Log in to the console as a user in the `odh-users` group: the OpenShift AI
+Dashboard is accessible and the user can create new projects.
+
+With authorization in place, one failure mode remains worth rehearsing before a
+real rollout: a GatewayConfig that never becomes ready.
+
+== Exercise 3: Troubleshoot a GatewayConfig that is not ready
+
+During setup, the GatewayConfig status can show `Ready: False` with error
+messages about missing OIDC configuration. Walk the documented diagnosis so you
+can spot the failing piece quickly.
+
+. Check the GatewayConfig status and error messages:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get gatewayconfig default-gateway -o yaml
+oc describe gatewayconfig default-gateway
+----
+A successfully provisioned GatewayConfig confirms the OIDC configuration under
+`spec.oidc` and displays both the `Ready` and `ProvisioningSucceeded`
+conditions with a `True` status.
+
+. Verify that the OIDC secret exists and is correct:
++
+[source,bash,role="execute"]
+----
+oc get secret idp-client-secret -n openshift-ingress
+----
+
+. Check the OIDC issuer URL accessibility:
++
+[source,bash,role="execute"]
+----
+curl -I "$IDP_ISSUER_URL/.well-known/openid-configuration"
+----
+The expected output returns `HTTP/2 200` and a
+`content-type: application/json` header, confirming the issuer URL is publicly
+discoverable.
+
+If your OIDC provider uses a certificate signed by a private CA, the
+`kube-auth-proxy` cannot validate the IdP TLS certificate and its pods can land
+in `CrashLoopBackOff`. Create a Secret with the CA certificate and reference it
+in the GatewayConfig.
+
+. Create a Secret containing the custom CA certificate in the
+  `openshift-ingress` namespace:
++
+[source,bash,role="execute"]
+----
+oc create secret generic oidc-ca-bundle \
+  --from-file=ca.crt=/path/to/your-ca.crt \
+  -n openshift-ingress
+----
+
+. Reference the Secret in the GatewayConfig by setting
+  `spec.providerCASecretName` to the name of the Secret:
++
+[source,yaml]
+----
+apiVersion: opendatahub.io/v1alpha1
+kind: GatewayConfig
+metadata:
+  name: default-gateway
+spec:
+  # ... other spec fields (subdomain, ingressMode, etc.) ...
+  providerCASecretName: oidc-ca-bundle <1>
+  # Optional, dev/test only - do not use in production:
+  # insecureSkipVerify: true <2>
+----
+<1> *providerCASecretName:* The Secret in the `openshift-ingress` namespace whose CA certificate signed your OIDC provider's TLS certificate. The gateway controller mounts it and configures `kube-auth-proxy` to trust the CA.
+<2> *insecureSkipVerify:* Skips TLS verification of the IdP — dev/test only, never use in production.
++
+After you save the GatewayConfig, the Operator reconciles the change and
+updates the `kube-auth-proxy` deployment. Check that the pods restarted and are
+Running:
++
+[source,bash,role="execute"]
+----
+oc get deployment kube-auth-proxy -n openshift-ingress
+----
+Expected output:
+----
+NAME              READY   UP-TO-DATE   AVAILABLE   AGE
+kube-auth-proxy   1/1     1            1           5m
+----
++
+Log in to the dashboard to verify that authentication succeeds without TLS
+certificate errors.
+
+TIP: While `kube-auth-proxy` validates tokens, ensure your OIDC provider is
+configured with appropriate token lifetimes, and enable audit logging for
+authentication events. Service account token authentication — the other
+authentication method of the central authentication service — is next.
+
+=== Verify
+
+The `Ready` and `ProvisioningSucceeded` conditions report `True`, the
+`kube-auth-proxy` deployment reports `1/1` ready, and dashboard login succeeds
+without TLS certificate errors.
+
+== Exercise 4: Access the gateway programmatically with a service account token
+
+The centralized authentication service supports two authentication methods to
+accommodate different access requirements: user authentication via OIDC for
+interactive browser access, and service account token authentication for
+programmatic access, automated workflows, and CLI tools. With service account
+token authentication, the Gateway validates Kubernetes service account bearer
+tokens against the cluster's API server — no browser or login redirect involved.
+
+IMPORTANT: Service account token authentication is designed for programmatic
+access, automation, and CLI tools. For interactive user access through a web
+browser, use OIDC authentication as in the previous exercises.
+
+. Define the namespace where your application or CLI tool runs, replacing the
+  placeholder with your actual application namespace:
++
+[source,bash,role="execute"]
+----
+# Replace with your application namespace, for example redhat-ods-applications
+SA_NAMESPACE="<your-namespace>"
+----
+
+. Create a ServiceAccount for your application or CLI tool:
++
+[source,bash,role="execute"]
+----
+oc create serviceaccount my-app-sa -n $SA_NAMESPACE
+----
+
+. Grant the ServiceAccount appropriate RBAC permissions to access your services.
+  The following example grants access to a specific service through the
+  `kube-rbac-proxy` sidecar. Save the manifest as `role.yaml`:
++
+[source,yaml]
+----
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-app-service-access <1>
+rules:
+  - apiGroups: [""] <2>
+    resources: ["services/proxy"] <3>
+    resourceNames: ["my-service"] <4>
+    verbs: ["get", "create"] <5>
+----
+<1> *my-app-service-access:* The Role that grants your ServiceAccount access to one service.
+<2> *apiGroups:* The core API group that hosts Services.
+<3> *services/proxy:* The proxy subresource — this is what `kube-rbac-proxy` checks when a request reaches the service.
+<4> *resourceNames:* Restricts the role to the named Service (`my-service`) instead of every Service in the namespace.
+<5> *verbs:* Get and create on the proxy subresource — least privilege.
++
+Apply the Role and bind it to the ServiceAccount:
++
+[source,bash,role="execute"]
+----
+oc create -f role.yaml -n $SA_NAMESPACE
+oc create rolebinding my-app-service-access \
+  --role=my-app-service-access \
+  --serviceaccount=${SA_NAMESPACE}:my-app-sa \
+  -n $SA_NAMESPACE
+----
+
+. Generate a service account token for authentication:
++
+[source,bash,role="execute"]
+----
+TOKEN=$(oc create token my-app-sa -n $SA_NAMESPACE --duration=1h)
+----
++
+NOTE: Set the token duration based on your security requirements. Kubernetes
+requires a minimum duration of 10 minutes — a `--duration` lower than 10 minutes
+is rejected with `may not specify a duration less than 10 minutes`. Use
+`--duration=10m` or longer.
+
+. Get the Gateway URL from the `data-science-gateway` route:
++
+[source,bash,role="execute",subs="attributes"]
+----
+GATEWAY_URL=$(oc get route data-science-gateway -n openshift-ingress -o jsonpath='{.spec.host}')
+----
+
+. Access your service through the Gateway using the bearer token:
++
+[source,bash,role="execute"]
+----
+curl -k -H "Authorization: Bearer ${TOKEN}" \
+  "https://${GATEWAY_URL}/your-service-path"
+----
+
+TIP: Treat service account tokens like secrets: never commit them to source
+control, keep lifetimes short with `--duration`, and regenerate tokens before
+they expire for long-running automation. Grant the ServiceAccount only the
+permissions it needs — never `cluster-admin` or overly broad permissions.
+
+=== Verify
+
+Test authentication with your service account token — a successful
+authentication returns HTTP 200:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k -i -H "Authorization: Bearer ${TOKEN}" \
+  "https://${GATEWAY_URL}/your-service-path"
+----
+
+Expected output:
+
+----
+HTTP/2 200
+----
+
+Requests with invalid or missing tokens return HTTP 403 or redirect to
+authentication:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k -i "https://${GATEWAY_URL}/your-service-path"
+----
+
+Expected output — `HTTP/2 403`, or an HTTP redirect to your OIDC provider's
+login page:
+
+----
+HTTP/2 403
+----
+
+== Module summary
+
+**What you accomplished:**
+
+* Verified the OIDC flow end to end: GatewayConfig conditions, `kube-auth-proxy`, `data-science-gateway`, and console login through your IdP
+* Mapped the `odh-users` IdP group to the `odh-projects-read` and `self-provisioner` ClusterRoles
+* Diagnosed a `Ready: False` GatewayConfig and added custom CA trust with `providerCASecretName`
+* Accessed the gateway programmatically with a ServiceAccount token minted by `oc create token`
+
+**Key takeaways:**
+
+* Authentication (the gateway) and authorization (ClusterRoles bound to IdP groups) are configured separately
+* The `Ready` and `ProvisioningSucceeded` conditions on the GatewayConfig are the fastest health signal
+* The issuer URL must be publicly discoverable and TLS-trusted — private CAs need `providerCASecretName`
+* The central authentication service supports two methods: OIDC for interactive browser access, ServiceAccount bearer tokens for programmatic and CLI access
+
+**Next steps:**
+
+Continue to the conclusion for the full document references.

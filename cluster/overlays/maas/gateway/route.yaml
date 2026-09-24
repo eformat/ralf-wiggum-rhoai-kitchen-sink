@@ -1,0 +1,25 @@
+---
+# Exposes the maas-default-gateway Service externally. Service name is derived
+# from <gateway-name>-<gatewayclass-name> by the controller.
+# Carries a ${CLUSTER_DOMAIN} placeholder — rendered via envsubst by the apply command.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: maas-gateway-route
+  namespace: openshift-ingress
+  labels:
+    # The gateway controller labels auto-provisioned routes with the gateway
+    # name; labs derive the gateway hostname from this label when the listener
+    # hostname is empty (see the maas-oidc-auth lab).
+    gateway.networking.k8s.io/gateway-name: maas-default-gateway
+spec:
+  host: "maas.${CLUSTER_DOMAIN}"
+  to:
+    kind: Service
+    name: maas-default-gateway-data-science-gateway-class
+    weight: 100
+  port:
+    targetPort: https
+  tls:
+    termination: reencrypt
+    insecureEdgeTerminationPolicy: Redirect

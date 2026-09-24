@@ -1,0 +1,112 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will take a guided tour of *OpenShell (secure agent sandboxing and
+policy enforcement)* — a Developer Preview feature of Red Hat OpenShift AI 3.5 that
+provides secure agent onboarding on OpenShift. Because this is a Developer Preview,
+this module is a guided tour of what OpenShell provides and how it fits together, not
+a deployment walkthrough.
+
+**Learning objectives:**
+
+* Explain what OpenShell is and what it enforces for AI agents
+* Identify the five areas the included OpenShell guide covers
+* Describe how OpenShell relates to other security layers in RHOAI, such as guardrails
+
+[NOTE]
+====
+This feature is a *Developer Preview*. Per the RHOAI 3.5 release notes, it uses
+upstream artifacts, is not supported for production environments, and may change or
+be removed at any time — focus on the concepts in this tour rather than on memorizing
+specific commands.
+====
+
+== Exercise 1: What OpenShell provides
+
+OpenShell is an *agent-aware sandboxing platform*. According to the RHOAI 3.5
+documentation, it provides policy-controlled, isolated execution environments for AI
+agents and enforces fine-grained restrictions on three surfaces:
+
+* **System calls** — which low-level operations the agent's processes may perform on
+  the host
+* **Network access** — which network destinations the agent may reach
+* **Tool availability** — which tools the agent may invoke
+
+This is the *agent sandbox* pattern: an isolated execution environment in which an AI
+agent runs with restricted access to system resources, network, and tools. Sandboxing
+contains the blast radius of unintended agent actions and enforces security
+boundaries between agent workloads and the host system — important when an agent can
+call tools and act autonomously.
+
+. Confirm that you are connected to your workshop environment and working in your own
+  project:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc whoami && oc project
+----
+
+The first line shows your workshop username and the second shows your project from
+xref:getting-connected.adoc[Getting Connected]. Keep this namespace in mind: agents
+deployed manually in a namespace surface as *OpenShell-managed Sandbox custom
+resources (CRs)*, which is how OpenShell keeps track of agent instances.
+
+== Exercise 2: What the guide covers
+
+Per the RHOAI 3.5 release notes, OpenShell ships as a Developer Preview for secure
+agent onboarding, and the included guide covers five areas:
+
+[options="header"]
+|===
+|Guide area |What it gives you
+
+|Helm deployment
+|Deploy the OpenShell components on OpenShift from upstream Helm artifacts
+
+|mTLS
+|Encrypt and authenticate traffic between sandboxed agents and their backing services
+
+|LLM provider setup
+|Connect sandboxed agents to the LLM provider they call
+
+|Isolated sandboxes
+|Run each agent in a policy-controlled, isolated execution environment
+
+|Controlled network egress
+|Restrict which network destinations a sandboxed agent can reach
+|===
+
+IMPORTANT: This experimental preview uses upstream artifacts and is not supported for
+production environments. The release notes point to the agent-ops GitHub repository
+for the instructions to try it out.
+
+TIP: OpenShell is one layer in a defense-in-depth story. Where OpenShell enforces
+restrictions at the *sandbox* level — system calls, network, and tools — guardrails
+such as NeMo Guardrails integrated with the MCP gateway enforce policy on *agent
+tool calls* at the infrastructure level. The two layers complement each other rather
+than replace one another.
+
+== Module summary
+
+**What you accomplished:**
+
+* Toured what OpenShell provides: policy-controlled, isolated execution environments
+  that restrict system calls, network access, and tool availability
+* Identified the five areas the included OpenShell guide covers, from Helm deployment
+  to controlled network egress
+* Located the sandbox-level enforcement of OpenShell relative to tool-call
+  enforcement with guardrails
+
+**Key takeaways:**
+
+* OpenShell is an agent-aware sandboxing platform: isolation plus fine-grained
+  restrictions on system calls, network access, and tool availability
+* The Developer Preview guide covers Helm deployment, mTLS, LLM provider setup,
+  isolated sandboxes, and controlled network egress, using upstream artifacts
+* Agents deployed manually surface as OpenShell-managed Sandbox custom resources,
+  which is how OpenShell tracks agent instances
+
+**Next steps:**
+
+Continue to the next module for a guided tour of how the guide's five areas fit
+together, and how to observe OpenShell-managed agents in your environment.

@@ -1,0 +1,343 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will work through the core MCP gateway workflow end to end:
+register a backend Model Context Protocol (MCP) server with the gateway, verify
+that its tools are discovered and served through a single unified endpoint, and
+curate the tool list with a virtual MCP server.
+
+When you register a backend MCP server, you define a prefix in the
+`MCPServerRegistration` CR for each of the server's tool and prompt names.
+Prefixing avoids name collisions with other MCP servers, and the gateway
+automatically federates the server's tools and prompts. When a client calls a
+tool, the gateway identifies the target server by the prefix, strips the
+prefix, and routes the request with authentication and authorization.
+
+**Learning objectives:**
+
+* Register an MCP server with an HTTPRoute and an `MCPServerRegistration` CR
+* Verify tool discovery from the CLI and with `curl`
+* Curate tools into a virtual MCP server with an `MCPVirtualServer` CR
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: This feature is a *Technology Preview*. APIs and manifests shown
+here may change between releases.
+endif::[]
+
+== Exercise 1: Register an MCP server with the gateway
+
+To connect an MCP server to the gateway, you first create an HTTPRoute CR that
+routes to the server, then create an `MCPServerRegistration` CR that references
+the route.
+
+NOTE: This exercise assumes a backend MCP server that exposes an MCP endpoint
+is running in your cluster. The service and route names below follow the
+product documentation examples; the registration pattern is identical for any
+MCP server that serves `/mcp`.
+
+. Reuse the environment variables from Module 01:
+
+[source,bash,role="execute",subs="attributes"]
+----
+export MCP_SYSTEM={guid}-mcp-system
+export GATEWAY_NS={guid}-gateway
+export GATEWAY_NAME=mcp-gateway
+export MCP_LISTENER_HOST=mcp.example.com
+----
+
+. Create an HTTPRoute CR that routes to your MCP server:
+
+[source,bash,role="execute",subs="attributes,callouts"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: mcp-api-key-server-route
+  namespace: ${MCP_SYSTEM}
+spec:
+  parentRefs:
+  - name: ${GATEWAY_NAME}
+    namespace: ${GATEWAY_NS}
+  hostnames:
+  - api-key-server.mcp.local
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: mcp-api-key-server
+      port: 9090
+EOF
+----
+<1> *parentRefs* — attaches this route to the Gateway object you created in Module 01.
+<2> *hostnames* — the internal routing hostname for the backend server.
+<3> *backendRefs.name* — the Kubernetes service that fronts your backend MCP server.
+<4> *port* — the port your MCP server listens on; the docs example uses 9090.
+
+. Create an `MCPServerRegistration` CR that references your HTTPRoute CR:
+
+[source,bash,role="execute",subs="attributes,callouts"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPServerRegistration
+metadata:
+  name: mcp-server-one
+  namespace: ${MCP_SYSTEM}
+spec:
+  prefix: serverone_
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: mcp-api-key-server-route
+  credentialRef:
+    name: mcp-server-one-secret
+    key: api-key
+EOF
+----
+<1> *apiVersion: mcp.kuadrant.io/v1alpha1* — the Technology Preview MCP gateway API group.
+<2> *prefix* — added to all tools and prompts consolidated from this server; only lowercase letters (`a-z`), digits (`0-9`), and underscores (`_`) are accepted, and the value must start with a letter or digit.
+<3> *kind: HTTPRoute* — the controller discovers the backend service from this route and configures the broker to consolidate the server's tools.
+<4> *name* — the name of the HTTPRoute CR you applied in the previous step.
+<5> *credentialRef* — optional; a Secret containing backend credentials. Omit it if your MCP server does not require authentication.
+
+IMPORTANT: The `prefix` value is enforced at the CRD schema level and is
+immutable. Existing `MCPServerRegistration` CRs with non-conforming prefixes
+continue to function but cannot be updated — delete and re-create them with a
+conforming prefix instead.
+
+. Check the status of your registration:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mcpsr -n ${MCP_SYSTEM}
+----
+
+.Example output
+----
+NAMESPACE     NAME             PREFIX      TARGET                     PATH   READY   TOOLS   CREDENTIALS             AGE
+mcp-system    mcp-server-one   serverone_  mcp-api-key-server-route   /mcp   True    4       mcp-server-one-secret   30s
+----
+
+. Check on tool discovery status:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mcpsr -n ${MCP_SYSTEM} -o yaml
+----
+
+.Example output
+----
+status:
+  conditions:
+  - lastTransitionTime: "2026-04-07T08:49:53Z"
+    message: server added successfully. Total tools added 4
+    reason: Ready
+    status: "True"
+    type: Ready
+  discoveredTools: 4
+----
+
+The `status.conditions` fields show that the MCP server is present and that
+tools are available and ready.
+
+=== Verify
+
+`oc get mcpsr` reports `READY: True` with a `TOOLS` count greater than zero,
+and the status message confirms `server added successfully`.
+
+With the server registered, verify that its tools are actually served through
+the gateway by starting an MCP session and listing the tools.
+
+. Connect to the gateway and initialize a session, dumping response headers to a file:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -D /tmp/mcp_headers -X POST http://${MCP_LISTENER_HOST}:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "test-client", "version": "1.0.0"}}}'
+----
+
+. Extract the MCP session ID from the response headers:
+
+[source,bash,role="execute",subs="attributes"]
+----
+SESSION_ID=$(grep -i "mcp-session-id:" /tmp/mcp_headers | cut -d' ' -f2 | tr -d '\r')
+echo "MCP Session ID: $SESSION_ID"
+----
+
+. List the tools using the session ID:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -X POST http://${MCP_LISTENER_HOST}:8080/mcp \
+  -H "Content-Type: application/json" \
+  -H "mcp-session-id: $SESSION_ID" \
+  -d '{"jsonrpc": "2.0", "id": 2, "method": "tools/list"}'
+----
+
+.Example output
+----
+{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"serverone_example_tool","description":"..."}]}}
+----
+
+. Verify that prompts are also available:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -X POST http://${MCP_LISTENER_HOST}:8080/mcp \
+  -H "Content-Type: application/json" \
+  -H "mcp-session-id: $SESSION_ID" \
+  -d '{"jsonrpc": "2.0", "id": 3, "method": "prompts/list"}'
+----
+
+.Example output
+----
+{"jsonrpc":"2.0","id":3,"result":{"prompts":[{"name":"serverone_example_prompt","description":"..."}]}}
+----
+
+. Clean up the headers file:
+
+[source,bash,role="execute"]
+----
+rm -f /tmp/mcp_headers
+----
+
+TIP: If the listener hostname does not resolve in your workshop environment,
+add it to `/etc/hosts` with the Gateway address from
+`oc get gateway ${GATEWAY_NAME} -n ${GATEWAY_NS} -o
+jsonpath='{.status.addresses[0].value}'`.
+
+=== Verify
+
+Your MCP server tools and prompts are listed in the responses, each prefixed
+with the `prefix` value you configured in the `MCPServerRegistration` CR.
+
+The gateway now federates every tool from the registered server into one list.
+For agents that only need a subset, a virtual MCP server curates that list
+without changing routing.
+
+== Exercise 2: Curate tools with a virtual MCP server
+
+Aggregating all your MCP servers centrally solves authentication,
+authorization, and configuration management, but it can overwhelm LLMs and AI
+agents with too many tool and prompt choices. A virtual MCP server filters the
+complete capability list down to a curated selection.
+
+A virtual server only filters what a client can discover with `tools/list` and
+`prompts/list` — it does not change call routing or authorization. Clients
+select a virtual server with the `X-Mcp-Virtualserver` header in the
+`namespace/name` format.
+
+. Create an `MCPVirtualServer` CR that curates a development toolset:
+
+[source,bash,role="execute",subs="attributes,callouts"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPVirtualServer
+metadata:
+  name: dev-tools
+  namespace: ${MCP_SYSTEM}
+spec:
+  description: "Development and debugging tools"
+  tools:
+  - serverone_devtool1
+  - serverone_headers1
+  - serverone_debug1
+EOF
+----
+<1> *apiVersion: mcp.kuadrant.io/v1alpha1* — the same Technology Preview API group as the registration CRs.
+<2> *description* — a human-readable description of the virtual server's purpose.
+<3> *tools* — the curated tool names; each entry must match the prefixed name exactly as it appears in `tools/list`.
+
+. List all of your virtual MCP servers:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mcpvirtualserver -A
+----
+
+The expected output is a list of all the virtual MCP servers that you created.
+
+. Request a fresh session and request the tools from the `dev-tools` virtual MCP server:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -D /tmp/mcp_headers -X POST http://${MCP_LISTENER_HOST}:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "test-client", "version": "1.0.0"}}}'
+SESSION_ID=$(grep -i "mcp-session-id:" /tmp/mcp_headers | cut -d' ' -f2 | tr -d '\r')
+curl -s -X POST http://${MCP_LISTENER_HOST}:8080/mcp \
+  -H "Content-Type: application/json" \
+  -H "mcp-session-id: $SESSION_ID" \
+  -H "X-Mcp-Virtualserver: ${MCP_SYSTEM}/dev-tools" \
+  -d '{"jsonrpc": "2.0", "id": 2, "method": "tools/list"}' | jq '.result.tools[].name'
+----
+
+.Example output
+----
+"serverone_devtool1"
+"serverone_headers1"
+"serverone_debug1"
+----
+
+. Compare with the full list by omitting the virtual server header:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -X POST http://${MCP_LISTENER_HOST}:8080/mcp \
+  -H "mcp-session-id: $SESSION_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 3, "method": "tools/list"}' | jq '.result.tools[].name'
+----
+
+The expected response is a list of all tools from all registered MCP servers —
+not just the curated subset.
+
+. Clean up the virtual MCP server when you no longer need it:
+
+[source,bash,role="execute",subs="attributes"]
+----
+rm -f /tmp/mcp_headers
+oc delete mcpvirtualserver dev-tools -n ${MCP_SYSTEM}
+----
+
+=== Verify
+
+The `X-Mcp-Virtualserver` request returns only the tools you specified in the
+`dev-tools` CR, while the unfiltered request returns every tool from all
+registered MCP servers.
+
+=== Going further
+
+In production setups you would secure this endpoint before anything else: an
+AuthPolicy CR with an identity provider such as Red Hat build of Keycloak
+validates JWTs on the `mcp` listener and returns a 401 with OAuth discovery
+information, and a second AuthPolicy with CEL expressions controls which
+authenticated users can call which tools. External MCP servers can be
+registered too, using a ServiceEntry, a DestinationRule, and an HTTPRoute with
+a URLRewrite filter. See the resources in the conclusion for the full
+procedures.
+
+== Module summary
+
+**What you accomplished:**
+
+* Registered a backend MCP server with an HTTPRoute and an `MCPServerRegistration` CR
+* Verified tool discovery with `oc get mcpsr` and by listing tools and prompts through a curl session
+* Created and verified a virtual MCP server that curates the federated tool list
+
+**Key takeaways:**
+
+* Registration is a two-resource pattern: an HTTPRoute to the backend plus an `MCPServerRegistration` that references it and prefixes its capabilities
+* The `prefix` field is schema-enforced and immutable — only lowercase letters, digits, and underscores
+* Virtual MCP servers filter discovery with the `X-Mcp-Virtualserver` header but never change call routing or authorization
+
+**Next steps:**
+
+Protect the endpoint with authentication and authorization policies, or
+connect an external MCP server through a ServiceEntry — the links in the
+conclusion walk through both.

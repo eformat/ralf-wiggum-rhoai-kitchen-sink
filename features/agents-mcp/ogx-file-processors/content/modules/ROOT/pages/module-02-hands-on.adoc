@@ -1,0 +1,276 @@
+= Module 02: Walk the document-processing path
+:navtitle: Module 02: Walk the document-processing path
+
+In this module you will walk the document-processing path that the File
+Processors API powers: from an uploaded document, through an extraction
+backend, to vector-ready chunks that ground RAG queries.
+
+**Learning objectives:**
+
+* Trace how a document flows from upload to vector-ready chunks
+* Upload and index a document with the OpenAI-compatible Files and Vector Stores APIs
+* Observe the Docling pipeline path for converting source PDFs into searchable vectors
+
+IMPORTANT: The RHOAI 3.5 documentation describes the File Processors API
+surface (the `/v1alpha/file-processors` endpoint and its providers) but does
+not publish a direct request example for it. This module therefore tours the
+documented document-processing workflows that the API backs: the
+OpenAI-compatible Files + Vector Stores flow and the Docling pipeline for OGX
+retrieval. Do not invent request payloads for the alpha endpoint; treat the
+workflows below as the supported path.
+
+== Exercise 1: How a document flows
+
+A document moves through OGX in three stages:
+
+. *Upload* — the document is stored through the OpenAI-compatible Files API
+  (`/v1/files`). The default provider is `inline::localfs`, which manages files
+  and documents stored locally in your cluster.
+. *Extraction* — a file processor backend such as Docling or PyPDF converts the
+  document into structured, vector-ready chunks. This is the stage the File
+  Processors API (`/v1alpha/file-processors`) exposes as a Developer Preview.
+. *Indexing* — the chunks are embedded and written to a vector store through
+  the Vector Stores API, making the document searchable for retrieval.
+
+NOTE: The Files API handles file storage only. Indexing files for retrieval
+requires a vector store, which is a separate provider managed through the
+Vector Stores API. The File Processors API sits between the two, converting
+uploaded files into the chunks that get indexed.
+
+. In the OpenShift console, navigate to your project and review the running
+  OGX resources:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get ogxserver -n {guid}-{user}
+oc get svc -n {guid}-{user}
+----
+
+Observe the service that exposes port `8321`; that is the OGX server hosting
+all of these APIs, including the File Processors API.
+
+=== Verify
+
+You can explain the three stages of the document flow and identify the OGX
+service (port `8321`) that hosts the APIs.
+
+With the flow mapped, you can drive the documented upload-and-index workflow
+from a client.
+
+== Exercise 2: Upload and index a document
+
+The following documented workflow uploads a PDF and indexes it into a vector
+store, exercising the same file-storage and extraction stages the File
+Processors API orchestrates.
+
+.Prerequisites
+
+* An OGX server is running and its service exposes port `8321`
+* An inference model and an embedding model are deployed and reachable
+* The `ogx-client` version 0.3.1 or later is installed in your workbench
+  environment
+
+. In a notebook cell, connect a client to your OGX server:
+
+[source,python,subs="attributes"]
+----
+from ogx_client import OgxClient
+
+# OgxClient requires the service root without the /v1 path suffix.
+# The /v1 suffix is required only for OpenAI-compatible SDKs and raw HTTP requests.
+client = OgxClient(base_url="http://ogx-distribution-service.{guid}-{user}.svc.cluster.local:8321")
+----
+
+. List the models and select an embedding model:
+
+[source,python]
+----
+models = client.models.list()
+
+embedding_model = next(m for m in models if m.model_type == "embedding")
+embedding_model_id = embedding_model.identifier
+embedding_dimension = int(embedding_model.metadata.get("embedding_dimension", 768))
+----
+
+. Upload a document through the Files API:
+
+[source,python]
+----
+filename = "sample-document.pdf"
+
+with open(filename, "rb") as f:
+    file_info = client.files.create(
+        file=(filename, f),
+        purpose="assistants",
+    )
+print(file_info)
+----
+
+. Create a vector store and add the uploaded file with a chunking strategy:
+
+[source,python]
+----
+import time
+
+vector_store = client.vector_stores.create(
+    name="workshop_docs",
+    extra_body={
+        "embedding_model": embedding_model_id,
+        "embedding_dimension": embedding_dimension,
+        "provider_id": "milvus-remote",
+    },
+)
+
+vector_store_file = client.vector_stores.files.create(
+    vector_store_id=vector_store.id,
+    file_id=file_info.id,
+    chunking_strategy={
+        "type": "static",
+        "static": {
+            "max_chunk_size_tokens": 700,
+            "chunk_overlap_tokens": 100,
+        }
+    },
+    attributes={
+        "title": "Sample document",
+    },
+)
+print(vector_store_file)
+----
+
+The `chunking_strategy` controls how the document is split into vector-ready
+chunks — this is the extraction step backed by the file processor backends.
+
+. Poll until the file status is `completed`:
+
+[source,python]
+----
+max_wait_time = 300  # 5 minutes
+start_time = time.time()
+while time.time() - start_time < max_wait_time:
+    files = client.vector_stores.files.list(vector_store_id=vector_store.id)
+    if files.data:
+        file_status = files.data[0].status
+        print(f"File status: {file_status}")
+        if file_status in ("completed", "failed"):
+            break
+    time.sleep(5)
+----
+
+NOTE: The first indexing run can take several minutes while the document is
+extracted, chunked, and embedded. If the status prints `failed`, check that an
+embedding model is reachable and that the vector store provider (for example
+Milvus) is configured on your OGXServer.
+
+=== Verify
+
+* `client.files.create` returns a `file_info` object with a file `id`.
+* The polling loop ends with `File status: completed`.
+* `client.vector_stores.files.list(vector_store_id=vector_store.id)` lists the
+  indexed file with status `completed`.
+
+Your document is now stored, chunked, and indexed. Next you observe the
+pipeline-based path for the same conversion, then query the ingested content.
+
+== Exercise 3: The Docling pipeline path and query verification
+
+For batch document processing, RHOAI documents a Docling-enabled pipeline that
+downloads source PDFs, splits them for parallel processing, converts each
+batch to Markdown with Docling, generates embeddings, and stores them in the
+vector store — the same extract-and-chunk work the File Processors API
+exposes, packaged as an AI pipeline.
+
+You run this pipeline from the OpenShift AI dashboard:
+
+. In the dashboard, import the YAML file containing your Docling pipeline into
+  your project (either one of the RAG demo samples or your own compiled
+  pipeline).
+. Create a pipeline run to execute the Docling pipeline. Before starting the
+  run you can customize these parameters:
+
+[cols="1,2"]
+|===
+|Parameter |Purpose
+
+|`base_url`
+|The base URL to fetch PDF files from
+
+|`pdf_filenames`
+|A comma-separated list of PDF filenames to download and convert
+
+|`num_workers`
+|The number of parallel workers
+
+|`vector_store_id`
+|The vector store identifier
+
+|`service_url`
+|The Milvus service URL
+
+|`embed_model_id`
+|The embedding model to use
+
+|`max_tokens`
+|The maximum tokens for each chunk
+
+|`use_gpu`
+|Enable or disable GPU acceleration
+|===
+
+The pipeline run inserts your PDF documents into the vector store. If you use
+the sample pipeline from the RAG demo repository, it registers the vector
+store automatically; with your own pipeline you must register the store
+yourself.
+
+. Verify the ingested content by querying the LLM with the `file_search` tool
+  in your notebook:
+
+[source,python]
+----
+system_instructions = """You are a precise and reliable AI assistant.
+Use retrieved context when it is available.
+If nothing relevant is found in the available files, say so clearly."""
+prompt = "What can you tell me about the birth of word processing?"
+
+response = client.responses.create(
+    model=model_id,
+    input=prompt,
+    instructions=system_instructions,
+    tools=[
+        {
+            "type": "file_search",
+            "vector_store_ids": [vector_store_id],
+        }
+    ],
+)
+print(response.output_text)
+----
+
+Observe that the answer draws on the ingested document content rather than the
+model's training data — the chunks produced during extraction are what the
+`file_search` tool retrieves.
+
+=== Verify
+
+* The pipeline run completes and inserts the PDFs into the vector store.
+* The `file_search`-backed query returns an answer grounded in your document
+  content.
+
+== Module summary
+
+**What you accomplished:**
+
+* Traced the document flow from Files API upload through extraction to vector store indexing
+* Uploaded and indexed a document with the OpenAI-compatible Files and Vector Stores APIs
+* Observed the Docling pipeline parameters and verified retrieval with the `file_search` tool
+
+**Key takeaways:**
+
+* The Files API stores files only; chunking and indexing happen through the file processor backends and the Vector Stores API
+* The `chunking_strategy` you pass when indexing controls how documents become vector-ready chunks
+* The Docling pipeline packages the same extract-and-embed work as an AI pipeline for batch processing
+
+**Next steps:**
+
+Continue to the conclusion to recap the workshop and find the RHOAI
+documentation chapters behind every command in this tour.

@@ -1,0 +1,137 @@
+= Module 02: Evaluate results and run the RAG pattern
+:navtitle: Module 02: Evaluate results and run the pattern
+
+In this module you will work through the core AutoRAG workflow end to end:
+review the leaderboard from your completed optimization run, choose the best
+RAG pattern, and run it in a workbench with the generated notebooks.
+
+**Learning objectives:**
+
+* Interpret leaderboard scores for the three AutoRAG evaluation metrics
+* Compare RAG patterns using pattern details and Sample Q&A results
+* Run the selected pattern in a workbench with the indexing and inference notebooks
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: This feature is a *Technology Preview*. APIs, manifests, and console
+navigation shown here may change between releases.
+endif::[]
+
+== Exercise 1: Evaluate AutoRAG results
+
+Every AutoRAG optimization run scores each RAG pattern on three metrics, scored
+from 0 to 1 with higher being better. Each score includes a mean value, a high
+confidence interval (CI high), and a low confidence interval (CI low):
+
+* *Answer faithfulness* — measures whether the generated answer uses
+information from the retrieved context rather than hallucinated content.
+Optimize for faithfulness when accuracy and traceability to source documents
+are critical, such as in compliance or legal use cases.
+* *Answer correctness* — measures whether the generated answer matches the
+expected ground-truth answers in your test data.
+* *Context correctness* — measures whether the retrieved documents are relevant
+to the question. Optimize for context correctness when retrieval quality
+matters more than answer phrasing, such as when you plan to use a different
+generation model in production.
+
+Read metric scores together:
+
+* High faithfulness with low answer correctness means the answer is grounded in
+the retrieved context, but the context does not contain the most accurate answer.
+* High answer correctness with low faithfulness means the model draws on
+training data rather than retrieved documents.
+* Low context correctness with high answer correctness means the generation
+model is compensating for poor retrieval — that pattern may not be reliable
+for questions outside your test data.
+
+. In the RHOAI dashboard, click *Gen AI studio* > *AutoRAG*.
+. Select your project from the project list.
+. Click the name of your completed optimization run.
+. Review the leaderboard, which ranks RAG patterns by your selected
+optimization metric. Compare scores across all metric columns to evaluate each
+pattern holistically; an indicator marks the optimization metric.
+. To view detailed information about a pattern, click the pattern name or
+select *View details* from the actions menu. The pattern details view shows:
+.. Scores for each metric with mean, CI high, and CI low values
+.. Configuration settings organized by category: chunking, embedding,
+retrieval, and generation
+.. Sample Q&A results with per-question scores, your expected answers, and the
+pattern's generated answers
+. Compare patterns by examining *Sample Q&A* responses across different
+patterns to verify they produce accurate, well-grounded responses.
+. Optional: To test a pattern interactively, select *Try this pattern* from the
+actions menu. A chat panel opens where you can ask questions about your
+documents and switch between patterns to compare responses.
+
+// TODO: capture screenshot
+image::02-autorag-leaderboard.png[AutoRAG leaderboard ranking RAG patterns by evaluation metric,link=self,window=blank,width=700]
+
+. After you choose a pattern, get code snippets for integrating it into your
+application by using the Responses API: click *View code* from the actions
+menu on the leaderboard. Snippets are available in curl, Node.js, Go, and
+Python. By default, snippets fetch OGX credentials from the Kubernetes secret
+at runtime.
+. To explore the pattern interactively in a workbench instead, select *Save as
+indexing notebook* and *Save as inference notebook* from the actions menu.
+
+[WARNING]
+====
+Enable *Inject credentials* only for quick tests: it embeds your OGX hostname
+and API key directly in the snippet. Treat injected snippets as secrets.
+====
+
+=== Verify
+
+You have selected a RAG pattern based on its leaderboard scores and Sample Q&A
+results, and you have either copied a Responses API code snippet or downloaded
+the indexing and inference notebooks for the selected pattern.
+
+With a winning pattern in hand, the next exercise runs it against your
+documents in a workbench.
+
+== Exercise 2: Run the RAG pattern in a workbench
+
+. In the RHOAI dashboard, open your workbench.
+. Attach the following data connections to the workbench. Use the same S3
+bucket and OGX instance that you used for the optimization run:
+.. An S3-compatible object storage connection for your documents
+.. A connection for your OGX instance that includes the API key and base URL
+. Optional: To index additional documents, upload and run the indexing
+notebook. The vector database is already populated from the optimization run.
+. Upload the inference notebook to the workbench.
+. Open the inference notebook and run each cell. The notebook prompts you to
+enter a question — enter a question about your documents.
+
+NOTE: The chat panel from *Try this pattern* is for testing purposes only. Your
+chat history is lost if you switch patterns or close the panel; the inference
+notebook is the durable way to exercise the pattern.
+
+=== Verify
+
+The inference notebook returns answers grounded in your documents. If you ran
+the indexing notebook, all its cells completed without errors.
+
+If the notebook displays an error, check your connection details — most
+failures at this step are a mismatched S3 bucket or OGX connection rather than
+a pattern problem.
+
+You have now completed the full AutoRAG workflow from test data to a running
+RAG pattern.
+
+== Module summary
+
+**What you accomplished:**
+
+* Evaluated the leaderboard and pattern details across the three evaluation metrics
+* Compared patterns using Sample Q&A results and captured a Responses API snippet or notebooks
+* Ran the selected RAG pattern in a workbench and verified grounded answers
+
+**Key takeaways:**
+
+* Mean scores alone can mislead: read faithfulness, correctness, and context correctness together to spot retrieval or generation problems
+* The pattern details view exposes the winning chunking, embedding, retrieval, and generation settings — reuse them as defaults for future runs
+* The indexing and inference notebooks make the optimized pattern portable from the AutoRAG leaderboard into any workbench
+
+**Next steps:**
+
+Head to the conclusion for the official documentation links and ideas for
+where to take your optimized RAG pattern next.

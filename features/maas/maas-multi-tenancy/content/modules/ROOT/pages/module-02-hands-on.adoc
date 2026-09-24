@@ -1,0 +1,447 @@
+= Module 02: Provision a tenant and verify isolation
+:navtitle: Module 02: Provision a tenant and verify isolation
+
+In this module you will provision an isolated MaaS tenant by creating a
+dedicated Gateway and an `AITenant` custom resource, then verify that the
+controller bootstrapped all required resources and that tenant isolation is
+working correctly with real API calls.
+
+**Learning objectives:**
+
+* Create a dedicated Gateway for a tenant with the required MaaS annotations
+* Apply the `AITenant` custom resource in the `ai-tenants` management namespace and watch the controller bootstrap the tenant
+* Verify the tenant namespace, `MaasTenantConfig`, and per-tenant `maas-api` deployment
+* Prove tenant isolation: unauthenticated requests are rejected and cross-tenant API keys return `404`
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: MaaS multi-tenancy is a *Technology Preview* feature only. Technology
+Preview features are not supported with Red Hat production service-level
+agreements (SLAs) and might not be functionally complete, and Red Hat does not
+recommend using them in production. APIs and manifests shown here may change
+between releases.
+endif::[]
+
+== Exercise 1: Provision a dedicated Gateway and AITenant
+
+Prerequisites for this exercise:
+
+* The base MaaS installation is deployed and the default tenant is in Ready
+  state, as verified in module 1.
+* Gateway API CRDs and the `openshift-default` GatewayClass are available on
+  the cluster.
+* cert-manager is installed on the cluster for TLS certificate provisioning.
+* Red Hat Connectivity Link is installed with Kuadrant v1.4.2 or later — the
+  gateway-scoped AuthPolicy requires `spec.defaults.rules` support introduced
+  in Kuadrant v1.4.2.
+* You have cluster administrator privileges for the OpenShift cluster.
+
+Each additional tenant requires a dedicated Gateway *before* you create the
+`AITenant` resource. The Gateway needs a unique hostname, the
+`openshift-default` GatewayClass, and two required annotations. Two `AITenant`
+resources cannot share the same Gateway.
+
+. Set environment variables for the tenant name and cluster domain:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export TENANT_NAME=red-team
+export CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath={.spec.domain})
+export GATEWAY_HOSTNAME="${TENANT_NAME}-maas.${CLUSTER_DOMAIN}"
+export GATEWAY_NAMESPACE="openshift-ingress"
+----
++
+The tenant name must be a valid DNS-1123 label with a maximum of 41
+characters — the controller appends the tenant name as a suffix to per-tenant
+resource names, and the combined name must fit within the Kubernetes
+63-character resource name limit. Use a unique name per tenant (for example
+`red-team` or `finance-dept`); change `$TENANT_NAME` to create additional
+tenants.
+
+. Label the infrastructure namespace for Gateway access so that HTTPRoutes can
+attach to the tenant Gateway. The default infrastructure namespace is
+`redhat-ai-gateway-infra` for OpenShift AI:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc label namespace redhat-ai-gateway-infra \
+  "maas.opendatahub.io/gateway-access-${TENANT_NAME}=true" --overwrite
+----
++
+If you have model namespaces where `LLMInferenceService` resources run, label
+those namespaces as well:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc label namespace <model_namespace> \
+  "maas.opendatahub.io/gateway-access-${TENANT_NAME}=true" --overwrite
+----
+
+. Create the dedicated Gateway for the tenant. Save the following YAML as
+`tenant-gateway.yaml` — a shell heredoc expands the exported
+`$TENANT_NAME`, `$GATEWAY_HOSTNAME`, and `$GATEWAY_NAMESPACE` values:
++
+[source,bash,role="execute"]
+----
+cat > tenant-gateway.yaml <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${TENANT_NAME}-config
+  namespace: ${GATEWAY_NAMESPACE}
+data:
+  service: |
+    metadata:
+      annotations:
+        service.beta.openshift.io/serving-cert-secret-name: "${TENANT_NAME}-gw-service-tls"
+    spec:
+      type: LoadBalancer
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: ${TENANT_NAME}
+  namespace: ${GATEWAY_NAMESPACE}
+  annotations:
+    opendatahub.io/managed: "false"
+    security.opendatahub.io/authorino-tls-bootstrap: "true"
+spec:
+  # data-science-gateway-class works on clusters without a LoadBalancer
+  # provider (RHDP workshop clusters, bare-metal) — the same class the
+  # maas-default-gateway uses. On cloud clusters with a LoadBalancer provider,
+  # use gatewayClassName: openshift-default.
+  gatewayClassName: data-science-gateway-class
+  infrastructure:
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: ${TENANT_NAME}-config
+  listeners:
+  - name: https
+    hostname: "${GATEWAY_HOSTNAME}"
+    port: 443
+    protocol: HTTPS
+    allowedRoutes:
+      namespaces:
+        from: Selector
+        selector:
+          matchLabels:
+            maas.opendatahub.io/gateway-access-${TENANT_NAME}: "true"
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - group: ""
+        kind: Secret
+        name: ${TENANT_NAME}-gw-service-tls
+EOF
+oc apply -f tenant-gateway.yaml
+----
+
+`opendatahub.io/managed: "false"` prevents the ODH Model Controller from
+overriding MaaS-managed authorization policies.
+`security.opendatahub.io/authorino-tls-bootstrap: "true"` enables TLS
+communication between the Gateway and Authorino. The listener hostname is a
+unique tenant hostname on port 443 with HTTPS protocol, and `allowedRoutes`
+only allows namespaces labeled with this tenant's `gateway-access` label to
+attach routes, which keeps HTTPRoutes tenant-scoped.
+
+. Expose the tenant Gateway externally with a Route (clusters without a
+LoadBalancer provider). The Route label lets the hostname-derivation steps
+below find it:
++
+[source,bash,role="execute"]
+----
+cat > tenant-gateway-route.yaml <<EOF
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: ${TENANT_NAME}-route
+  namespace: ${GATEWAY_NAMESPACE}
+  labels:
+    gateway.networking.k8s.io/gateway-name: ${TENANT_NAME}
+spec:
+  host: "${GATEWAY_HOSTNAME}"
+  to:
+    kind: Service
+    name: ${TENANT_NAME}-data-science-gateway-class
+    weight: 100
+  port:
+    targetPort: https
+  tls:
+    termination: reencrypt
+    insecureEdgeTerminationPolicy: Redirect
+EOF
+oc apply -f tenant-gateway-route.yaml
+----
+
+. On clusters without a LoadBalancer provider, feed the Route hostname into
+the gateway Service status so the Gateway reports `Programmed=True` and its
+external address is discoverable:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch service ${TENANT_NAME}-data-science-gateway-class -n ${GATEWAY_NAMESPACE} \
+  --subresource=status --type merge \
+  -p "{\"status\":{\"loadBalancer\":{\"ingress\":[{\"hostname\":\"${GATEWAY_HOSTNAME}\"}]}}}"
+----
+<1> *opendatahub.io/managed*: `false` prevents the ODH Model Controller from
+overriding MaaS-managed authorization policies.
+<2> *security.opendatahub.io/authorino-tls-bootstrap*: `true` enables TLS
+communication between the Gateway and Authorino.
+<3> *gatewayClassName*: the tenant Gateway must use the
+`openshift-default` GatewayClass.
+<4> *hostname*: a unique tenant hostname on port 443 with HTTPS protocol.
+<5> *allowedRoutes*: only namespaces labeled with this tenant's
+`gateway-access` label can attach routes, which keeps HTTPRoutes
+tenant-scoped.
+
+. Apply the Gateway manifest:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f tenant-gateway.yaml
+----
+
+[NOTE]
+====
+If your cluster does not support LoadBalancer services, such as bare metal or
+restricted environments, the Gateway controller might not auto-provision an
+OpenShift Route for external access. Check for an auto-provisioned Route
+before creating one manually:
+`oc get route -n openshift-ingress -l gateway.networking.k8s.io/gateway-name=<tenant_name>`.
+If no Route exists, verify the Gateway service name with
+`oc get svc -n openshift-ingress -l gateway.networking.k8s.io/gateway-name=<tenant_name>`
+and create a Route that points to it with `termination: reencrypt`.
+====
+
+. Verify that the Gateway is Programmed:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get gateway ${TENANT_NAME} -n ${GATEWAY_NAMESPACE}
+----
++
+The `PROGRAMMED` column shows `True`.
+
+. Create the `AITenant` custom resource in the `ai-tenants` management
+namespace. The admission webhook rejects `AITenant` creation in any other
+namespace. Save the following YAML as `tenant-aitenant.yaml` — a shell heredoc
+expands the exported `$TENANT_NAME`:
++
+[source,bash,role="execute"]
+----
+cat > tenant-aitenant.yaml <<EOF
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: AITenant
+metadata:
+  name: ${TENANT_NAME}
+  namespace: ai-tenants
+spec:
+  gateway:
+    name: ${TENANT_NAME}
+EOF
+----
+
+`name`: the tenant name — the controller derives the tenant namespace from it
+using the pattern `ai-tenant-<aitenant_name>`. `namespace`: `AITenant`
+resources must be created in the management namespace, which is `ai-tenants`
+by default. `spec.gateway.name`: the dedicated Gateway you created in the
+previous step; if omitted, the Gateway name defaults to the `AITenant` name.
+
+. Apply the AITenant manifest:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f tenant-aitenant.yaml
+----
+
+[NOTE]
+====
+To configure Bring Your Own Identity Provider (BYOIDP) for the tenant, add an
+`oidc` section to the `spec` with `issuerUrl`, `clientId`, and `ttl` — the
+cache time-to-live in seconds for OIDC token validation (minimum 30, default
+300). When omitted, the tenant uses OpenShift TokenReview for authentication.
+OIDC configuration is optional.
+====
+
+. Wait for the `AITenant` to reach the Ready status:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get aitenant ${TENANT_NAME} -n ai-tenants -w
+----
++
+The `READY` column shows `True` when the controller has bootstrapped all
+tenant resources. When the `AITenant` reaches Active status, the controller
+has created the tenant namespace `ai-tenant-<tenant_name>`, the
+`MaasTenantConfig` CR, the per-tenant `maas-api` Deployment, the Gateway
+AuthPolicy, and the tenant-admin and object-admin Roles.
+
+=== Verify
+
+Verify that the tenant namespace was created with the expected labels:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get namespace ai-tenant-${TENANT_NAME} --show-labels
+----
+
+The output includes the labels
+`ai-gateway.opendatahub.io/tenant=<tenant_name>` and
+`maas.opendatahub.io/managed-by-aitenant=true`.
+
+Confirm that the `MaasTenantConfig` CR exists in the tenant namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get maastenantconfig default-tenant -n ai-tenant-${TENANT_NAME}
+----
+
+Verify that the per-tenant `maas-api` deployment is running in the
+infrastructure namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get deployment maas-api-${TENANT_NAME} -n redhat-ai-gateway-infra
+----
+
+The `READY` column shows `1/1`.
+
+The tenant is provisioned. Now prove that isolation actually holds.
+
+== Exercise 2: Verify tenant isolation
+
+Now that the tenant is Ready, verify the isolation boundaries end to end:
+authenticated access through the tenant gateway works, unauthenticated
+requests are rejected, and API keys from one tenant cannot reach another
+tenant's models.
+
+. Set environment variables for the tenant you want to verify:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export TENANT_NAME=<tenant_name>
+export TENANT_NS="ai-tenant-${TENANT_NAME}"
+----
+
+. Check the `AITenant` status. The `READY` column shows `True`; if not,
+inspect the conditions for details:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get aitenant ${TENANT_NAME} -n ai-tenants
+oc get aitenant ${TENANT_NAME} -n ai-tenants -o jsonpath='{.status.conditions}' | jq .
+----
++
+The `status.phase` lifecycle values are `Pending`, `Active`, `Failed`, and
+`Terminating`.
+
+. Retrieve the gateway name and hostname for the tenant:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export GATEWAY_NAME=$(oc get aitenant ${TENANT_NAME} -n ai-tenants \
+  -o jsonpath='{.spec.gateway.name}')
+export GATEWAY_HOST=$(oc get gateway ${GATEWAY_NAME} -n openshift-ingress \
+  -o jsonpath='{.spec.listeners[0].hostname}')
+----
++
+If `GATEWAY_HOST` is empty, retrieve the hostname from the Route instead:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export GATEWAY_HOST=$(oc get route -n openshift-ingress \
+  -l gateway.networking.k8s.io/gateway-name=${GATEWAY_NAME} \
+  -o jsonpath='{.items[0].spec.host}')
+----
+
+. Test model listing through the tenant gateway endpoint with your OpenShift
+identity token:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export TOKEN=$(oc whoami -t)
+curl -sSk "https://${GATEWAY_HOST}/v1/models" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" | jq .
+----
++
+A successful response returns HTTP 200 with the models configured for this
+tenant.
+
+. Test that unauthenticated requests are rejected:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -sSk -o /dev/null -w "%{http_code}\n" \
+  "https://${GATEWAY_HOST}/v1/models"
+----
++
+The expected response depends on your Authorino gateway configuration.
+Typical codes include `401`, which indicates an authentication requirement, or
+`403`, which indicates denied access.
+
+. Test tenant isolation by using one tenant's API key against another tenant's
+gateway. Create an API key in the new tenant (through the MaaS API, as
+described in the MaaS core workshop), then send it to the *default* tenant
+gateway:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export DEFAULT_HOST=$(oc get gateway maas-default-gateway -n openshift-ingress \
+  -o jsonpath={.spec.listeners[0].hostname})
+curl -sSk -o /dev/null -w "%{http_code}\n" \
+  -H "Authorization: Bearer <tenant_api_key>" \
+  "https://${DEFAULT_HOST}/v1/models"
+----
++
+Replace `<tenant_api_key>` with an API key created in the additional tenant.
+The expected response code is `404`, confirming that cross-tenant access is
+blocked. The `404` response — rather than `403` — prevents information
+disclosure about models in other tenants: each tenant's `maas-api` instance
+queries only its own tenant's API keys, so the key is simply not found.
+
+[IMPORTANT]
+====
+If the `AITenant` is stuck in `Pending` status, check these common causes: the
+Gateway must exist in the `openshift-ingress` namespace and show
+`PROGRAMMED: True`; the `AITenant` must be created in the `ai-tenants`
+namespace; each `AITenant` must reference a unique Gateway; the
+`maas-db-config` secret must exist in the infrastructure namespace; and Red
+Hat Connectivity Link with the Kuadrant custom resource must be ready. If
+`MaaSSubscription` or `MaaSAuthPolicy` creation is rejected later, verify that
+the `MaasTenantConfig` CR exists in the target namespace — the admission
+webhook requires it before those resources can be created.
+====
+
+=== Verify
+
+* `oc get aitenant ${TENANT_NAME} -n ai-tenants` shows `READY: True` and the
+  conditions report a reconciled bootstrap.
+* `curl` with your identity token through `https://${GATEWAY_HOST}/v1/models`
+  returns HTTP 200 and the tenant's models.
+* The unauthenticated request returns `401` or `403`.
+* The cross-tenant API key test against the default gateway returns `404`,
+  confirming isolation.
+
+The tenant is isolated and verified. Next, grant users access to manage it and
+learn how to delete it safely.
+
+== Module summary
+
+**What you accomplished:**
+
+* Created a dedicated tenant Gateway with the required MaaS annotations and a namespace-selector for tenant-scoped HTTPRoutes
+* Applied an `AITenant` custom resource in `ai-tenants` and watched the controller bootstrap the tenant namespace, `MaasTenantConfig`, per-tenant `maas-api`, AuthPolicy, and RBAC Roles
+* Proved tenant isolation with real API calls: tenant gateway access returned 200, unauthenticated requests were rejected, and a cross-tenant API key returned `404`
+
+**Key takeaways:**
+
+* The Gateway and identity provider are external prerequisites that must exist before tenant creation — the controller never creates them
+* The admission webhook enforces placement (`ai-tenants` only) and Gateway uniqueness, so common mistakes fail fast with a clear rejection
+* Cross-tenant key use returns `404` instead of `403`, deliberately preventing information disclosure about other tenants' models
+
+**Next steps:**
+
+Continue to the advanced module to grant tenant-admin access with RoleBindings,
+tune per-tenant `MaasTenantConfig` settings, and delete the tenant cleanly when
+you are done.

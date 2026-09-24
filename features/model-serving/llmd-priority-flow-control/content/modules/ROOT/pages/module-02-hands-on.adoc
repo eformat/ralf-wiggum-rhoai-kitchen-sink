@@ -1,0 +1,367 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will create `InferenceObjective` resources that define priority tiers for multitenant workloads, then drive load to validate that priority-based queuing, fairness, and load shedding work as designed.
+
+Flow control manages request queuing, prioritization, and fairness between the Inference Gateway and InferencePool backends. When a request arrives:
+
+1. The Gateway automatically injects two headers based on authentication: `x-gateway-inference-fairness-id`, which groups requests from the same authentication source for fair queuing, and `x-gateway-inference-objective`, which determines request priority by matching an `InferenceObjective` resource.
+2. The request enters a priority-aware queue in the Endpoint Picker and waits for dispatch.
+3. The dispatch logic applies strict priority ordering: higher-priority requests dispatch before lower-priority requests, and requests at the same priority level use intra-band fairness policies.
+4. A saturation check monitors queue depth and KV cache utilization on model servers. When pool saturation is detected, dispatch is halted and all requests wait in their priority queues until capacity becomes available.
+5. When capacity is available, the request proceeds to the Scheduling layer. The endpoint is selected at dispatch time based on current capacity and prefix cache state — a late-binding approach that prevents requests from being locked to a server that might be saturated by the time the request is processed.
+
+Platform administrators create `InferenceObjective` resources to define priority tiers. Higher integer values represent higher priority, and negative values designate sheddable requests that are queued and dispatched last:
+
+|===
+|Tier |Priority Value |Use Case
+
+|Critical
+|100
+|Interactive applications
+
+|Standard
+|0 (default)
+|Standard API calls
+
+|Sheddable
+|-1
+|Batch workloads
+
+|===
+
+**Learning objectives:**
+
+* Create `InferenceObjective` resources that implement priority tiers for an InferencePool
+* Configure fairness policies and per-band capacity limits
+* Generate sustained concurrent load with an in-cluster load-generator pod to drive the pool toward saturation
+* Validate priority differentiation, rejection behavior, and observability under load
+
+IMPORTANT: Complete the steps in this module only after enabling flow control in Module 01. Without the `flowControl` feature gate, `InferenceObjective` priorities are not enforced.
+
+== Exercise 1: Create priority tiers with InferenceObjective
+
+Each `InferenceObjective` resource defines a priority value for requests matching it, scoped to a specific InferencePool. You create a critical tier for interactive applications and a sheddable tier for batch workloads.
+
+. Create the critical tier. Resolve the InferencePool name from your project (the llm-d controller creates the pool when your LLMInferenceService deployed), then write and apply the resource:
+
+[source,bash,role="execute",subs="attributes"]
+----
+NS={guid}-{user}
+POOL=$(oc get inferencepools.inference.networking.k8s.io -n $NS -o jsonpath='{.items[0].metadata.name}')
+echo "Using InferencePool: $POOL"
+cat > critical-inference-objective.yaml <<EOF
+apiVersion: llm-d.ai/v1alpha2
+kind: InferenceObjective
+metadata:
+  name: interactive-critical
+  namespace: $NS
+spec:
+  priority: 100
+  poolRef:
+    group: llm-d.ai
+    kind: InferencePool
+    name: $POOL
+EOF
+oc apply -f critical-inference-objective.yaml -n $NS
+----
+
+- **metadata.name** — The InferenceObjective name. Requests whose `x-gateway-inference-objective` header matches this name are assigned this priority. With ServiceAccount tokens, the header is set to the ServiceAccount's namespace; with user tokens, to `authenticated`; anonymous requests get `unauthenticated`.
+- **metadata.namespace** — The namespace where the InferencePool is deployed.
+- **priority** — The priority value. Higher integer values represent higher priority; negative values designate lower-priority requests that are queued and dispatched last. If not specified, defaults to 0.
+- **poolRef.group** — The API group for the pool reference. Use `llm-d.ai`.
+- **poolRef.name** — The name of the InferencePool resource this objective applies to. This field is required; the resolved name is echoed before the file is written.
+
+. Create the sheddable batch tier:
+
+[source,bash,role="execute",subs="attributes"]
+----
+cat > batch-inference-objective.yaml <<EOF
+apiVersion: llm-d.ai/v1alpha2
+kind: InferenceObjective
+metadata:
+  name: batch-workload
+  namespace: $NS
+spec:
+  priority: -1
+  poolRef:
+    group: llm-d.ai
+    kind: InferencePool
+    name: $POOL
+EOF
+oc apply -f batch-inference-objective.yaml -n $NS
+----
+
+The negative priority value (`priority: -1`) means batch requests run at lower priority than interactive workloads and are the first to be dropped when the system reaches saturation, protecting real-time inference SLOs.
+
+. Apply the batch tier:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f batch-inference-objective.yaml -n {guid}-{user}
+----
+
+. Optional: After creating `InferenceObjective` resources, you can customize flow control behavior by configuring priority band capacity, request timeouts, and fairness policies in the `spec.router.scheduler.config.inline` section of your LLMInferenceService:
+
+[source,yaml]
+----
+apiVersion: llm-d.ai/v1alpha1
+kind: EndpointPickerConfig
+featureGates:
+- "flowControl"
+flowControl:
+  maxBytes: 1073741824 <1>
+  defaultRequestTTL: 1m <2>
+  priorityBands:
+  - priority: 100 <3>
+    maxBytes: 536870912
+    orderingPolicyRef: fcfs-ordering-policy <4>
+    fairnessPolicyRef: round-robin-fairness-policy <5>
+  - priority: 0
+    orderingPolicyRef: fcfs-ordering-policy
+    fairnessPolicyRef: round-robin-fairness-policy
+  - priority: -1
+    maxRequests: 1000
+    orderingPolicyRef: fcfs-ordering-policy
+    fairnessPolicyRef: global-strict-fairness-policy
+----
+
+<1> **maxBytes** — Optional global queue capacity in bytes aggregated across all priority bands. When this limit is exceeded, new requests receive HTTP 429 errors. If set to 0 or omitted, only per-band limits apply.
+<2> **defaultRequestTTL** — The request timeout. Requests waiting longer than this duration receive HTTP 503 errors. Default is 1 minute.
+<3> **priorityBands[].priority** — The priority value for this band. Must match the priority values defined in your InferenceObjective resources.
+<4> **orderingPolicyRef** — The ordering policy. Default is `fcfs-ordering-policy` (first-come, first-served). Other supported policies are `edf-ordering-policy` (earliest deadline first) and `slo-deadline-ordering-policy` (orders by SLO-derived deadline).
+<5> **fairnessPolicyRef** — The fairness policy. The default `global-strict-fairness-policy` offers no tenant isolation and can result in starvation within a priority band. For equitable service distribution across tenants, use `round-robin-fairness-policy`.
+
+=== Verify
+
+. Confirm both `InferenceObjective` resources exist in your project:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get inferenceobjective -n {guid}-{user}
+----
+
+The output lists `interactive-critical` and `batch-workload` in your namespace.
+
+. Check that the priority values were accepted:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get inferenceobjective interactive-critical -n {guid}-{user} -o jsonpath='{.spec.priority}'
+----
+
+The output shows `100`.
+
+Both priority tiers are registered against your InferencePool. Next you will drive load and watch the flow control layer dispatch by priority.
+
+== Exercise 2: Generate sustained load with an in-cluster load generator
+
+Flow control is work-conserving: when the InferencePool has available capacity, requests dispatch immediately with no added latency, and queuing plus priority enforcement activate only when the pool is saturated. You generate sustained concurrent traffic from inside the cluster with a load-generator pod, driving the Endpoint Picker toward saturation so that the `llm_d_epp_flow_control_*` metrics and HTTP 429 rejections actually manifest.
+
+. Resolve the Inference Gateway service for your project and build the in-cluster URL for the model's OpenAI-compatible endpoint:
+
+[source,bash,role="execute",subs="attributes"]
+----
+NS={guid}-{user}
+LLM_SVC=$(oc get llminferenceservice -n $NS -o jsonpath='{.items[0].metadata.name}')
+GATEWAY_SVC=$(oc get svc -n $NS -l gateway.networking.k8s.io/gateway-name -o jsonpath='{.items[0].metadata.name}')
+URL="https://${GATEWAY_SVC}.${NS}.svc.cluster.local/${NS}/${LLM_SVC}/v1/chat/completions"
+MODEL_NAME=${MODEL_NAME:-RedHatAI/Qwen3-8B-FP8-dynamic}
+echo $URL
+----
+
+The service name and gateway are resolved from your project; the model defaults to the llm-d runnable example (`RedHatAI/Qwen3-8B-FP8-dynamic`) — set `MODEL_NAME` to override.
+
+. Create the load-test script as a ConfigMap. The script first runs a smoke test, then sends `5000` requests with `200` concurrent curl processes, alternating between the `interactive-critical` and `batch-workload` objective headers from Exercise 1. Each request asks for a long generation (`max_tokens: 2048`) to keep the model servers busy and prints the HTTP status and elapsed time per request:
+
+[source,bash,role="execute",subs="attributes"]
+----
+read -r -d '' LOAD_SCRIPT << 'EOF' || true
+#!/bin/sh
+set -e
+URL="$1"; CONCURRENCY="$2"; REQUESTS="$3"; MODEL="$4"
+cat > /tmp/req.sh << 'REQEOF'
+#!/bin/sh
+if [ $(($2 % 2)) -eq 0 ]; then OBJ="batch-workload"; else OBJ="interactive-critical"; fi
+curl -sk --max-time 600 "$1" \
+  -H "Content-Type: application/json" \
+  -H "x-gateway-inference-objective: $OBJ" \
+  -d "{\"model\":\"$4\",\"messages\":[{\"role\":\"user\",\"content\":\"Request $2. Write a detailed essay about topic $2 covering history, analysis, and predictions.\"}],\"max_tokens\":2048}" \
+  -o /dev/null -w "req=$2 objective=$OBJ status=%{http_code} time=%{time_total}s\n"
+REQEOF
+chmod +x /tmp/req.sh
+echo "Smoke test..."
+STATUS=$(curl -sk --max-time 30 "$URL" \
+  -H "Content-Type: application/json" \
+  -H "x-gateway-inference-objective: interactive-critical" \
+  -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}],\"max_tokens\":5}" \
+  -o /dev/null -w "%{http_code}")
+echo "Status: $STATUS"
+if [ "$STATUS" != "200" ]; then
+  echo "ERROR: Smoke test failed (HTTP $STATUS)"
+  exit 1
+fi
+echo "Sending $REQUESTS requests ($CONCURRENCY concurrent)..."
+seq 1 "$REQUESTS" | xargs -P "$CONCURRENCY" -I{} /tmp/req.sh "$URL" {} 
+echo "Done."
+EOF
+oc create configmap load-test-script -n $NS --from-literal=load.sh="$LOAD_SCRIPT"
+----
+
+The model name is passed as the fourth script argument (`$4`) so the ConfigMap stays generic; the smoke test must print `Status: 200` before the load begins.
+
+. Create the load-generator pod. The URL and model from the previous step are substituted when the manifest is written:
+
+[source,bash,role="execute",subs="attributes"]
+----
+cat > load-test-pod.yaml <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: load-test
+  namespace: $NS
+spec:
+  restartPolicy: Never
+  containers:
+  - name: load
+    image: curlimages/curl
+    command: ["sh", "/scripts/load.sh"]
+    args: ["$URL", "200", "5000", "$MODEL_NAME"]
+    resources:
+      requests:
+        cpu: "4"
+        memory: "4Gi"
+      limits:
+        cpu: "8"
+        memory: "8Gi"
+    volumeMounts:
+    - name: script
+      mountPath: /scripts
+  volumes:
+  - name: script
+    configMap:
+      name: load-test-script
+      defaultMode: 0755
+EOF
+oc apply -f load-test-pod.yaml -n {guid}-{user}
+oc wait --for=condition=Ready pod/load-test -n {guid}-{user} --timeout=120s
+oc logs -f load-test -n {guid}-{user}
+----
+
+- **metadata.name** — The load-generator pod name.
+- **restartPolicy** — `Never`, so the pod runs the load once and exits when finished, preserving its logs.
+- **image** — The load-generator image. The script only uses curl, so the lightweight `curlimages/curl` image is sufficient.
+- **args** — The gateway URL, concurrency (200 concurrent curl processes), total request count (5000), and the model name. Increase the concurrency value if the pool does not reach saturation.
+- **configMap.name** — Mounts the load script created in the previous step at `/scripts`, where the command runs it from.
+
+Press `Ctrl+C` to stop following the output. The smoke test must print `Status: 200` before the load begins; if it fails, resolve connectivity before continuing.
+
+NOTE: In production, the Gateway AuthPolicy sets the `x-gateway-inference-objective` header automatically based on authentication: ServiceAccount tokens map to the ServiceAccount's namespace, user tokens to `authenticated`, and anonymous requests to `unauthenticated`. The load generator sets the header explicitly so that the two `InferenceObjective` tiers you created in Exercise 1 are exercised deterministically during the test.
+
+TIP: The load test must generate enough traffic to trigger queuing without being rate-limited. If gateway authentication or rate limiting throttles the load before the pool saturates, you can disable authentication for testing by setting the `security.opendatahub.io/enable-auth: "false"` annotation on the `LLMInferenceService`. Production deployments must not set this annotation.
+
+=== Verify
+
+. After the load test completes, count the HTTP outcomes from the load-generator output:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc logs load-test -n {guid}-{user} | grep -o "status=[0-9]*" | sort | uniq -c
+----
+
+Each request line has the form `req=<n> objective=<tier> status=<code> time=<seconds>`. While the pool has capacity, requests complete with `status=200`. Once concurrency drives the pool toward saturation, requests queue at the Endpoint Picker, and requests beyond a priority band's queue capacity are rejected with `status=429` and the `x-llm-d-request-dropped-reason: rejected-saturated` response header. Requests that wait longer than the configured `defaultRequestTTL` (default 1 minute) are rejected with `status=503` (`rejected-ttl-expired`). A mix of `200` and `429` counts confirms the load generator is driving the flow control layer under saturation. If every request returns `200`, increase the concurrency value in `load-test-pod.yaml` and run again.
+
+. Delete the load-test pod and script ConfigMap when finished:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc delete pod load-test -n {guid}-{user}
+oc delete configmap load-test-script -n {guid}-{user}
+----
+
+== Exercise 3: Validate priority queuing and rejection behavior under load
+
+With the load generator from Exercise 2 driving the pool toward saturation, you confirm that requests queue at the Endpoint Picker and dispatch by policy, and that rejections carry observable reason headers.
+
+. While the load test is running, check that the model server pods are near capacity. Under saturation, `vllm:num_requests_running` is at or near the `--max-num-seqs` cap and `vllm:num_requests_waiting` is above zero:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n {guid}-{user} | grep vllm
+----
+
+Then, in the OpenShift web console, navigate to *Observe* > *Metrics* and run:
+
+[source,prometheus,subs="attributes"]
+----
+vllm:num_requests_waiting{namespace="{guid}-{user}"}
+----
+
+. Monitor flow control metrics in Prometheus to confirm the flow control layer is queueing and dispatching by policy:
+
+[source,prometheus,subs="attributes"]
+----
+llm_d_epp_flow_control_queue_size{namespace="{guid}-{user}"}
+----
+
+The `llm_d_epp_flow_control_queue_size` metric shows the queue depth for requests waiting to dispatch, broken down by fairness group and priority band. Related metrics:
+
+* `llm_d_epp_flow_control_request_queue_duration_seconds` — time requests sit in the flow control queue, with a `priority` label matching your `InferenceObjective` values
+* `llm_d_epp_flow_control_requests_total` — total requests processed by flow control, broken out by outcome label
+* `llm_d_epp_flow_control_pool_saturation` — current pool saturation level, where 1.0 is the gating set point for the default static-usage-limit-policy
+
+. Open the built-in observability dashboards to correlate traffic and performance. In the OpenShift AI dashboard, navigate to *Observe & Monitor* > *Dashboard*, then from the namespace filter select your project. In the *LLM Traffic* dashboard, review request rate and error rate; in the *LLM Performance* dashboard, review time to first token (TTFT) percentiles.
+
+. When flow control rejects or evicts a request, the response includes an `x-llm-d-request-dropped-reason` header with a specific reason value. The sustained concurrent load from Exercise 2 triggers these rejections once a priority band's queue capacity is exceeded:
+
+|===
+|HTTP Status |Reason |Cause
+
+|429
+|rejected-saturated
+|The priority band's queue capacity is exhausted
+
+|503
+|rejected-ttl-expired
+|The request waited longer than the configured defaultRequestTTL
+
+|503
+|rejected-context-cancelled
+|The client disconnected while the request was queued
+
+|503
+|rejected-no-endpoints
+|The pool has zero ready endpoints
+
+|503
+|rejected-shutting-down
+|The Endpoint Picker is shutting down gracefully
+
+|===
+
+=== Verify
+
+Under sustained load, `vllm:num_requests_running` is at or near the `--max-num-seqs` cap and `vllm:num_requests_waiting` is above zero on model server pods. If both conditions are met, requests are queuing at the Endpoint Picker and being dispatched by policy.
+
+The `llm_d_epp_flow_control_request_queue_duration_seconds` metric exists with a `priority` label matching your `InferenceObjective` values, confirming that flow control is routing requests by priority. If queue depth remains at 0, increase concurrency to create saturation conditions where priority differentiation occurs.
+
+Under sustained contention, higher-priority requests dispatch before lower-priority requests, and the batch tier (`priority: -1`) is the first to be dropped when the system reaches saturation.
+
+== Module summary
+
+**What you accomplished:**
+
+* Created `InferenceObjective` resources that define critical (`priority: 100`) and sheddable (`priority: -1`) priority tiers for your InferencePool
+* Configured per-band capacity limits, request TTL, and fairness policies in the flow control configuration
+* Generated sustained concurrent load with an in-cluster load-generator pod to drive the Endpoint Picker toward saturation
+* Validated priority-based queuing, rejection behavior, and flow control metrics under load
+
+**Key takeaways:**
+
+* `InferenceObjective` priorities are enforced by the flow control layer through strict priority ordering, with intra-band fairness policies distributing requests within each band
+* The default `global-strict-fairness-policy` offers no tenant isolation; use `round-robin-fairness-policy` for equitable service distribution across tenants
+* Rejections are observable through the `x-llm-d-request-dropped-reason` response header and the `llm_d_epp_flow_control_*` metrics
+
+**Next steps:**
+
+Continue to the conclusion for a recap and links to the full RHOAI documentation for mixed-workload priority queuing.

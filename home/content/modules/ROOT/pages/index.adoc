@@ -1,0 +1,201 @@
+= RHOAI 3.5 Kitchen Sink: Feature Workshop Catalog
+
+Welcome to the RHOAI Kitchen Sink — a hands-on workshop for *every active feature* in
+Red Hat OpenShift AI 3.5, organized by category with maturity badges.
+
+*New to the catalog?* Start with a curated xref:learning-paths.adoc[Learning Path] —
+ordered chains of workshops, from serving LLMs to governing the platform.
+
+*Setting up the workshop cluster?* See xref:cluster-setup.adoc[Cluster Setup] —
+the kustomize `cluster/` config and which overlays each lab needs.
+
+**Maturity legend:**
+
+* *GA* — Generally Available; fully supported, production-ready exercises
+* *TP* — Technology Preview; functional but not supported with production SLAs
+* *DP* — Developer Preview; provided as-is for evaluation
+
+== Agents & MCP
+
+|===
+|Feature |Maturity |Workshop
+
+|xref:ai-available-assets::index.adoc[AI Available Assets page] |GA |xref:ai-available-assets::index.adoc[Start →]
+
+|xref:automated-tool-calling-eval::index.adoc[Automated tool-calling evaluation-data generation for custom MCP servers] |GA |xref:automated-tool-calling-eval::index.adoc[Start →]
+
+|xref:opencode-coding-agent::index.adoc[OpenCode coding-agent deployment] |TP |xref:opencode-coding-agent::index.adoc[Start →]
+
+|xref:validated-tool-calling-config::index.adoc[Validated tool-calling configuration in Model Catalog] |TP |xref:validated-tool-calling-config::index.adoc[Start →]
+
+|xref:mcp-catalog-support-tier::index.adoc[MCP Catalog support-tier labeling] |TP |xref:mcp-catalog-support-tier::index.adoc[Start →]
+
+|xref:mcp-lifecycle-operator::index.adoc[MCP Lifecycle Operator] |TP |xref:mcp-lifecycle-operator::index.adoc[Start →]
+
+|xref:mcp-gateway-operator::index.adoc[MCP gateway Operator] |TP |xref:mcp-gateway-operator::index.adoc[Start →]
+
+|xref:ogx-agentic-api::index.adoc[OGX-native agentic API surface (Tool Runtime, Responses, Conversations)] |TP |xref:ogx-agentic-api::index.adoc[Start →]
+
+|xref:agent-catalog-ai-hub::index.adoc[Agent Catalog in AI Hub] |DP |xref:agent-catalog-ai-hub::index.adoc[Start →]
+
+|xref:csv-export-model-catalog::index.adoc[CSV export for Model Catalog data] |DP |xref:csv-export-model-catalog::index.adoc[Start →]
+
+|xref:claude-code-starter-kit::index.adoc[Claude Code agent starter kit] |DP |xref:claude-code-starter-kit::index.adoc[Start →]
+
+|xref:genai-studio-saved-agent::index.adoc[Gen AI Studio saved-agent configuration] |DP |xref:genai-studio-saved-agent::index.adoc[Start →]
+
+|xref:kale-jupyterlab::index.adoc[Kale JupyterLab extension] |DP |xref:kale-jupyterlab::index.adoc[Start →]
+
+|xref:midojo-adversarial-testing::index.adoc[MiDojo adversarial testing engine] |DP |xref:midojo-adversarial-testing::index.adoc[Start →]
+
+|xref:openclaw-starter-kit::index.adoc[OpenClaw agent starter kit] |DP |xref:openclaw-starter-kit::index.adoc[Start →]
+
+|xref:openshell-agent-sandboxing::index.adoc[OpenShell (secure agent sandboxing and policy enforcement)] |DP |xref:openshell-agent-sandboxing::index.adoc[Start →]
+
+|xref:text-mode-multimodal-training::index.adoc[Text-mode training for multimodal models in Training Hub] |DP |xref:text-mode-multimodal-training::index.adoc[Start →]
+
+|xref:view-agent-deployments::index.adoc[View running agent deployments in dashboard] |DP |xref:view-agent-deployments::index.adoc[Start →]
+
+|xref:mcp-catalog-admin::index.adoc[MCP Catalog administrative interface] |DP |xref:mcp-catalog-admin::index.adoc[Start →]
+
+|xref:ogx-file-processors::index.adoc[OGX File Processors API] |DP |xref:ogx-file-processors::index.adoc[Start →]
+
+|xref:ogx-remote-providers::index.adoc[OGX remote::anthropic and remote::gemini providers] |DP |xref:ogx-remote-providers::index.adoc[Start →]
+
+|xref:external-metering-maas::index.adoc[External metering integration for MaaS] |DP |xref:external-metering-maas::index.adoc[Start →]
+
+|xref:external-metering-per-user::index.adoc[External metering: per-user token usage and cost] |DP |xref:external-metering-per-user::index.adoc[Start →]
+
+|xref:llmd-kv-cache-tiering::index.adoc[Hierarchical KV Cache Tiering (llm-d)] |DP |xref:llmd-kv-cache-tiering::index.adoc[Start →]
+
+|xref:llmd-latency-routing::index.adoc[Latency-aware routing for llm-d] |DP |xref:llmd-latency-routing::index.adoc[Start →]
+
+|xref:llmd-lora-routing::index.adoc[LoRA-aware routing for llm-d] |DP |xref:llmd-lora-routing::index.adoc[Start →]
+
+|===
+
+== Distributed Training
+
+|===
+|Feature |Maturity |Workshop
+
+|xref:kuberay::index.adoc[KubeRay (CodeFlare Operator successor)] |GA |xref:kuberay::index.adoc[Start →]
+
+|xref:kueue::index.adoc[Kueue (Red Hat build of Kueue Operator)] |GA |xref:kueue::index.adoc[Start →]
+
+|xref:kubeflow-trainer-v2::index.adoc[Kubeflow Trainer v2] |GA |xref:kubeflow-trainer-v2::index.adoc[Start →]
+
+|===
+
+== Evaluation
+
+|===
+|Feature |Maturity |Workshop
+
+|xref:automated-red-teaming-garak::index.adoc[Automated Red Teaming (powered by Garak)] |GA |xref:automated-red-teaming-garak::index.adoc[Start →]
+
+|xref:evalhub::index.adoc[Evaluation Stack (EvalHub)] |GA |xref:evalhub::index.adoc[Start →]
+
+|===
+
+== Feature Store / AutoML / AutoRAG
+
+|===
+|Feature |Maturity |Workshop
+
+|xref:feature-store-feast::index.adoc[Feature Store (Feast-based)] |GA |xref:feature-store-feast::index.adoc[Start →]
+
+|xref:automl::index.adoc[AutoML] |TP |xref:automl::index.adoc[Start →]
+
+|xref:autorag::index.adoc[AutoRAG] |TP |xref:autorag::index.adoc[Start →]
+
+|===
+
+== Guardrails
+
+|===
+|Feature |Maturity |Workshop
+
+|xref:nemo-guardrails::index.adoc[NeMo Guardrails] |GA |xref:nemo-guardrails::index.adoc[Start →]
+
+|xref:nemo-guardrails-mcp-gateway::index.adoc[NeMo Guardrails integration with MCP Gateway] |TP |xref:nemo-guardrails-mcp-gateway::index.adoc[Start →]
+
+|===
+
+== MLOps
+
+|===
+|Feature |Maturity |Workshop
+
+|xref:mlflow-experiment-tracking::index.adoc[MLflow experiment tracking / MLOps integration] |GA |xref:mlflow-experiment-tracking::index.adoc[Start →]
+
+|===
+
+== MaaS (Models-as-a-Service)
+
+|===
+|Feature |Maturity |Workshop
+
+|xref:maas-oidc-auth::index.adoc[MaaS-specific external OIDC user authentication] |GA |xref:maas-oidc-auth::index.adoc[Start →]
+
+|xref:maas-core::index.adoc[Models-as-a-Service (MaaS) core: access model and token mechanism] |GA |xref:maas-core::index.adoc[Start →]
+
+|xref:maas-loki-showback::index.adoc[Loki-based showback and user-scoped usage dashboards (MaaS)] |TP |xref:maas-loki-showback::index.adoc[Start →]
+
+|xref:maas-llmd-deployment::index.adoc[MaaS deployment/routing path for Distributed Inference with llm-d] |TP |xref:maas-llmd-deployment::index.adoc[Start →]
+
+|xref:maas-multi-tenancy::index.adoc[MaaS multi-tenancy with per-tenant gateway and identity isolation] |TP |xref:maas-multi-tenancy::index.adoc[Start →]
+
+|xref:maas-multi-provider-passthrough::index.adoc[Multi-provider API passthrough for external models (MaaS)] |TP |xref:maas-multi-provider-passthrough::index.adoc[Start →]
+
+|xref:maas-vllm-deployment::index.adoc[vLLM model deployment directly through MaaS] |TP |xref:maas-vllm-deployment::index.adoc[Start →]
+
+|===
+
+== Model Registry
+
+|===
+|Feature |Maturity |Workshop
+
+|xref:model-registry-catalog::index.adoc[Model registry and model catalog] |GA |xref:model-registry-catalog::index.adoc[Start →]
+
+|===
+
+== Model Serving
+
+|===
+|Feature |Maturity |Workshop
+
+|xref:llmd-core::index.adoc[Distributed Inference with llm-d (core)] |GA |xref:llmd-core::index.adoc[Start →]
+
+|xref:llmd-priority-flow-control::index.adoc[Distributed Inference with llm-d: priority-based flow control] |GA |xref:llmd-priority-flow-control::index.adoc[Start →]
+
+|xref:llminferenceservice-config::index.adoc[LLMInferenceService / LLMInferenceServiceConfig (llm-d-native)] |GA |xref:llminferenceservice-config::index.adoc[Start →]
+
+|xref:rhai-fast-release-images::index.adoc[Red Hat AI Inference fast-release images as custom ServingRuntime] |GA |xref:rhai-fast-release-images::index.adoc[Start →]
+
+|xref:vllm-cpu-ibm-z-power::index.adoc[vLLM CPU ServingRuntime on IBM Z / Power] |GA |xref:vllm-cpu-ibm-z-power::index.adoc[Start →]
+
+|xref:vllm-serving-runtime-kserve::index.adoc[vLLM ServingRuntime for KServe] |GA |xref:vllm-serving-runtime-kserve::index.adoc[Start →]
+
+|===
+
+== OGX (Open GenAI Stack)
+
+|===
+|Feature |Maturity |Workshop
+
+|xref:llama-stack-ogx-core::index.adoc[Llama Stack / OGX core: RAG, agentic workflows, vector DB integration] |GA |xref:llama-stack-ogx-core::index.adoc[Start →]
+
+|===
+
+== Platform / Gateway API & Authentication
+
+|===
+|Feature |Maturity |Workshop
+
+|xref:gateway-api-rhcl::index.adoc[Gateway API and Red Hat Connectivity Link (RHCL)] |GA |xref:gateway-api-rhcl::index.adoc[Start →]
+
+|xref:platform-oidc-auth::index.adoc[Platform-wide direct OIDC authentication (GatewayConfig CR)] |GA |xref:platform-oidc-auth::index.adoc[Start →]
+
+|===

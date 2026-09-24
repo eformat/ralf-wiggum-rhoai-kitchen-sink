@@ -1,0 +1,69 @@
+= Welcome to the MCP Lifecycle Operator Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete. The `MCPServer` custom resource API version in
+this release is `v1alpha1`: Red Hat makes no backwards compatibility commitment
+for it, and CRD types and fields can change in a future release without a
+migration path.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces the *MCP Lifecycle Operator*, a Kubernetes-native
+operator available as a Technology Preview in Red Hat OpenShift AI {rhoai_version}.
+The operator manages the deployment and lifecycle of Model Context Protocol
+(MCP) servers on your cluster: when you deploy an MCP server, it watches the
+resulting `MCPServer` custom resource and automatically provisions the required
+`Deployment`, `Service`, `NetworkPolicies`, and cluster-internal URLs for
+service discovery. The operator also powers the *AI Hub MCP Catalog* — a
+federated plugin in the OpenShift AI dashboard that provides the discovery and
+deployment interface for MCP servers pre-loaded from Red Hat, technology
+partners, and the open source community.
+
+The MCP Lifecycle Operator follows the same component controller pattern as
+other optional OpenShift AI components such as the `MLflowOperator`,
+`FeastOperator`, and Open GenAI Stack (OGX): you manage it through the
+`DataScienceCluster` custom resource. The `mcplifecycleoperator` component
+defaults to `Removed` in RHOAI {rhoai_version} — it is *not* deployed by a
+standard installation, so you must explicitly set `managementState: Managed`
+and turn on the `mcpCatalog` dashboard feature flag before developers can
+deploy MCP servers from the catalog.
+
+**What you will learn:**
+
+* What the MCP Lifecycle Operator does, where it fits in RHOAI {rhoai_version}, and how it relates to the AI Hub MCP Catalog
+* Enable the `mcplifecycleoperator` component in the `DataScienceCluster` and turn on the `mcpCatalog` dashboard feature flag
+* Verify the operator pod and the component state from the CLI
+* Browse the AI Hub MCP Catalog and deploy an MCP server from a catalog entry
+* Manage the lifecycle: inspect the `MCPServer` CR, monitor health, scale replicas, upgrade a version, and remove a server
+* Compare the support tiers (`Red Hat`, `Partner`, `Community`) shown on catalog server cards
+
+== Prerequisites
+
+* RHOAI operator installed
+* An OpenShift cluster with RHOAI {rhoai_version} installed (OpenShift 4.22 or
+  later, per the operator's enablement prerequisites)
+* Cluster-admin access for enabling the operator and the dashboard flag
+  (Module 01)
+* OpenShift CLI (`oc`) — see xref:getting-connected.adoc[Getting Connected]
+* Access to the Red Hat OpenShift AI dashboard and to a project with at least
+  the standard user role (Module 01, Exercise 3 and Module 02)
+* If the MCP server you deploy requires a service account, a `ServiceAccount`
+  resource exists in your namespace
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

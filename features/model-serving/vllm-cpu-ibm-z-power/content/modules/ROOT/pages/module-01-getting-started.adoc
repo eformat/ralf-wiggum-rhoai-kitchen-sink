@@ -1,0 +1,179 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will confirm that your cluster can serve models on IBM Z or IBM Power,
+inspect the pre-installed vLLM CPU ServingRuntime for KServe, and deploy a model with the
+*Deploy a model* wizard in the RHOAI dashboard.
+
+**Learning objectives:**
+
+* Explain why the vLLM CPU ServingRuntime for KServe is the supported vLLM runtime on IBM Z and IBM Power
+* Check your cluster architecture and locate the pre-installed runtime from the CLI
+* Deploy a model from the RHOAI dashboard with the vLLM CPU ServingRuntime for KServe
+* Validate the result of every step
+
+== Exercise 1: Check your architecture and the pre-installed runtime
+
+RHOAI Self-Managed is supported on x86_64, ppc64le, s390x, and aarch64 architectures, and
+IBM Power and IBM Z are explicitly supported deployment topologies. The vLLM CPU ServingRuntime
+for KServe is the runtime that brings vLLM to those architectures: the Red Hat supported
+configurations article describes it as "a high-throughput and memory-efficient inference and
+serving runtime that supports IBM Power (ppc64le) and IBM Z (s390x)".
+
+Two constraints apply on these architectures:
+
+* *No GPU accelerators.* You cannot use GPU accelerators with IBM Z and IBM Power
+architectures. All compute for the model server comes from the CPU and memory resources
+you configure on the deployment.
+* *Standard deployment mode only.* For the vLLM CPU ServingRuntime for KServe, you can only
+deploy models in standard deployment mode — the KServe RawDeployment mode, not Knative
+Serverless.
+
+.Prerequisites
+
+* You are logged in to the workshop cluster with the working project you created in *Getting Connected*
+
+.Procedure
+
+. Confirm the architecture of your cluster nodes:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get nodes -o jsonpath='{.items[0].status.nodeInfo.architecture}'
+----
++
+The output is `s390x` on IBM Z or `ppc64le` on IBM Power.
+
+. Confirm that the RHOAI DataScienceCluster instance is ready:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get dsc
+----
++
+The `READY` column shows `True` for the DataScienceCluster instance, for example
+`default-dsc`.
+
+. List the pre-installed serving runtimes shipped with RHOAI — they live in the
+`redhat-ods-applications` namespace:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get servingruntimes -n redhat-ods-applications
+----
++
+[NOTE]
+====
+Exact resource names of pre-installed runtimes can vary between releases. Find the
+vLLM CPU runtime by its `vllm-cpu` name in the list.
+====
+
+. Inspect the container image that the vLLM CPU runtime uses, replacing `<runtime-name>`
+with the name you found in the previous step:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get servingruntime <runtime-name> -n redhat-ods-applications -o jsonpath='{.spec.containers[0].image}'
+----
++
+The output shows the Red Hat-provided vLLM CPU container image from `registry.redhat.io`.
+
+=== Verify
+
+The architecture command returned `s390x` or `ppc64le`, the DataScienceCluster instance
+reports `READY: True`, and the serving runtime list includes the vLLM CPU ServingRuntime
+for KServe. If the runtime list is empty or the runtime is missing, ask your workshop
+facilitator to enable the pre-installed model-serving runtimes in the RHOAI dashboard
+under *Settings*, *Serving runtimes*.
+
+Locating the runtime is only half the story — next you deploy an actual model with it
+from the dashboard.
+
+== Exercise 2: Deploy a model from the dashboard
+
+You can deploy generative AI (gen AI) or predictive AI models on the model serving platform
+by using the *Deploy a model* wizard. The wizard lets you configure the model location and
+type, select a serving runtime, assign a hardware profile, and set advanced configurations
+like external routes and token authentication.
+
+.Prerequisites
+
+* The model serving platform is enabled and the vLLM CPU ServingRuntime for KServe is
+enabled in your cluster
+* A project exists (you created one in *Getting Connected*)
+* Your model is stored in a location accessible to the model server and a connection to
+it exists in your project: an OCI-compliant registry, S3-compatible object storage, a URI,
+or a persistent volume claim (PVC)
+
+.Procedure
+
+. In the RHOAI dashboard, click *Projects* in the left menu.
+. Click the name of your working project. The project details page opens.
+. Click the *Deployments* tab.
+. Click *Deploy model*. The *Deploy a model* wizard opens.
+. In the *Model details* section, provide information about the model:
+.. From the *Model location* list, specify where your model is stored and complete the
+connection detail fields. The *OCI-compliant registry*, *S3 compatible object storage*,
+and *URI* options are preinstalled connection types. If you uploaded model files to a PVC
+attached to your workbench, the *Cluster storage* option becomes available and you can
+select the PVC and the path to the model file.
+.. From the *Model type* list, select *Generative AI model*.
+.. Click *Next*.
+. In the *Model deployment* section, configure the deployment:
+.. In the *Model deployment name* field, enter a unique name for your model deployment.
+.. In the *Description* field, enter a description of your deployment.
+.. From the *Hardware profile* list, select a hardware profile.
+.. Optional: To modify the default resource allocation, click *Customize resource requests
+and limits* and enter new values for the CPU and Memory requests and limits.
+.. In the *Serving runtime* field, select *Select from a list of serving runtimes,
+including custom ones* and choose the vLLM CPU ServingRuntime for KServe.
+.. In the *Number of model server replicas to deploy* field, specify a value.
+.. Click *Next*.
+. In the *Advanced settings* section, configure the remaining options:
+.. Optional: Select the *Model access* checkbox to make your model deployment available
+through an external route. Keep this selected for the inference exercises in Module 02.
+.. Select *Require token authentication* and enter a *Service account name* that the token
+will be generated for.
+.. Optional: Select *Add custom runtime arguments* or *Add custom runtime environment
+variables* to add configuration parameters to your deployment.
+.. In the *Deployment strategy* section, select *Rolling update* or *Recreate*.
+.. Click *Deploy*.
+
+[IMPORTANT]
+====
+There are no GPUs to request on IBM Z and IBM Power. Size the deployment through the
+CPU and Memory requests and limits in the *Customize resource requests and limits* step —
+this is where all of your model server compute comes from.
+====
+
+// TODO: capture screenshot
+image::01-deploy-model-wizard.png[Deploy a model wizard with the vLLM CPU ServingRuntime for KServe selected,link=self,window=blank,width=700]
+
+=== Verify
+
+Confirm that the deployed model is shown on the *Deployments* tab for the project, and on
+the *Deployments* page of the dashboard with a checkmark in the *Status* column. Loading
+a model on CPU-backed nodes can take several minutes depending on the model size and the
+resources you requested.
+
+The model is deployed. In the next module you verify the deployment from the CLI and send
+authenticated inference requests to it.
+
+== Module summary
+
+**What you accomplished:**
+
+* Confirmed your cluster architecture is `s390x` (IBM Z) or `ppc64le` (IBM Power) and located the pre-installed vLLM CPU ServingRuntime for KServe
+* Deployed a generative model from the RHOAI dashboard with the *Deploy a model* wizard, selecting the vLLM CPU runtime and configuring CPU and memory resources
+* Verified the deployment shows a checkmark in the *Status* column on the *Deployments* tab
+
+**Key takeaways:**
+
+* The vLLM CPU ServingRuntime for KServe is the only supported vLLM path on IBM Z (s390x) and IBM Power (ppc64le) — GPU accelerators cannot be used with those architectures
+* On IBM Z and IBM Power you can only deploy models in standard deployment mode (KServe RawDeployment), not Knative Serverless
+* On CPU-only architectures, model server capacity is controlled entirely by the CPU and Memory requests and limits in the deployment wizard
+
+**Next steps:**
+
+In the next module you verify the deployment from the CLI, retrieve the authentication
+token, and send OpenAI-compatible inference requests to the running model.

@@ -1,0 +1,348 @@
+= Module 03: Grant tenant access and delete a tenant
+:navtitle: Module 03: Grant tenant access and delete a tenant
+
+In this module you will grant users access to manage a tenant with RoleBindings,
+tune the per-tenant `MaasTenantConfig` runtime configuration, and delete the
+tenant cleanly — reviewing the resources the controller preserves and the ones
+it removes.
+
+**Learning objectives:**
+
+* Grant tenant-admin access with RoleBindings and verify with `oc auth can-i`
+* Tune per-tenant runtime settings — API key expiration and telemetry dimensions — through `MaasTenantConfig`
+* Delete an `AITenant` and understand the finalizer's ordered cleanup sequence
+* Recognize the Technology Preview limitations: external models on the default tenant only and the deprecated `spec.rbac` field
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: MaaS multi-tenancy is a *Technology Preview* feature only. Technology
+Preview features are not supported with Red Hat production service-level
+agreements (SLAs) and might not be functionally complete, and Red Hat does not
+recommend using them in production. APIs and manifests shown here may change
+between releases.
+endif::[]
+
+== Exercise 1: Grant tenant-admin access with RoleBindings
+
+The controller creates two Roles for each `AITenant` but does *not* create
+RoleBindings. You must create RoleBindings to grant users, groups, or service
+accounts access to manage tenant resources:
+
+* `aitenant-<tenant_name>-tenant-admin` in the tenant namespace: manages
+  tenant-scoped MaaS resources — subscriptions, authorization policies,
+  tenant configuration, and model references.
+* `aitenant-<tenant_name>-object-admin` in the `ai-tenants` namespace: reads
+  the specific `AITenant` object to view tenant bootstrap status.
+
+For long tenant names, the controller truncates the Role name and appends a
+hash to fit within the Kubernetes 63-character name limit. Find the exact Role
+names by tenant label before creating bindings:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get roles -n ai-tenant-<tenant_name> \
+  -l ai-gateway.opendatahub.io/tenant=<tenant_name>
+----
+
+Replace `<tenant_name>` with your tenant name, for example `red-team`.
+
+[IMPORTANT]
+====
+The `spec.rbac` field on the `AITenant` custom resource is deprecated and
+ignored by the controller. It is accepted for schema compatibility only —
+create standard Kubernetes RoleBindings to grant tenant access.
+====
+
+Create a RoleBinding to grant tenant-admin access to a group:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc create rolebinding <tenant_name>-tenant-admins \
+  --role=aitenant-<tenant_name>-tenant-admin \
+  --group=<group_name> \
+  -n ai-tenant-<tenant_name>
+----
+
+Replace `<group_name>` with the OpenShift group or OIDC group to grant access.
+To grant access to an individual user instead, apply this RoleBinding:
+
+[source,yaml]
+----
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: <tenant_name>-tenant-admin
+  namespace: ai-tenant-<tenant_name>
+subjects:
+- kind: User
+  apiGroup: rbac.authorization.k8s.io
+  name: <username>
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: aitenant-<tenant_name>-tenant-admin
+----
+
+Optional: create an object-admin RoleBinding in the `ai-tenants` namespace to
+let tenant administrators or dashboards view the `AITenant` bootstrap status:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc create rolebinding <tenant_name>-aitenant-reader \
+  --role=aitenant-<tenant_name>-object-admin \
+  --group=<group_name> \
+  -n ai-tenants
+----
+
+[NOTE]
+====
+When creating `MaaSModelRef`, `MaaSSubscription`, and `MaaSAuthPolicy`
+resources for a non-default tenant, use the tenant namespace
+`ai-tenant-<tenant_name>` instead of `models-as-a-service`. The admission
+webhook requires a `MaasTenantConfig` resource in the namespace, which the
+controller creates automatically when the `AITenant` reaches Ready status.
+====
+
+=== Verify
+
+Verify the tenant namespace permissions. For a granted user:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc auth can-i create maassubscriptions.maas.opendatahub.io \
+  --as=<username> \
+  -n ai-tenant-<tenant_name>
+----
+
+For a granted group, add the `--as-group` flag:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc auth can-i create maassubscriptions.maas.opendatahub.io \
+  --as=<username> --as-group=<group_name> \
+  -n ai-tenant-<tenant_name>
+----
+
+----
+yes
+----
+
+Expected output: `yes`. Also verify `AITenant` read access in the
+`ai-tenants` namespace with
+`oc auth can-i get aitenants.maas.opendatahub.io/<tenant_name> --as=<username> -n ai-tenants`,
+which also returns `yes` when the object-admin binding is in place.
+
+Access is granted. Next, tune the tenant's runtime configuration.
+
+== Exercise 2: Tune the tenant configuration and delete the tenant
+
+The `MaasTenantConfig` is a namespace-scoped singleton automatically created in
+each tenant namespace during `AITenant` reconciliation. It must reach Ready
+state before the `AITenant` is marked Active, and it stores per-tenant runtime
+configuration for API keys and telemetry. Platform context such as gateway and
+OIDC settings belongs to the `AITenant`, not the `MaasTenantConfig`.
+
+Edit the `MaasTenantConfig` in the tenant namespace to adjust per-tenant
+settings:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc edit maastenantconfig default-tenant -n ai-tenant-<tenant_name>
+----
+
+[source,yaml,subs="attributes,callouts"]
+----
+spec:
+  apiKeys:
+    maxExpirationDays: 90 <1>
+  telemetry:
+    enabled: true <2>
+    metrics:
+      captureOrganization: true <3>
+      captureModelUsage: true <4>
+      captureUser: false <5>
+      captureGroup: false
+----
+<1> *apiKeys.maxExpirationDays*: the maximum API key expiration duration in
+days for this tenant. Minimum: 1.
+<2> *telemetry.enabled*: enables or disables telemetry and metrics collection
+for this tenant. Default: `true`.
+<3> *captureOrganization*: adds an organization dimension to telemetry
+metrics. Default: `true`.
+<4> *captureModelUsage*: adds a model dimension to telemetry metrics.
+Default: `true`.
+<5> *captureUser*: adds a user dimension containing the authenticated user ID.
+Default: `false`. Enabling this setting might have privacy implications.
+
+[WARNING]
+====
+Deleting an `AITenant` is destructive. The controller finalizer runs an
+ordered cleanup: it revokes active API keys through the tenant `maas-api`
+instance, deletes the `MaasTenantConfig` CR and tenant-scoped MaaS resources,
+removes controller-created Roles and RoleBindings, removes tenant ownership
+metadata from the namespace, releases the gateway AuthPolicy and gateway claim
+resources, and removes the finalizer. The tenant namespace itself is preserved
+to protect user data.
+====
+
+Delete the tenant when you are done with it. First list the existing
+`AITenant` resources to confirm the name, and optionally review the MaaS
+resources in the tenant namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get aitenant -n ai-tenants
+oc get maassubscription,maasauthpolicy,maasmodelref -n ai-tenant-<tenant_name>
+----
+
+Then delete the `AITenant` and monitor the deletion progress:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc delete aitenant <tenant_name> -n ai-tenants
+oc get aitenant <tenant_name> -n ai-tenants -w
+----
+
+The `AITenant` shows a `Terminating` phase during cleanup. Deletion might take
+several minutes while the controller completes API key revocation and resource
+cleanup.
+
+Verify that controller-managed resources were cleaned up:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get aitenant <tenant_name> -n ai-tenants
+----
+
+----
+Error from server (NotFound): aitenants.maas.opendatahub.io "<tenant_name>" not found
+----
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get maastenantconfig default-tenant -n ai-tenant-<tenant_name>
+----
+
+Expected output: `Error from server (NotFound)` confirming the
+`MaasTenantConfig` was deleted.
+
+[IMPORTANT]
+====
+User-created RoleBindings are preserved when the `AITenant` is deleted. If you
+re-create a tenant with the same name, stale RoleBindings that reference the
+recreated Roles can silently re-enable access for former authorized users.
+Always review and remove stale RoleBindings before or after deleting a tenant:
+`oc get rolebindings -n ai-tenant-<tenant_name>`, then
+`oc delete rolebinding <rolebinding_name> -n ai-tenant-<tenant_name>` for each
+stale binding.
+====
+
+Optionally delete the Gateway, Route, and preserved tenant namespace if they
+are no longer needed. The controller does not manage or delete the Gateway or
+Route because they are external prerequisites:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc delete gateway <gateway_name> -n openshift-ingress
+oc delete route <gateway_name> -n openshift-ingress
+oc delete namespace ai-tenant-<tenant_name>
+----
+
+Only delete the namespace after confirming no user data needs to be retained.
+
+The following table summarizes the cleanup behavior for tenant resources:
+
+[cols="2,2,2",options="header"]
+|===
+|Resource |Cleanup behavior |Action required
+
+|`AITenant` CR
+|Deleted automatically
+|None
+
+|`MaasTenantConfig` CR
+|Deleted automatically
+|None
+
+|Controller-created Roles
+|Deleted automatically
+|None
+
+|Per-tenant `maas-api` Deployment
+|Deleted automatically
+|None
+
+|Gateway AuthPolicy
+|Deleted automatically
+|None
+
+|HTTPRoute (internal API routing)
+|Deleted automatically
+|None
+
+|User-created RoleBindings
+|Preserved
+|Review and delete manually
+
+|Gateway and OpenShift Route (external access)
+|Preserved
+|Delete manually if no longer needed
+
+|Tenant namespace
+|Preserved
+|Delete manually after data review
+|===
+
+=== Verify
+
+* `oc auth can-i create maassubscriptions.maas.opendatahub.io --as=<username>`
+  in the tenant namespace returns `yes` after you create the RoleBinding.
+* After deletion, both `oc get aitenant` and
+  `oc get maastenantconfig default-tenant` return
+  `Error from server (NotFound)`.
+* The preserved tenant namespace still exists after deletion — until you
+  remove it explicitly.
+
+You now know the full tenant lifecycle. Consider the Technology Preview
+limitations before using multi-tenancy beyond a test cluster.
+
+=== Technology Preview limitations
+
+Review these known limitations of the current Technology Preview release
+before provisioning tenants beyond a workshop environment:
+
+* *External models are supported for the default tenant only.* In multitenant
+  deployments, non-default tenant instances have the ExternalModel controller
+  disabled — the controller injects
+  `DISABLE_EXTERNAL_MODEL_CONTROLLER=true` for non-default tenants to prevent
+  HTTPRoute conflicts between tenants. When per-tenant instances set the
+  HTTPRoute `parentRef` to different tenant gateways, the resulting conflict
+  causes continuous flapping that breaks external model routing for all
+  tenants. To use external models in a multitenant deployment, access them
+  through the default tenant gateway.
+* *Cross-tenant access prevention is enforced at every layer.* API keys return
+  HTTP 404 with an `API key not found` error against another tenant's gateway;
+  OIDC tokens are validated against the tenant-specific identity provider
+  configuration; `GET /v1/subscriptions` returns only the requesting tenant's
+  data; and `GET /v1/models` returns only models associated with the tenant
+  through `MaaSModelRef` resources.
+* *The `spec.rbac` field is deprecated and ignored* — create standard
+  Kubernetes RoleBindings to grant tenant access.
+
+== Module summary
+
+**What you accomplished:**
+
+* Granted tenant-admin access with RoleBindings, verified with `oc auth can-i`, and learned to find the exact Role names by tenant label
+* Tuned per-tenant API key expiration and telemetry dimensions through the `MaasTenantConfig` singleton
+* Deleted the `AITenant`, observed the finalizer's ordered cleanup, and identified which resources the controller preserves
+
+**Key takeaways:**
+
+* The controller creates Roles but never RoleBindings — access grants are always a manual, deliberate step
+* Stale user-created RoleBindings survive tenant deletion and can silently re-enable access if a tenant with the same name is recreated
+* External models are default-tenant-only in this Technology Preview, because per-tenant HTTPRoute `parentRef` settings cause gateway flapping
+
+**Next steps:**
+
+Continue to the conclusion for the MaaS multi-tenancy documentation chapter and
+related MaaS governance guides.

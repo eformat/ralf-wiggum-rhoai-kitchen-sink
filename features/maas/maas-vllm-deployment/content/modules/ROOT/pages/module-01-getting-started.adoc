@@ -1,0 +1,127 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will enable the Technology Preview *vLLM deployment on MaaS*
+feature flag and confirm that the Models-as-a-Service (MaaS) platform on your
+workshop cluster is ready to govern vLLM-served models.
+
+**Learning objectives:**
+
+* Explain how vLLM models reach the MaaS gateway in RHOAI 3.5
+* Enable the vLLM deployment on MaaS flag in the OdhDashboardConfig resource
+* Verify the MaaS platform components are installed and ready
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: This feature is a *Technology Preview*. APIs and manifests shown
+here may change between releases.
+endif::[]
+
+== Exercise 1: Enable the vLLM deployment on MaaS feature flag
+
+MaaS in Red Hat OpenShift AI 3.5 supports multiple serving runtimes: models can be
+served with `llm-d` distributed inference or with vLLM runtimes, and both share the
+same MaaS governance layer of subscriptions, quotas, and API keys. vLLM runtime
+support is a *Technology Preview* feature, so the dashboard hides it behind a flag.
+
+Two settings control this behavior, both in the `spec.dashboardConfig` section of
+the `OdhDashboardConfig` custom resource:
+
+* `spec.dashboardConfig.modelAsService: true` — makes MaaS available in the dashboard
+* `spec.dashboardConfig.vLLMDeploymentOnMaaS: true` — adds the vLLM-based deployment resources to the model deployment wizard
+
+. Check the current state of both flags:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get odhdashboardconfig odh-dashboard-config -n redhat-ods-applications \
+  -o jsonpath='{.spec.dashboardConfig.modelAsService} {.spec.dashboardConfig.vLLMDeploymentOnMaaS}'
+----
+
+. If either value is missing or `false`, enable both with a single patch:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch odhdashboardconfig odh-dashboard-config -n redhat-ods-applications \
+  --type merge \
+  -p '{"spec":{"dashboardConfig":{"modelAsService":true,"vLLMDeploymentOnMaaS":true}}}'
+----
+
+NOTE: Patching the `OdhDashboardConfig` requires cluster administrator access. In a
+shared workshop cluster, ask your facilitator if the patch fails with `Forbidden`.
+
+=== Verify
+
+Re-run the read-only check from the first step:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get odhdashboardconfig odh-dashboard-config -n redhat-ods-applications \
+  -o jsonpath='{.spec.dashboardConfig.vLLMDeploymentOnMaaS}'
+----
+
+The output must be `true`. The dashboard offers the vLLM-based deployment resources
+in the model deployment wizard the next time it loads.
+
+Now that the flag is set, confirm the rest of the MaaS platform is in place before
+deploying a model.
+
+== Exercise 2: Verify the MaaS platform is ready
+
+The wizard only publishes models to a MaaS gateway that actually exists. Confirm
+the platform prerequisites so that Module 02 does not fail halfway through.
+
+. Check that MaaS is enabled in the DataScienceCluster resource:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get dsc default-dsc -o jsonpath='{.spec.components.kserve.managementState} {.spec.components.kserve.modelsAsService.managementState}'
+----
+
+Both fields should print `Managed`.
+
+. Check that the MaaS gateway exists in the `openshift-ingress` namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get gateway maas-default-gateway -n openshift-ingress
+----
+
+. Find the MaaS infrastructure namespace and confirm the MaaS controller is running:
+
+[source,bash,role="execute",subs="attributes"]
+----
+INFRA_NS=$(oc get maastenantconfig default-tenant -n models-as-a-service \
+  -o jsonpath='{.status.infraNamespace}')
+oc get pods -n ${INFRA_NS} -l app=maas-controller
+----
+
+NOTE: In RHOAI 3.5 the default infrastructure namespace is
+`redhat-ai-gateway-infra`. To resolve the actual namespace for your deployment, run
+`oc get maastenantconfig default-tenant -n models-as-a-service
+-o jsonpath='{.status.infraNamespace}'`. If the `maastenantconfig` lookup returns an
+empty string, check the pods directly in `redhat-ai-gateway-infra`.
+
+=== Verify
+
+The `maas-controller` pods report `Running` status with a ready count of `1/1` or
+more. If the gateway is missing or the controller is absent, MaaS was not installed
+on the cluster — resolve that with your facilitator before continuing.
+
+== Module summary
+
+**What you accomplished:**
+
+* Enabled the Technology Preview vLLM deployment on MaaS dashboard flag
+* Confirmed that MaaS is enabled in the DataScienceCluster resource
+* Verified the MaaS gateway and controller are running on the cluster
+
+**Key takeaways:**
+
+* vLLM runtime support for MaaS is Technology Preview and gated by the `vLLMDeploymentOnMaaS` flag
+* MaaS governs any `LLMInferenceService`-based model, including vLLM deployments
+* The `maastenantconfig` resource reveals the infrastructure namespace where the MaaS controller runs
+
+**Next steps:**
+
+With the platform verified, deploy your first vLLM model through the dashboard
+wizard and publish it to the MaaS gateway.

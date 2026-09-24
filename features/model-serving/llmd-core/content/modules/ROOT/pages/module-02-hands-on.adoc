@@ -1,0 +1,326 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will work through the core Distributed Inference with llm-d workflow:
+deploying a model with the topology selector in the RHOAI dashboard, deploying the same model
+from the CLI with an `LLMInferenceService` manifest, and sending authenticated inference
+requests to the deployed model.
+
+**Learning objectives:**
+
+* Deploy a model with the llm-d topology selector from the RHOAI dashboard
+* Create an `LLMInferenceService` resource from the CLI and watch the inference stack come up
+* Generate a token and make authenticated inference requests against the deployed model
+
+== Exercise 1: Deploy a model with the topology selector
+
+The model deployment wizard provides a single *Deploy model* entry point. The topology
+selector lets you choose from validated deployment patterns based on your hardware and
+performance requirements.
+
+[WARNING]
+====
+In RHOAI 3.5 the LLM deployment topology selector is a *Technology Preview* feature, even
+though the llm-d serving stack itself is generally available. Technology Preview features
+are not supported with Red Hat production service-level agreements (SLAs) and might not be
+functionally complete.
+====
+
+.Prerequisites
+
+* The model serving platform is enabled in RHOAI
+* An administrator has enabled the `llmdTemplates` feature flag in the
+`OdhDashboardConfig` resource
+* A data science project exists (you created one in *Getting Connected*)
+* Your model is stored in S3-compatible object storage, a PVC, or an OCI registry
+* The single-node topology needs no administrator setup; every other topology needs
+administrator-created `LLMInferenceServiceConfig` templates
+
+.Procedure
+
+. In the RHOAI dashboard, click *Data Science Projects*.
+. Click the name of your project.
+. Click the *Models* tab.
+. Click *Deploy model*.
+. In the *Deploy model* dialog, configure the basic model details:
+.. In the *Model name* field, enter `qwen3-8b`.
+.. From the *Model type* field, select *Generative AI*.
+.. From the *Model server size* list, select a size based on your expected load.
+.. Click *Deploy*.
+. On the model deployment page, from the *Deployment method* field, select *Distributed
+inference with llm-d*.
+. Select your deployment topology from the radio button options:
+.. *Single-node*: your model and its KV cache fit within the GPUs of a single machine.
+This option includes a built-in default configuration and is always available.
+.. *Multi-node data-parallel*: maximize concurrent request throughput by replicating the
+model across nodes.
+.. *Single-node prefill/decode disaggregate*: optimize long-context or prefill-heavy
+workloads by isolating prompt processing from token generation.
+.. *Multi-node data-parallel prefill/decode disaggregate*: combine data parallelism with
+P/D isolation for prefill-skewed traffic at scale.
++
+[NOTE]
+====
+A topology option that is grayed out means your administrator has not created any
+`LLMInferenceServiceConfig` template for that deployment pattern. For this exercise, select
+*Single-node*.
+====
+. From the *Topology configuration* list, select `single-node-default`. This is a required
+field marked with an asterisk.
+. Because you selected Single-node, configure the hardware profile:
+.. Expand the *Hardware profile* section.
+.. From the *Hardware profile* list, select an accelerator profile that matches your model,
+for example an NVIDIA A100 80GB profile for models requiring 40-80 GB of GPU memory.
+Any single-GPU NVIDIA profile such as L40S (48 GB) also works for the runnable
+examples in this lab.
+.. In the *Number of GPUs* field, keep the default of `1`.
+. Configure the model location: select your storage type — *S3*, *PVC*, or *OCI image* — and
+enter the connection details, for example the S3 bucket path, region, and data connection.
+. Optional: expand *Advanced routing*. *Default optimized routing* is pre-selected, which
+means the llm-d controller uses built-in defaults. Keep it for this exercise.
+. Click *Create*.
+
+=== Verify
+
+. On the *Models* tab of your project, verify that your deployed model appears in the list
+with a status of *Ready*. Waiting for the model server pods to reach running state might take
+several minutes depending on the model size and cluster resources.
+. After the status changes to *Ready*, click the model name to view deployment details and
+copy the inference endpoint URL from the *Inference endpoint* field. Keep this URL for the
+exercises that follow.
+
+Deploying from the dashboard is one path. The same deployment is fully expressible as a
+manifest, which is what you will do next.
+
+== Exercise 2: Deploy from the CLI with an LLMInferenceService
+
+Under the hood, the wizard creates an `LLMInferenceService` resource. You replace the
+default InferenceService with the `LLMInferenceService` when you enable distributed
+inference with llm-d.
+
+. In your working project, create a file named `sample-llm-inference-service.yaml`:
+
+[source,bash,role="execute",subs="attributes"]
+----
+cat > sample-llm-inference-service.yaml <<'EOF'
+apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  name: sample-llm-inference-service
+spec:
+  replicas: 2
+  model:
+    uri: hf://RedHatAI/Qwen3-8B-FP8-dynamic
+    name: RedHatAI/Qwen3-8B-FP8-dynamic
+  router:
+    route: {}
+    gateway: {}
+    scheduler: {}
+  template:
+    containers:
+      - name: main
+        resources:
+          limits:
+            cpu: '4'
+            memory: 32Gi
+            nvidia.com/gpu: "1"
+          requests:
+            cpu: '2'
+            memory: 16Gi
+            nvidia.com/gpu: "1"
+EOF
+----
+
+* `apiVersion: serving.kserve.io/v1alpha1` *— the llm-d serving API group and version*. The
+`LLMInferenceService` kind extends KServe's model serving with the llm-d distributed
+inference stack.
+* `replicas: 2` *— the number of model replicas*. The scheduler load-balances inference
+requests across them.
+* `model` *— the model location and serving name*. The `uri` accepts `hf://` (HuggingFace),
+`s3://`, `pvc://`, and `oci://` schemes; the `name` is the model name to use in chat
+completion requests.
+* `router` *— routing configuration left blank for auto-creation*. Empty `route`, `gateway`,
+and `scheduler` blocks tell the controller to create the `HTTPRoute`, Gateway references, and
+the inference scheduler automatically.
+* `template.containers.resources` *— per-replica compute*. This single-node example requests
+one GPU per replica; multi-node topologies allocate resources through the topology
+configuration template instead.
+
+. Apply the manifest:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f sample-llm-inference-service.yaml
+----
+
+. Verify that the `LLMInferenceService` was created:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llminferenceservice sample-llm-inference-service
+----
+
+. Verify that the inference service is ready:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llminferenceservice sample-llm-inference-service \
+  -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+----
+
+The output should be `True` when the service is ready.
+
+. Verify the model server pods are running:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -l app.kubernetes.io/name=sample-llm-inference-service
+----
+
+. Get the inference route URL for your deployment:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llmisvc sample-llm-inference-service -o jsonpath='{.status.url}'
+----
+
+[NOTE]
+====
+Platform authentication is enabled automatically for `LLMInferenceService` resources when
+Red Hat Connectivity Link is configured on the cluster. If your workshop cluster does not
+have Connectivity Link configured, disable platform authentication by adding the annotation
+`security.opendatahub.io/enable-auth: "false"` to the metadata section of the manifest
+before applying it.
+====
+
+=== Verify
+
+The `LLMInferenceService` reports `Ready: True`, the model server pods are `Running`, and the
+`status.url` field shows an inference route URL. If the service is stuck in `Pending` or
+`Loading`, check the model server pod logs for model-loading or resource-allocation errors
+and verify your model location credentials.
+
+Your model now serves traffic. The remaining step of the core workflow is talking to it with
+a properly authenticated request.
+
+== Exercise 3: Make authenticated inference requests
+
+When platform authentication is enabled for an `LLMInferenceService`, every inference request
+must include a valid JSON web token (JWT). You can generate a token from a ServiceAccount.
+
+. Create a ServiceAccount that will request the token:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc create serviceaccount llm-user
+----
+
+. Create a Role that grants permission to get the `LLMInferenceService`:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: llm-inference-viewer
+rules:
+- apiGroups: ["serving.kserve.io"]
+  resources: ["llminferenceservices"]
+  verbs: ["get"]
+  resourceNames: ["sample-llm-inference-service"]
+EOF
+----
+
+. Bind the Role to the ServiceAccount:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc create rolebinding llm-user-binding \
+  --role=llm-inference-viewer \
+  --serviceaccount=$(oc project -q):llm-user
+----
+
+. Generate a JWT token from the ServiceAccount:
+
+[source,bash,role="execute",subs="attributes"]
+----
+export TOKEN=$(oc create token llm-user --duration=1h)
+----
+
+The `--duration` flag sets the token validity period. For production use, consider a shorter
+duration or integrating with an OIDC provider.
+
+. Export the endpoint URL and model name, then send an authenticated chat completion request:
+
+[source,bash,role="execute",subs="attributes"]
+----
+export ROUTE_URL=$(oc get llmisvc sample-llm-inference-service -o jsonpath='{.status.url}')
+export MODEL_NAME=RedHatAI/Qwen3-8B-FP8-dynamic
+curl -v $ROUTE_URL/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "model": "'"$MODEL_NAME"'",
+    "messages": [{
+      "role": "user",
+      "content": "What is Red Hat OpenShift AI?"
+    }]
+  }'
+----
+
+A successful response includes a chat completion generated by your model.
+
+. Verify that requests without authentication are rejected:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -v $ROUTE_URL/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "'"$MODEL_NAME"'",
+    "messages": [{
+      "role": "user",
+      "content": "What is Red Hat OpenShift AI?"
+    }]
+  }'
+----
+
+The request returns a `401 Unauthorized` response with a message indicating that
+authentication is required. On a cluster without platform authentication enabled, this
+request instead returns a normal completion — that difference is exactly what the
+`security.opendatahub.io/enable-auth` annotation controls.
+
+=== Verify
+
+The authenticated request returns a chat completion, and the unauthenticated request returns
+`401 Unauthorized` (on clusters with platform authentication enabled). If you receive `404`
+or `503` errors, verify that the model status is *Ready* before sending inference requests
+and confirm that your bearer token has not expired.
+
+You have now completed the core llm-d workflow. The next module builds on it with advanced
+routing and administrator-managed configuration templates.
+
+== Module summary
+
+**What you accomplished:**
+
+* Deployed a model with the llm-d topology selector from the RHOAI dashboard
+* Deployed the same model from the CLI with an `LLMInferenceService` manifest and watched
+the inference stack come up
+* Generated a ServiceAccount token and sent authenticated and unauthenticated inference
+requests
+
+**Key takeaways:**
+
+* The dashboard wizard and a raw `LLMInferenceService` manifest produce the same resource —
+the wizard just templates the YAML for you
+* Empty `router` blocks (`route`, `gateway`, `scheduler`) let the controller auto-create the
+routing stack, which is the fastest path to a working deployment
+* Platform authentication rejects unauthenticated requests with `401` and is controlled by
+the `security.opendatahub.io/enable-auth` annotation
+
+**Next steps:**
+
+In the next module you tune the deployment with advanced routing configurations and manage
+the topology and router templates that control what self-service users can deploy.

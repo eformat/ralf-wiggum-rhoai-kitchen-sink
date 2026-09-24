@@ -1,0 +1,25 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the External metering: per-user token usage and
+cost workshop.
+
+== What you covered
+
+* xref:module-01-getting-started.adoc[Getting Started] — the external-metering IPP plugin and standalone metering service, the MaaS foundation they depend on, and the metering data path from balance check to chargeback report
+* xref:module-02-hands-on.adoc[Hands-on Exercise] — the per-user usage data in the MaaS observability dashboard, and the boundary between showback data and the external metering chargeback path
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/release_notes/developer-preview-features[RHOAI 3.5 release notes — Developer Preview features] — announces *External metering for per-user token usage and cost tracking*: the IPP plugin, CloudEvents, the PostgreSQL-backed metering service, and its dashboard and REST API
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/govern_llm_access_with_models-as-a-service/monitor-models-as-a-service-usage-by-using-the-observability-dashboard[Monitor Models-as-a-Service usage by using the observability dashboard] — the Usage tab, Token Consumption by User table, underlying Prometheus metrics, `captureUser` setting, and the CSV export steps you explored
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/govern_llm_access_with_models-as-a-service/deploy-and-manage-models-as-a-service[Deploy and manage Models-as-a-Service] — the MaaS guide chapter with the deployment verification checks used in Module 01 and the MaaS API reference
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:external-metering-maas::index.adoc[External metering integration for MaaS]
+* xref:maas-loki-showback::index.adoc[Loki-based showback and user-scoped usage dashboards (MaaS)]

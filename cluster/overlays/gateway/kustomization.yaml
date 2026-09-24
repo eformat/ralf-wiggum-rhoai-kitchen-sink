@@ -1,0 +1,21 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Gateway API + Red Hat Connectivity Link (RHCL): cert-manager + RHCL operator
+# subscriptions. The Kuadrant control-plane CR goes in activation/ (its CRD
+# does not exist until the RHCL CSV reaches Succeeded):
+#   oc apply -k cluster/overlays/gateway
+#   # wait: oc get csv -n openshift-operators | grep rhcl
+#   oc apply -k cluster/overlays/gateway/activation
+#
+# Version pins (documented in the top README):
+#   * RHCL >= 1.4.1 (stable channel) — 1.4.0 is deprecated (auth/gateway instability)
+#   * Kuadrant >= 1.4.2 for the maas-multi-tenancy lab
+#
+# Labs mapped here: gateway-api-rhcl, maas-* (via the maas overlay), mcp-gateway-operator.
+resources:
+  - ../../base
+  - cert-manager-namespace.yaml
+  - cert-manager-subscription.yaml
+  - rhcl-operator-subscription.yaml

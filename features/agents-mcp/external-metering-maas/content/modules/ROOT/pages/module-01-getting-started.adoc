@@ -1,0 +1,111 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will tour External metering integration for MaaS: what it does, which
+plugins power it, and how to confirm the MaaS foundation it builds on in your workshop cluster.
+
+**Learning objectives:**
+
+* Explain how external metering connects MaaS inference traffic to a billing system
+* Describe the two Backend-Based Routing (BBR) plugins that capture and enforce token usage
+* Verify the MaaS resources that metering depends on in your cluster
+
+== Exercise 1: Understand the external metering plugins
+
+Models-as-a-Service runs inference behind an API gateway and enforces token quotas through
+the MaaS governance layer. To run MaaS as a commercial AI service, platform operators can
+connect inference traffic to an external metering or billing system by using Backend-Based
+Routing (BBR) plugins. The integration captures per-request token usage and enforces token
+budgets through the external metering system.
+
+The integration includes two BBR plugins:
+
+* *Post-inference token usage webhook* — a BBR response plugin that asynchronously emits a
+structured token usage event to a configured external metering endpoint after each inference
+request. The event payload includes requester identity, subscription, model, input and output
+token counts, request ID, and timestamp. Webhook delivery does not affect inference latency.
+* *Pre-inference credit check* — a BBR request plugin that checks credit availability from
+the external metering system before allowing inference. If credit is exhausted, the next
+request is blocked. This design avoids adding metering system latency to the inference path.
+
+|===
+|Plugin |Plugin type |When it runs |Effect
+
+|Post-inference token usage webhook
+|BBR response plugin
+|After each inference request
+|Emits a token usage event to the external metering endpoint without affecting inference latency
+
+|Pre-inference credit check
+|BBR request plugin
+|Before each inference request
+|Blocks the next request when credit is exhausted
+
+|===
+
+TIP: Both plugins are activated and deactivated per-gateway through configuration, so you
+can enable metering on selected gateways without changing every model deployment.
+
+The plugins work for both internal model inference and external model requests. Failed
+webhook delivery attempts are logged for alerting and recovery.
+
+IMPORTANT: This feature provides raw usage event emission to any HTTP endpoint. Invoice
+generation, cost attribution, and rate calculation are the responsibility of the external
+metering system.
+
+== Exercise 2: Verify the MaaS foundation in your cluster
+
+External metering builds on the MaaS governance layer: published models registered as
+MaaSModelRef resources, subscriptions defined as MaaSSubscription resources, and access
+granted through MaaSAuthPolicy resources. Confirm that this foundation exists before
+exploring metered traffic.
+
+Find all published MaaS models across namespaces:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get maasmodelref --all-namespaces
+----
+
+You should see a MaaSModelRef object for each model that was published with *Publish as
+MaaS*. Published models live in the model's project namespace, not in `models-as-a-service`.
+
+=== Verify
+
+List the subscriptions and authorization policies:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get maassubscription -n models-as-a-service
+oc get maasauthpolicy -n models-as-a-service
+----
+
+Each subscription assigns groups or users to published models with token quota, and each
+authorization policy grants API gateway access to those groups. Both are required for
+metered usage to be attributed correctly: a MaaSAuthPolicy without a corresponding
+MaaSSubscription returns `429 Too Many Requests` because no token quota is defined, and a
+MaaSSubscription without a MaaSAuthPolicy returns `403 Forbidden` because users have no
+gateway access.
+
+NOTE: If your workshop cluster has no published models yet, these commands return empty
+lists. Ask your facilitator whether a demo model, subscription, and policy have been
+pre-created, or continue the tour — the concepts in Module 02 do not depend on the listing.
+
+== Module summary
+
+**What you accomplished:**
+
+* Toured the two BBR plugins that connect MaaS inference traffic to an external metering system
+* Learned what the emitted token usage event contains and how credit enforcement works
+* Verified the MaaS models, subscriptions, and authorization policies that metering depends on
+
+**Key takeaways:**
+
+* External metering captures per-request token usage and enforces token budgets without adding metering latency to the inference path
+* The plugins are activated and deactivated per-gateway through configuration and cover internal and external model requests
+* Metering depends on the MaaS governance layer of MaaSModelRef, MaaSSubscription, and MaaSAuthPolicy resources
+
+**Next steps:**
+
+Continue to Module 02, where you follow a metered request through the gateway and observe
+the quota enforcement layer it works alongside.

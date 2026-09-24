@@ -1,0 +1,49 @@
+= Welcome to the Text-mode training for multimodal models in Training Hub Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop is a guided tour of *Text-mode training for multimodal models in
+Training Hub*: a Developer Preview enhancement that lets Training Hub
+fine-tune multimodal model architectures — vision-language models such as the
+Qwen, Gemma, Nemotron, and Mistral families — by using text datasets. In this
+release, multimodal-capable models can be fine-tuned in text mode only. The
+workflow runs on the Training Hub fine-tuning stack shipped with Kubeflow
+Trainer v2, and this tour follows the *Working with distributed workloads*
+documentation.
+
+**What you will learn:**
+
+* What text-mode training for multimodal models does, which model families it covers, and its Developer Preview scope in RHOAI 3.5
+* How the `training-hub` `ClusterTrainingRuntime` connects `TrainJob` resources to built-in OSFT and SFT fine-tuning algorithms
+* A guided tour of the text-mode fine-tuning workflow: prerequisites, configuration with the Kubeflow SDK, running, observing, and cleanup
+
+== Prerequisites
+
+* RHOAI operator installed
+* Training Hub enabled
+* An OpenShift cluster with RHOAI 3.5 installed
+* The Kubeflow Trainer component enabled in the `DataScienceCluster`, so the pre-built `training-hub` `ClusterTrainingRuntime` is available
+* The JobSet Operator installed from OLM
+* For the hands-on module: a workbench with an RWX-capable PersistentVolumeClaim (such as Red Hat OpenShift Data Foundation) and access to GPU nodes
+* Recommended prerequisite: complete the xref:kubeflow-trainer-v2::index.adoc[Kubeflow Trainer v2] workshop first
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

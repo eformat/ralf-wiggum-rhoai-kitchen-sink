@@ -1,0 +1,44 @@
+= Welcome to the Validated tool-calling configuration in Model Catalog Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete. The dashboard flag, UI panels, and example model
+defaults shown in this workshop may change between releases.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *Validated tool-calling configuration in Model Catalog*.
+The model catalog displays validated vLLM deployment arguments for models with
+confirmed tool-calling support, so you can run a model with tool calling enabled
+the first time, without guessing at runtime arguments.
+
+**What you will learn:**
+
+* What validated tool-calling configuration does and where it fits in RHOAI 3.5
+* How to enable the feature with the `spec.dashboardConfig.toolCalling` flag in the `OdhDashboardConfig` custom resource
+* How to find and copy the exact `vllm serve` arguments from the Validated Arguments section and Tool Calling panel on a model details page
+* How to validate a model's tool-calling accuracy on your own MCP tools with the SDG Hub MCP evaluation pipeline
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI 3.5 installed
+* Cluster administrator access (required to update the `OdhDashboardConfig` custom resource)
+* The model catalog accessible, with the model registry component enabled
+* For Module 02: one or more development or staging MCP servers, and access to an OpenAI API-compatible frontier LLM endpoint for teacher and judge models
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

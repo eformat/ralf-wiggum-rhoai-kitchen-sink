@@ -1,0 +1,296 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you take a guided tour of the text-mode fine-tuning workflow end
+to end: the prerequisites, the fine-tuning job configuration with the OSFT and
+SFT algorithms, running the job from a workbench with the Kubeflow SDK,
+observing its progress, and cleaning up. This feature is a *Developer Preview*
+guided tour — if your workshop cluster has the GPU nodes described in the
+prerequisites, you can run the workflow as written; otherwise, follow along and
+observe.
+
+**Learning objectives:**
+
+* Prepare the prerequisites for a Training Hub fine-tuning job
+* Configure OSFT or SFT training parameters for a multimodal-capable model fine-tuned in text mode
+* Run the job with `TrainingHubTrainer`, follow its logs, verify the result, and clean up
+
+== Exercise 1: Prepare and configure the fine-tuning job
+
+Fine-tuning customizes a large language model (LLM) for a specific task using
+labelled data. The Kubeflow Trainer v2 fine-tuning workflow with Training Hub
+runtimes supports two algorithms:
+
+* *Orthogonal Subspace Fine-Tuning (OSFT)* — enables continual learning of
+  pre-trained or instruction-tuned models without catastrophic forgetting.
+  OSFT does not require a supplementary dataset to maintain the distribution of
+  the original model.
+* *Supervised Fine-Tuning (SFT)* — standard fine-tuning for task adaptation,
+  using PyTorch Fully Sharded Data Parallel (FSDP) to distribute training
+  across multiple GPUs and nodes.
+
+Prerequisites:
+
+* A `training-hub` `ClusterTrainingRuntime` in your cluster (verified in module 01)
+* The JobSet Operator installed from OLM, configured by your cluster administrator
+* A workbench suitable for distributed training, using a storage class with
+  ReadWriteMany (RWX) capability, such as Red Hat OpenShift Data Foundation
+* A RWX PersistentVolumeClaim named `shared` attached to your workbench
+* For the OSFT example: 2 nodes with 1 NVIDIA L40S GPU each (2 GPUs total),
+  4 CPUs and 32 GiB memory per node
+* For the SFT example: 2 nodes with 1 NVIDIA GPU each (Ampere-based or newer
+  recommended), 4 CPUs and 64 GiB memory per node
+
+Confirm the runtime is available from your terminal:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get clustertrainingruntime training-hub
+----
+
+Install the required packages in a notebook cell:
+
+[source,bash,role="execute",subs="attributes"]
+----
+pip install kubeflow --index-url https://console.redhat.com/api/pypi/public-rhai/rhoai/3.2/cuda12.9-ubi9/simple/
+pip install training-hub==0.3.0
+----
+
+In the workbench, open the RHOAI dashboard, click *Projects*, open your
+project, start the workbench, and click *Open* to launch the IDE. Then
+configure the SDK client authentication in a new notebook cell:
+
+[source,python]
+----
+from kubernetes import client as k8s
+from kubeflow.common.types import KubernetesBackendConfig
+from kubeflow.trainer import TrainerClient
+
+api_server = "%api_server%"
+token = "%token%"
+
+configuration = k8s.Configuration()
+configuration.host = api_server
+configuration.api_key = {"authorization": f"Bearer {token}"}
+# Uncomment if your cluster API server uses a self-signed certificate
+# configuration.verify_ssl = False
+
+backend_cfg = KubernetesBackendConfig(client_configuration=configuration)
+client = TrainerClient(backend_cfg)
+----
+
+Get the API server URL and token from your terminal with `oc whoami
+--show-server` and `oc whoami --show-token`, and replace `%api_server%` and
+`%token%` with those values.
+
+Verify that a Training Hub runtime is available:
+
+[source,python]
+----
+for runtime in client.list_runtimes():
+    print("Found runtime: " + str(runtime))
+    if runtime.name == "training-hub":
+        th_runtime = runtime
+        print("Selected runtime: " + str(th_runtime))
+----
+
+Set the training parameters. Because text-mode fine-tuning trains
+multimodal-capable models on text datasets, training data is provided in JSON
+Lines (`.jsonl`) format with a `messages` structure:
+
+[source,json]
+----
+{"messages": [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": "Hello!"}, {"role": "assistant", "content": "Hi there! How can I help you?"}]}
+{"messages": [{"role": "user", "content": "What is OSFT?"}, {"role": "assistant", "content": "OSFT stands for Orthogonal Subspace Fine-Tuning..."}]}
+----
+
+The following example sets the OSFT training parameters:
+
+[source,python]
+----
+params = {
+    # Model + Data Paths
+    "model_path": "Qwen/Qwen2.5-1.5B-Instruct",
+    "data_path": "/mnt/shared/table-gpt-data/train/train_All_5000.jsonl",
+    "ckpt_output_dir": "/mnt/shared/checkpoints-logs-dir",
+    "data_output_path": "/mnt/shared/osft-json/_data",
+    # Training Hyperparameters
+    "unfreeze_rank_ratio": 0.25,
+    "effective_batch_size": 128,
+    "learning_rate": 5.0e-6,
+    "num_epochs": 1,
+    "lr_scheduler": "cosine",
+    "warmup_steps": 0,
+    "seed": 42,
+    # Performance Hyperparameters
+    "use_liger": True,
+    "max_tokens_per_gpu": 64000,
+    "max_seq_len": 8192,
+    # Checkpointing Settings
+    "save_final_checkpoint": True,
+    "checkpoint_at_epoch": False,
+    # Distributed training (delegated to Kubeflow Trainer)
+    "nproc_per_node": 1,
+    "nnodes": 2,
+}
+----
+
+IMPORTANT: Point `model_path` at a multimodal-capable model you want to tune in
+text mode — the RHOAI 3.5 release notes list the Qwen, Gemma, Nemotron, and
+Mistral VLM families as supported for text-mode fine-tuning. The Qwen2.5-1.5B
+path shown is the runnable example from the RHOAI documentation; edit the
+parameters to suit your model, dataset, and resources.
+
+TIP: To run SFT instead, use SFT training parameters with an FSDP
+configuration — for example `"fsdp_options": {"sharding_strategy":
+"FULL_SHARD"}` and `"accelerate_full_state_at_epoch": False`. SFT was validated
+with Qwen2.5 1.5B, 7B, and 14B models on 4x NVIDIA A100/80GB. Save the notebook
+with *File > Save Notebook As* before continuing.
+
+=== Verify
+
+The `list_runtimes()` loop prints `Selected runtime: training-hub`, and
+`oc get clustertrainingruntime training-hub` returns the runtime with an `AGE`
+column value. If the pip installs or the SDK client fail, confirm your
+workbench image has Python 3.9 or later and that your cluster administrator has
+configured RBAC permissions for SDK access to `ClusterTrainingRuntime`
+resources.
+
+With the job configured, run it, watch it work, and then release the resources.
+
+== Exercise 2: Run, observe, and clean up the fine-tuning job
+
+Run the fine-tuning job with `TrainingHubTrainer`, selecting the
+`TrainingHubAlgorithms.OSFT` algorithm and mounting your RWX PVC at
+`/mnt/shared` so the job can read the dataset and write checkpoints:
+
+[source,python]
+----
+from kubeflow.trainer.rhai import TrainingHubAlgorithms, TrainingHubTrainer
+from kubeflow.trainer.options.kubernetes import (
+    ContainerOverride,
+    PodSpecOverride,
+    PodTemplateOverride,
+    PodTemplateOverrides,
+)
+
+PVC_NAME = "shared"
+
+job_name = client.train(
+    trainer=TrainingHubTrainer(
+        algorithm=TrainingHubAlgorithms.OSFT,
+        func_args=params,
+        env={
+            "HF_HOME": "/mnt/shared/huggingface",
+            "TRITON_CACHE_DIR": "/mnt/shared/.triton",
+            "XDG_CACHE_HOME": "/opt/app-root/src/.cache",
+            "NCCL_DEBUG": "INFO",
+        },
+        resources_per_node={
+            "nvidia.com/gpu": 1,
+            "memory": "32Gi",
+            "cpu": 4,
+        },
+    ),
+    options=[
+        PodTemplateOverrides(
+            PodTemplateOverride(
+                target_jobs=["node"],
+                spec=PodSpecOverride(
+                    volumes=[
+                        {
+                            "name": "work",
+                            "persistentVolumeClaim": {"claimName": PVC_NAME},
+                        },
+                    ],
+                    containers=[
+                        ContainerOverride(
+                            name="node",
+                            volume_mounts=[
+                                {"name": "work", "mountPath": "/mnt/shared"},
+                            ],
+                        ),
+                    ],
+                ),
+            )
+        )
+    ],
+    runtime=th_runtime,
+)
+----
+
+Observe the job from your notebook by following its logs:
+
+[source,python]
+----
+for logline in client.get_job_logs(job_name, follow=True):
+    print(logline, end="")
+----
+
+When the run finishes, check the final job status:
+
+[source,python]
+----
+job = client.get_job(job_name)
+print(f"Name: {job.name}")
+print(f"Status: {job.status}")
+print(f"Nodes: {job.num_nodes}")
+print(f"Runtime: {job.runtime.name}")
+----
+
+Observe the same job from the CLI and the console:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get trainjob -n {guid}-{user}
+----
+
+In the OpenShift console Administrator perspective, click *Workloads → Pods*,
+select your project, and verify the requested training node pods ran. Because
+the SDK is used with a RHOAI trainer (`TrainingHubTrainer`), progress tracking
+is enabled by default: navigate to the OpenShift AI dashboard, click *Model
+training*, and real-time progress metrics are displayed for your fine-tuning
+job.
+
+NOTE: While a job is running you can pause training to free cluster resources
+with `oc patch trainjob <job-name> -n {guid}-{user} --type=merge -p '{"spec":
+{"suspend": true}}'` and resume it later with the same command setting
+`suspend: false`. If JIT checkpointing is configured, the training state is
+saved before the pods are terminated and training resumes from the latest
+checkpoint.
+
+When you no longer need the fine-tuning job, delete it to release the
+resources:
+
+[source,python]
+----
+client.delete_job(name=job_name)
+----
+
+=== Verify
+
+After deletion, the `oc get trainjob -n {guid}-{user}` output no longer lists
+the job, and in the console Administrator perspective, *Workloads → Jobs*
+shows the specified job as not listed for your project. The `shared` PVC keeps
+your checkpoints, so you can inspect `ckpt_output_dir` contents in the
+workbench after the run.
+
+== Module summary
+
+**What you accomplished:**
+
+* Prepared the fine-tuning prerequisites and configured OSFT training parameters for a text-mode fine-tuning run
+* Ran the job with `TrainingHubTrainer` on the `training-hub` runtime and followed its logs from the SDK
+* Verified the job from the CLI, console, and dashboard, then deleted the job to release resources
+
+**Key takeaways:**
+
+* Text-mode fine-tuning reuses the Training Hub workflow — the only change is the model family you point `model_path` at
+* `TrainingHubTrainer` handles the algorithm selection, environment, and per-node resources while the runtime handles distributed infrastructure
+* The SDK, CLI, console, and dashboard all expose the same `TrainJob` state, so you can verify a run from wherever you are
+
+**Next steps:**
+
+Delete the job and PVC-attached caches when your GPU quota is shared with other
+workshop users, then continue to the conclusion for the documentation chapters
+behind this workflow.

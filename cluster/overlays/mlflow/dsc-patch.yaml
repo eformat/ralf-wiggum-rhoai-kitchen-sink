@@ -1,0 +1,11 @@
+---
+# Strategic-merge patch enabling the MLflow operator. Defaults to Removed.
+apiVersion: datasciencecluster.opendatahub.io/v2
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+  namespace: redhat-ods-operator
+spec:
+  components:
+    mlflowoperator:
+      managementState: Managed

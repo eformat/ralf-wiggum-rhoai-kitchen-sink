@@ -1,0 +1,230 @@
+= Module 03: Advanced Usage
+:navtitle: Module 03: Advanced Usage
+
+In this module you will extend automated tool-calling evaluation-data generation to your own providers: install the EvalHub agent skills plugin, add agent metadata to a custom evaluation provider, and generate auditable evaluation cards.
+
+**Learning objectives:**
+
+* Install the EvalHub agent skills plugin as a scripted alternative to the MCP server
+* Add an `agent` metadata block to a custom provider so coding agents can discover and recommend it
+* Generate evaluation cards by configuring an MLflow experiment or OCI export
+* Use the `edd_workflow` prompt for evaluation-driven development
+
+== Exercise 1: Install the EvalHub agent skills plugin
+
+Agent skills provide the same discovery and job-management capabilities as the MCP
+server through Python scripts. Use agent skills when MCP is not connected, for CI
+pipelines, or when you need direct REST access through the Python SDK. When both
+MCP and agent skills are available, the skills prefer MCP resources over Python
+scripts.
+
+The plugin provides four skills:
+
+* `evalhub` — full skill for discovery, evaluation, job lifecycle, and
+  evaluation-driven development workflows.
+* `evalhub-discovery` — discovers providers, benchmarks, and collections; reads
+  agent metadata.
+* `evalhub-eval` — submits evaluation jobs against benchmarks or collections.
+* `evalhub-jobs` — monitors, waits on, cancels, and fetches logs for evaluation
+  jobs.
+
+. Set the required environment variables for your EvalHub instance:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export EVALHUB_BASE_URL="https://$(oc get routes evalhub -o jsonpath='{.spec.host}' -n {guid}-evalhub)"
+export EVALHUB_TOKEN="$(oc whoami -t)"
+export EVALHUB_TENANT="{guid}-evalhub"
+----
++
+To skip TLS verification for clusters with self-signed certificates, also set
+`EVALHUB_INSECURE=true`.
+
+[NOTE]
+====
+OpenShift tokens expire. If you receive `401 Unauthorized` errors, refresh your
+token by running `export EVALHUB_TOKEN="$(oc whoami -t)"` and repeat any
+registration command.
+====
+
+. Install the agent skills plugin:
++
+[source,bash,role="execute",subs="attributes"]
+----
+claude plugin install evalhub@evalhub
+----
++
+For local development, clone the repository and run the installation script
+instead. This symlinks all four skills into `~/.claude/skills/` so that changes to
+skill source files are reflected immediately without reinstallation:
++
+[source,bash,role="execute",subs="attributes"]
+----
+git clone https://github.com/eval-hub/eval-hub-skills
+cd eval-hub-skills
+make install-all
+----
+
+=== Verify
+
+Run a discovery command to confirm that agent skills can connect to your EvalHub
+instance:
++
+[source,bash,role="execute",subs="attributes"]
+----
+uv run ~/.claude/skills/evalhub/scripts/evalhub_providers.py --agent 2>/dev/null
+----
++
+The command returns JSON output listing all registered evaluation providers with
+their agent metadata. If the command returns an error, verify that your
+environment variables are set correctly and that you have network access to the
+EvalHub service.
+
+== Exercise 2: Add agent metadata to a custom provider
+
+Agent metadata is optional and backwards-compatible, so a custom provider only
+becomes discoverable by AI agents once you add an `agent` block. Without it, your
+provider is excluded from filtered `discover_providers` results.
+
+. Add an `agent` block to your provider YAML configuration file:
++
+[source,yaml]
+----
+agent:
+  evaluates: [safety, security, red_teaming, toxicity] <1>
+  recommended_when: <2>
+    - "User asks about model safety or toxicity"
+    - "Pre-deployment safety gate"
+  target_type: model <3>
+  summary: "Red-team an LLM for safety vulnerabilities, toxicity, and OWASP risks" <4>
+  complements: [lm_evaluation_harness, guidellm]
+  hints: <5>
+    - "The model endpoint must support OpenAI-compatible chat completions"
+    - "The 'quick' benchmark runs a single DAN probe for fast smoke testing"
+  result_interpretation:
+    - "attack_success_rate measures how often the model was successfully exploited"
+    - "LOWER is better -- 0.0 means no attacks succeeded"
+    - "Scores above 0.3 indicate significant vulnerability"
+----
++
+<1> **evaluates** — semantic tags describing what the provider measures; agents match these against user intent.
+<2> **recommended_when** — natural-language conditions under which an agent should suggest this provider.
+<3> **target_type** — what the provider evaluates: `model` for LLM endpoints, `agent` for AI agents, or `inference_server` for server performance.
+<4> **summary** — concise, action-oriented description with a maximum of 200 characters.
+<5> **hints** — operational guidance for constructing job requests, such as required endpoint formats and fast-run options.
+
+. To update agent metadata on a provider that is already registered, send a PATCH
+request to the provider endpoint:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -X PATCH \
+  -H "Authorization: Bearer $EVALHUB_TOKEN" \
+  -H "X-Tenant: $EVALHUB_TENANT" \
+  -H "Content-Type: application/json" \
+  "$EVALHUB_BASE_URL/api/v1/evaluations/providers/<provider_id>" \
+  -d '[{"op": "replace", "path": "/agent", "value": { "evaluates": ["safety"], "target_type": "model", "summary": "Updated provider description for agents" }}]'
+----
++
+Replace `<provider_id>` with the ID of your custom provider.
+
+=== Verify
+
+Query the provider and confirm that agent metadata appears in the response:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s \
+  -H "Authorization: Bearer $EVALHUB_TOKEN" \
+  -H "X-Tenant: $EVALHUB_TENANT" \
+  "$EVALHUB_BASE_URL/api/v1/evaluations/providers/<provider_id>" \
+  | python3 -m json.tool
+----
++
+The response includes an `agent` object with the metadata fields you defined. If
+you installed agent skills in Exercise 1, the provider also appears in agent
+discovery results from `evalhub_providers.py --agent`.
+
+== Exercise 3: Generate evaluation cards
+
+An evaluation card is a structured JSON document that EvalHub generates when the
+job request includes an MLflow experiment or an OCI export configuration. Each
+card captures what model was tested, which benchmarks and datasets the evaluation
+used, and the results with pass or fail outcomes. No card is generated if neither
+field is specified.
+
+Evaluation cards address three challenges:
+
+* *Reproducibility* — the card records the exact configuration, infrastructure,
+  and framework versions so teams can repeat evaluations with confidence.
+* *Accessibility* — the card consolidates evaluation documentation that otherwise
+  scatters across MLflow logs and code comments.
+* *Governance* — frameworks such as the EU AI Act and FedRAMP require auditable
+  records of AI system evaluations, which the schema-validated card provides.
+
+. Include an `experiment` block in the job submission to generate a card through
+MLflow tracking:
++
+[source,bash,role="execute",subs="attributes"]
+----
+evalhub eval run \
+  --name my-eval \
+  --model-url http://vllm:8000/v1 \
+  --model-name mistral-7b-instruct \
+  --provider garak \
+  -b quick
+----
++
+When you submit through your coding agent instead, the agent includes an
+`experiment` block, such as `"experiment": { "name": "safety-may-2026" }`, in the
+`submit_evaluation` call. EvalHub generates one card per job as a post-processing
+step after it commits the evaluation results.
+
+. Retrieve and interpret the card:
++
+[source,bash,role="execute",subs="attributes"]
+----
+evalhub eval status <job_id> --format=json | jq '.artifacts'
+----
++
+The card schema includes top-level fields, metadata such as `generated_at` and
+`generator` (for example `eval-hub/1.5.0`), an `evaluation_context` section with
+the model name and URL, and per-benchmark results with thresholds.
+
+. Optional: Use the `edd_workflow` prompt for evaluation-driven development (EDD),
+a methodology that integrates evaluation throughout the development lifecycle:
++
+----
+Use the `edd_workflow` prompt for an agent application.
+----
++
+For `agent` applications the prompt returns a define-measure-iterate cycle: define
+task completion criteria and tool use accuracy, measure tool call correctness and
+task success rate, then iterate on agent prompts and guardrails. Supported
+application types are `rag`, `agent`, `safety`, and `classifier`.
+
+=== Verify
+
+`evalhub eval status <job_id> --format=json` shows an artifacts entry with the
+generated evaluation card. The card metadata reports `generated_at` and
+`generator` values. A job submitted without an MLflow experiment or OCI export
+produces no card — confirm the difference by comparing a job that includes the
+`experiment` block with one that omits it.
+
+== Module summary
+
+**What you accomplished:**
+
+* Installed the EvalHub agent skills plugin and verified scripted discovery against your EvalHub instance
+* Added an `agent` metadata block to a custom provider and confirmed it in the provider API response
+* Generated an evaluation card through MLflow experiment configuration and explored the `edd_workflow` prompt
+
+**Key takeaways:**
+
+* Agent skills and the MCP server consume the same agent metadata — the skills prefer MCP resources when both are connected
+* A custom provider without an `agent` block is invisible to filtered `discover_providers` calls
+* Evaluation cards are only generated when the job request includes an MLflow experiment or an OCI export
+
+**Next steps:**
+
+Continue to the conclusion for a recap and links to the source documentation.

@@ -1,0 +1,22 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the View running agent deployments in dashboard workshop.
+
+== What you covered
+
+* xref:module-01-hands-on.adoc[Hands-on Exercise]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/release_notes/index[Release notes — RHOAI 3.5] — "View running agent deployments in the dashboard" under Developer Preview features, and the secure agent sandboxing (OpenShell) preview
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/managing_resources/index[Managing resources — RHOAI 3.5] — dashboard feature configuration options, including the `agentOps` flag in the `OdhDashboardConfig` custom resource
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:genai-studio-saved-agent::index.adoc[Gen AI Studio saved-agent configuration]
+* xref:openshell-agent-sandboxing::index.adoc[OpenShell (secure agent sandboxing and policy enforcement)]

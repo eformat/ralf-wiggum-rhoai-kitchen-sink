@@ -1,0 +1,24 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the Claude Code agent starter kit workshop.
+
+== What you covered
+
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5[RHOAI 3.5 documentation]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/release_notes/developer_preview_features[Claude Code agent starter kit — RHOAI 3.5 Release Notes, Developer Preview features]
+* RHOAI MCP Catalog and MCP Gateway documentation (for the MCP-gateway routing alternative to ConfigMap-based MCP configuration)
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:openclaw-starter-kit::index.adoc[OpenClaw agent starter kit]
+* xref:ogx-agentic-api::index.adoc[OGX-native agentic API surface (Tool Runtime, Responses, Conversations)]

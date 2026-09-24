@@ -1,0 +1,172 @@
+= Module 01: Core Concepts
+:navtitle: Module 01: Core Concepts
+
+In this module you will learn how the Model Catalog and the Model Registry fit
+into the Red Hat OpenShift AI model lifecycle, and how to enable and verify the
+`modelregistry` component that backs both features.
+
+**Learning objectives:**
+
+* Explain the difference between the Model Catalog and the Model Registry and where each fits in the model lifecycle
+* Enable the `modelregistry` component in the DataScienceCluster (DSC) resource
+* Verify the model registry operator and namespace from the CLI and the console
+
+== Exercise 1: Where the catalog and the registry fit
+
+The model catalog and the model registry are two complementary views of the
+same model lifecycle:
+
+* The **model catalog** is a curated library where data scientists and AI
+  engineers discover and evaluate the generative AI (gen AI) models that are
+  available to their organization before registering and deploying them.
+  Third-party models are benchmarked by Red Hat for performance and quality
+  using open-source evaluation datasets, and Red Hat AI models include
+  pre-computed safety and security evaluation results covering risk vectors
+  such as prompt injection, jailbreak resistance, and harmful content
+  generation.
+* The **model registry** is a central repository where administrators, data
+  scientists, and AI engineers register, version, and manage the lifecycle of
+  AI/ML models before configuring them for deployment. It stores metadata
+  ranging from high-level details (project, deployment environment) to
+  specifics (training hyperparameters, performance metrics, deployment
+  events), and acts as the bridge between model experimentation and serving —
+  a key component for AI model governance.
+
+The lifecycle you follow in this workshop is:
+
+----
+discover in the catalog → register in the registry → version → deploy
+----
+
+. Open {openshift_console_url} and launch the Red Hat OpenShift AI dashboard.
+. Click *AI hub → Models → Catalog* to browse the model catalog.
+. Click *AI hub → Registry* to open the model registry page.
+
+|===
+|Capability |Model Catalog |Model Registry
+
+|Audience
+|Data scientists and AI engineers
+|Administrators, data scientists, and AI engineers
+
+|Purpose
+|Discover and evaluate gen AI models
+|Register, version, and manage the model lifecycle
+
+|Content
+|Provider models with performance benchmarks and safety evaluation data
+|Model metadata, versions, artifacts, and deployments
+
+|Console path
+|*AI hub → Models → Catalog*
+|*AI hub → Registry*
+
+|Who governs it
+|Administrators manage catalog sources and model visibility
+|Administrators create registries and grant access
+|===
+
+=== Verify
+
+You can open both the catalog and the registry pages in the dashboard without
+errors. The catalog shows a high-level view of available models; the registry
+page shows a *Model registry* drop-down list.
+
+With the feature landscape in place, enable the component that backs both
+features.
+
+== Exercise 2: Enable and verify the modelregistry component
+
+The `modelregistry` component is enabled by default in a new OpenShift AI 3.5
+installation. However, if the model registry was not enabled in a previous
+version of OpenShift AI, you must enable it after upgrading to 3.5. These
+steps require cluster administrator privileges.
+
+. Log in to your OpenShift cluster and list the DataScienceCluster resources:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get datasciencecluster
+----
++
+Expected output shows the default instance, for example `default-dsc`.
+
+. In the OpenShift console, go to *Ecosystem → Installed Operators* (on
+OpenShift 4.19 or earlier, *Operators → Installed Operators*), open the *Red
+Hat OpenShift AI Operator*, click the *Data Science Cluster* tab, and open the
+default instance (for example, `default-dsc`). Click the *YAML* tab.
+
+. Find the `spec.components` section and add or update the `modelregistry`
+entry so that `managementState` is `Managed` and `registriesNamespace` is
+`rhoai-model-registries`:
++
+[source,yaml]
+----
+apiVersion: datasciencecluster.opendatahub.io/v1
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+spec:
+  components:
+    modelregistry: <1>
+      managementState: Managed <2>
+      registriesNamespace: rhoai-model-registries <3>
+----
+<1> *`modelregistry`* — the component that provisions the model registry operator and the model catalog server.
+<2> *`managementState: Managed`* — enables the component; set `Removed` to disable it.
+<3> *`registriesNamespace`* — the namespace where registry resources and RBAC live; the documentation uses `rhoai-model-registries`.
+
+. Click *Save*.
+
+=== Verify
+
+. Confirm that the model registry namespace was created:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get namespace rhoai-model-registries
+----
++
+Expected output shows the namespace with `STATUS: Active`. In the console, you
+can confirm the same under *Home → Projects*.
+
+. Check that the model registry operator deployment is available in the
+`redhat-ods-applications` namespace:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get deployments -n redhat-ods-applications | grep model-registry-operator
+----
++
+Expected output shows the `model-registry-operator-controller-manager`
+deployment. In the console (*Workloads → Deployments* in the
+`redhat-ods-applications` project), confirm that the
+`model-registry-operator-controller-manager-<pod-id>` pod status is `Running`.
+
+. Confirm the component reports as managed in the DSC:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get datasciencecluster default-dsc -o jsonpath='{.spec.components.modelregistry.managementState}'
+----
++
+The expected output is `Managed`.
+
+== Module summary
+
+**What you accomplished:**
+
+* Located the Model Catalog and Model Registry pages in the RHOAI dashboard
+* Enabled the `modelregistry` component in the DataScienceCluster with `registriesNamespace: rhoai-model-registries`
+* Verified the registry namespace, the operator deployment, and the component state from the CLI
+
+**Key takeaways:**
+
+* The model catalog is where you discover and evaluate models; the model registry is where you register and version them
+* The `modelregistry` component is enabled by default in new 3.5 installs but must be enabled after upgrades from older versions
+* Registry resources and RBAC live in the `rhoai-model-registries` namespace; the operator runs in `redhat-ods-applications`
+
+**Next steps:**
+
+Continue to the hands-on module, where you create a model registry, grant
+access to it, and register your first model.

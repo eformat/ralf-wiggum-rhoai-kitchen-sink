@@ -1,0 +1,45 @@
+= Welcome to the OpenClaw agent starter kit Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces the *OpenClaw agent starter kit* — a Developer Preview
+feature that lets you deploy and manage OpenClaw, an open-source general-purpose
+agent, on Red Hat OpenShift AI using validated Kustomize manifests and an
+automated installer that manages runtime concerns and optimizes workspace
+persistence.
+
+**What you will learn:**
+
+* What OpenClaw is and what the starter kit provides in RHOAI 3.5
+* The two deployment options: validated Kustomize manifests or the automated OpenClaw installer
+* How the agent connects to self-hosted models through vLLM via the OGX inference gateway with an OpenAI-compatible API
+* What the diagnostics-otel plugin captures in MLflow: model calls, tool executions, and context assembly spans
+* How browser-based access control is enforced with the OAuth proxy backed by OpenShift RBAC
+* How the kit maintains workspace storage across pod restarts and runs under the restricted-v2 SCC
+* How to validate your environment with the included model compatibility matrix and troubleshooting guide
+
+== Prerequisites
+
+* RHOAI operator installed
+* An OpenShift cluster with RHOAI 3.5 installed
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

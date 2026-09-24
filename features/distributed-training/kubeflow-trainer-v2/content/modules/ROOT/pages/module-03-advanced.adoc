@@ -1,0 +1,483 @@
+= Module 03: Advanced Usage
+:navtitle: Module 03: Advanced Usage
+
+In this module you will go beyond the pre-built runtimes: you will create a
+custom namespace-scoped `TrainingRuntime`, submit a `TrainJob` programmatically
+with the Kubeflow Python SDK including JIT checkpointing, and fine-tune an LLM
+with Training Hub algorithms (OSFT and SFT).
+
+**Learning objectives:**
+
+* Create a custom `TrainingRuntime` with a project-specific container image and resources
+* Submit and monitor a `TrainJob` with the Kubeflow SDK from a workbench
+* Configure JIT checkpointing with a PVC and fine-tune LLMs using OSFT and SFT
+
+== Exercise 1: Create a custom TrainingRuntime
+
+A `TrainingRuntime` is namespace-scoped, so a project administrator can create
+one when a pre-built `ClusterTrainingRuntime` does not fit. It is useful when
+you need to use a custom container image with additional libraries
+pre-installed, set custom environment variables for all training pods, define
+default resource requests and limits for your project, or configure custom
+volume mounts or init containers.
+
+NOTE: For most use cases the pre-built `ClusterTrainingRuntime` resources are
+sufficient. Create a custom `TrainingRuntime` only when you need
+project-specific configuration that cannot be overridden in the `TrainJob`
+resource.
+
+Create the runtime in the OpenShift console:
+
+. Log in to the OpenShift Console.
+. In the Administrator perspective, click *Home → Search*.
+. From the Project list, select your project.
+. Click the Resources list, and in the search field, type `TrainingRuntime`.
+. Select `TrainingRuntime`, and click *Create TrainingRuntime*. The Create
+  TrainingRuntime page opens with default YAML automatically added.
+. Replace the default YAML with a custom runtime definition:
+. Click *Create*.
+
+The following example creates a `custom-torch-runtime` with a custom container
+image, a custom environment variable, and default resource configuration:
+
+[source,yaml,subs="attributes,callouts"]
+----
+apiVersion: trainer.kubeflow.org/v1alpha1
+kind: TrainingRuntime <1>
+metadata:
+  name: custom-torch-runtime
+  namespace: {guid}-{user}
+spec:
+  mlPolicy:
+    torch:
+      numProcPerNode: auto
+  template:
+    spec:
+      replicatedJobs:
+      - name: Node
+        template:
+          spec:
+            template:
+              spec:
+                containers:
+                - name: trainer
+                  image: registry.redhat.io/rhoai/odh-training-cuda128-torch28-py312-rhel9:v3.0 <2>
+                  env:
+                  - name: MASTER_ADDR
+                    value: "$(JOB_NAME)-node-0-0.$(JOB_NAME)"
+                  - name: MASTER_PORT
+                    value: "29500"
+                  - name: MY_CUSTOM_ENV_VAR
+                    value: "my-custom-value" <3>
+                  command:
+                  - torchrun
+                  resources: <4>
+                    requests:
+                      cpu: "4"
+                      memory: "16Gi"
+                    limits:
+                      cpu: "4"
+                      memory: "16Gi"
+----
+<1> **`kind: TrainingRuntime`** — namespace-scoped; only projects in this namespace can reference it.
+<2> **`image`** — a custom container image with your libraries pre-installed.
+<3> **`MY_CUSTOM_ENV_VAR`** — custom environment variables applied to all training pods using this runtime.
+<4> **`resources`** — project-specific default requests and limits baked into the runtime.
+
+IMPORTANT: A `TrainJob` that references a custom runtime must be created in the
+same namespace as the `TrainingRuntime`.
+
+=== Verify
+
+Using the CLI:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get trainingruntime -n {guid}-{user}
+----
+
+`custom-torch-runtime` appears in the list. In the console, *Home → Search* with
+the `TrainingRuntime` resource type selected also lists it.
+
+With a custom runtime in place, switch to programmatic submission with the
+Kubeflow SDK.
+
+== Exercise 2: Submit a TrainJob by using the Kubeflow SDK
+
+The Kubeflow Python SDK provides a higher-level interface that creates the
+`TrainJob` resource, configures the distributed training environment, and sets
+up communication between nodes — all from an OpenShift AI workbench. When you
+use the SDK with the RHOAI trainers (`TransformersTrainer` or
+`TrainingHubTrainer`), progress tracking and JIT checkpointing are enabled by
+default.
+
+Prerequisites:
+
+* An OpenShift AI workbench with Python 3.9 or later
+* RBAC permissions for SDK access to `ClusterTrainingRuntime` resources, configured by your cluster administrator
+
+Install the Kubeflow SDK in a notebook cell:
+
+[source,bash,role="execute",subs="attributes"]
+----
+pip install kubeflow --index-url https://console.redhat.com/api/pypi/public-rhai/rhoai/3.2/cuda12.9-ubi9/simple/
+----
+
+Verify the installation:
+
+[source,bash,role="execute",subs="attributes"]
+----
+pip show kubeflow
+----
+
+.Example output
+----
+Name: kubeflow
+Version: 0.2.1+rhai0
+----
+
+Get your cluster credentials:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc whoami --show-server
+oc whoami --show-token
+----
+
+In your workbench, define your training function, configure authentication, and
+submit the training job:
+
+[source,python,subs="attributes"]
+----
+from kubernetes import client
+from kubeflow.trainer import TrainerClient
+from kubeflow.trainer.rhai import TransformersTrainer
+from kubeflow.common.types import KubernetesBackendConfig
+
+# Define your training function
+def train_func():
+    from transformers import (
+        AutoModelForSequenceClassification,
+        AutoTokenizer,
+        Trainer,
+        TrainingArguments,
+    )
+    from datasets import load_dataset
+
+    model = AutoModelForSequenceClassification.from_pretrained(
+        "bert-base-uncased", num_labels=2
+    )
+    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    dataset = load_dataset("imdb", split="train[:1000]")
+
+    def tokenize_function(examples):
+        return tokenizer(
+            examples["text"], padding="max_length", truncation=True, max_length=512
+        )
+
+    tokenized_dataset = dataset.map(tokenize_function, batched=True)
+    training_args = TrainingArguments(
+        output_dir="/tmp/output",
+        num_train_epochs=3,
+        per_device_train_batch_size=8,
+    )
+    trainer = Trainer(
+        model=model, args=training_args, train_dataset=tokenized_dataset
+    )
+    trainer.train()
+
+# Configure authentication for the workbench
+api_server = "{openshift_api_url}"
+token = "%token%"
+
+configuration = client.Configuration()
+configuration.host = api_server
+configuration.api_key = {"authorization": "Bearer " + token}
+# Uncomment the following line if your cluster uses a self-signed certificate
+# configuration.verify_ssl = False
+
+# Create the client with authentication
+trainer_client = TrainerClient(
+    backend_config=KubernetesBackendConfig(client_configuration=configuration)
+)
+
+# Create the trainer configuration
+trainer = TransformersTrainer(
+    func=train_func,
+    num_nodes=2,
+    resources_per_node={"nvidia.com/gpu": 1},
+)
+
+# Get the runtime and submit the training job
+runtime = trainer_client.backend.get_runtime("torch-distributed")
+job_name = trainer_client.train(trainer=trainer, runtime=runtime)
+print("Job " + job_name + " submitted!")
+----
+
+The `TransformersTrainer` parameters are:
+
+[cols="2,1,3"]
+|===
+|Parameter |Type |Description
+
+|`func`
+|Callable
+|The Python function containing your training code
+
+|`num_nodes`
+|int
+|Number of distributed training nodes (default: 1)
+
+|`resources_per_node`
+|dict
+|Resource requests per node, for example `"nvidia.com/gpu": 1`, `"memory": "16Gi"`
+|===
+
+To enable JIT checkpointing with persistent storage, use the `pvc://` URI scheme
+in the `output_dir` parameter. The SDK automatically mounts the PVC on all
+training pods:
+
+[source,python]
+----
+trainer = TransformersTrainer(
+    func=train_func,
+    num_nodes=2,
+    resources_per_node={"nvidia.com/gpu": 1},
+    output_dir="pvc://training-checkpoints/checkpoints",
+)
+----
+
+NOTE: Your project must have a PersistentVolumeClaim (PVC) with ReadWriteMany
+(RWX) access mode. When JIT checkpointing is configured and pods receive a
+termination signal (SIGTERM), the trainer automatically saves a checkpoint, and
+training resumes from the latest checkpoint when the job restarts.
+
+[TIP]
+====
+S3-compatible object storage (AWS S3, MinIO, Ceph RGW, IBM Cloud Object Storage)
+is the second documented checkpoint backend. Create an *S3-compatible object
+storage* data connection in your project (*Connections* tab), then point the
+trainer at it with `output_dir="s3://my-bucket/llama3-fine-tune"` and
+`data_connection_name="<connection-name>"` on the `TransformersTrainer`. The SDK
+reads the S3 credentials from the connection's Kubernetes secret and exposes them
+as environment variables to the training pods — no credentials in `env`. This
+flow uses a local-first architecture: checkpoints are saved to a local `emptyDir`
+staging volume first, then uploaded to S3 in the background without blocking GPU
+training. See "Configure model checkpointing" in the RHOAI 3.5 documentation.
+====
+
+Progress tracking is enabled by default with RHOAI trainers. To disable it, set
+`enable_progression_tracking=False` on the `TransformersTrainer`.
+
+=== Verify
+
+Check the job status from the SDK:
+
+[source,python]
+----
+job = trainer_client.get_job(job_name)
+print("Status: " + str(job.status))
+----
+
+Then confirm the training pods are running from the CLI:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n {guid}-{user} -l job-name=<job-name>
+----
+
+(Optional) Open the OpenShift AI dashboard and click *TrainingJobs* to see the
+real-time progress metrics for your training job.
+
+With the SDK workflow proven, apply it to LLM fine-tuning with Training Hub.
+
+== Exercise 3: Fine-tune an LLM by using Training Hub
+
+Fine-tuning customizes a large language model (LLM) for a specific task using
+labelled data. RHOAI supports two fine-tuning algorithms through Training Hub
+runtimes:
+
+* *Orthogonal Subspace Fine-Tuning (OSFT)* — enables continual learning of
+  pre-trained or instruction-tuned models without catastrophic forgetting. OSFT
+  does not require a supplementary dataset to maintain the distribution of the
+  original model.
+* *Supervised Fine-Tuning (SFT)* — standard fine-tuning for task adaptation
+  using PyTorch Fully Sharded Data Parallel (FSDP) to distribute training across
+  multiple GPUs and nodes.
+
+Prerequisites:
+
+* A training-hub `ClusterTrainingRuntime` in your cluster. To verify, run `oc get clustertrainingruntime training-hub`.
+* A workbench suitable for distributed training with a storage class that supports ReadWriteMany (RWX) PVC provisioning, such as OpenShift Data Foundation
+* For the OSFT example: 2 nodes with 1 NVIDIA L40S GPU each (2 GPUs total), 4 CPUs and 32 GiB memory per node
+
+Install the required packages in a notebook cell:
+
+[source,bash,role="execute",subs="attributes"]
+----
+pip install kubeflow --index-url https://console.redhat.com/api/pypi/public-rhai/rhoai/3.2/cuda12.9-ubi9/simple/
+pip install training-hub==0.3.0
+----
+
+Configure the SDK client (the same authentication pattern as Exercise 2), then
+verify that a Training Hub runtime is available:
+
+[source,python]
+----
+for runtime in client.list_runtimes():
+    print("Found runtime: " + str(runtime))
+    if runtime.name == "training-hub":
+        th_runtime = runtime
+        print("Selected runtime: " + str(th_runtime))
+----
+
+Set the OSFT training parameters. Training Hub algorithms accept training data
+in JSON Lines (`.jsonl`) format with a `messages` structure:
+
+----
+{"messages": [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": "Hello!"}, {"role": "assistant", "content": "Hi there! How can I help you?"}]}
+{"messages": [{"role": "user", "content": "What is OSFT?"}, {"role": "assistant", "content": "OSFT stands for Orthogonal Subspace Fine-Tuning..."}]}
+----
+
+[source,python]
+----
+params = {
+    # Model + Data Paths
+    "model_path": "Qwen/Qwen2.5-1.5B-Instruct",
+    "data_path": "/mnt/shared/table-gpt-data/train/train_All_5000.jsonl",
+    "ckpt_output_dir": "/mnt/shared/checkpoints-logs-dir",
+    "data_output_path": "/mnt/shared/osft-json/_data",
+    # Training Hyperparameters
+    "unfreeze_rank_ratio": 0.25,  # OSFT-specific: controls the subspace dimension
+    "effective_batch_size": 128,
+    "learning_rate": 5.0e-6,
+    "num_epochs": 1,
+    "lr_scheduler": "cosine",
+    "warmup_steps": 0,
+    "seed": 42,
+    # Performance Hyperparameters
+    "use_liger": True,  # OSFT-specific: enables Liger kernel optimization
+    "max_tokens_per_gpu": 64000,
+    "max_seq_len": 8192,
+    # Checkpointing Settings
+    "save_final_checkpoint": True,
+    "checkpoint_at_epoch": False,
+    # Distributed training (delegated to Kubeflow Trainer)
+    "nproc_per_node": 2,
+    "nnodes": 2,
+}
+----
+
+Edit the parameters to suit your model, dataset, and resources. Then run the
+fine-tuning job with `TrainingHubTrainer`, mounting your RWX PVC at
+`/mnt/shared` so the job can read the dataset and write checkpoints:
+
+[source,python]
+----
+from kubeflow.trainer.rhai import TrainingHubAlgorithms, TrainingHubTrainer
+from kubeflow.trainer.options.kubernetes import (
+    ContainerOverride,
+    PodSpecOverride,
+    PodTemplateOverride,
+    PodTemplateOverrides,
+)
+
+PVC_NAME = "shared"
+
+job_name = client.train(
+    trainer=TrainingHubTrainer(
+        algorithm=TrainingHubAlgorithms.OSFT,
+        func_args=params,
+        env={
+            "HF_HOME": "/mnt/shared/huggingface",
+            "TRITON_CACHE_DIR": "/mnt/shared/.triton",
+            "XDG_CACHE_HOME": "/opt/app-root/src/.cache",
+            "NCCL_DEBUG": "INFO",
+        },
+        resources_per_node={
+            "nvidia.com/gpu": 1,
+            "memory": "32Gi",
+            "cpu": 4,
+        },
+    ),
+    options=[
+        PodTemplateOverrides(
+            PodTemplateOverride(
+                target_jobs=["node"],
+                spec=PodSpecOverride(
+                    volumes=[
+                        {
+                            "name": "work",
+                            "persistentVolumeClaim": {"claimName": PVC_NAME},
+                        },
+                    ],
+                    containers=[
+                        ContainerOverride(
+                            name="node",
+                            volume_mounts=[
+                                {"name": "work", "mountPath": "/mnt/shared"},
+                            ],
+                        ),
+                    ],
+                ),
+            )
+        )
+    ],
+    runtime=th_runtime,
+)
+----
+
+TIP: To run SFT instead, set `algorithm=TrainingHubAlgorithms.SFT` and use SFT
+training parameters with FSDP configuration
+(`"fsdp_options": {"sharding_strategy": "FULL_SHARD"}`). SFT was validated with
+Qwen2.5 1.5B, 7B, and 14B models on 4x NVIDIA A100/80GB. If you use AMD
+accelerators, change `nvidia.com/gpu` to `amd.com/gpu` in
+`resources_per_node`. If you use a gated Hugging Face model, add
+`"HF_TOKEN": "<your-token>"` to the `env` dictionary.
+
+When you no longer need the fine-tuning job, delete it to release the resources
+with `client.delete_job(name=job_name)`.
+
+=== Verify
+
+Follow the job logs from your notebook:
+
+[source,python]
+----
+for logline in client.get_job_logs(job_name, follow=True):
+    print(logline, end="")
+----
+
+Then check the final job status:
+
+[source,python]
+----
+job = client.get_job(job_name)
+print("Name: " + str(job.name))
+print("Status: " + str(job.status))
+print("Nodes: " + str(job.num_nodes))
+print("Runtime: " + str(job.runtime.name))
+----
+
+In the OpenShift console, Administrator perspective, click *Workloads → Jobs*,
+select your project, and confirm the job no longer appears after deletion.
+
+== Module summary
+
+**What you accomplished:**
+
+* Created a custom namespace-scoped TrainingRuntime with a custom image, env vars, and resources
+* Submitted a distributed TrainJob programmatically with the Kubeflow SDK and reviewed JIT checkpointing
+* Configured and ran an OSFT fine-tuning job with a Training Hub runtime and RWX storage
+
+**Key takeaways:**
+
+* Namespace-scoped TrainingRuntimes let projects bake in custom images, env vars, and resource defaults
+* The Kubeflow SDK turns a plain Python training function into a distributed TrainJob with progress tracking and JIT checkpointing by default
+* Training Hub runtimes expose OSFT and SFT fine-tuning algorithms driven by a parameter dictionary
+
+**Next steps:**
+
+Review the full example TrainJob resources and fine-tuning notebooks in the
+Kubeflow Trainer v2 chapter of the RHOAI 3.5 documentation, then continue to the
+conclusion.

@@ -1,0 +1,210 @@
+= Module 03: Topology Templates, Routers, and P/D Disaggregation
+:navtitle: Module 03: Advanced Usage
+
+In this module you will work with the admin side of the llm-d feature: the topology
+selector wizard and its `LLMInferenceServiceConfig` templates, router configurations
+with `baseRefs` merge behavior, and the disaggregated prefill/decode topology.
+
+**Learning objectives:**
+
+* Enable the topology selector and follow the topology template walkthrough in the llmd-core workshop
+* Follow the router template and `baseRefs` merge walkthrough in the llmd-core workshop
+* Deploy a disaggregated prefill/decode workload with the `prefill` spec section
+
+[IMPORTANT]
+====
+The LLM deployment topology selector wizard is a *Technology Preview* feature in RHOAI
+3.5. The `LLMInferenceService` and `LLMInferenceServiceConfig` APIs themselves are GA;
+only the dashboard wizard and its template management pages are preview.
+====
+
+== Exercise 1: Topology configuration templates (admin)
+
+Non-single-node topologies are disabled in the wizard until an administrator creates the
+required templates. The wizard is gated behind the `llmdTemplates` feature flag.
+
+. As a cluster administrator, enable the `llmdTemplates` feature flag in the
+`OdhDashboardConfig` resource, following the documented OdhDashboardConfig
+patch pattern:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch odhdashboardconfig odh-dashboard-config -n redhat-ods-applications \
+  --type merge \
+  -p '{"spec":{"dashboardConfig":{"llmdTemplates":true}}}'
+----
+
+[NOTE]
+====
+The docs name the `llmdTemplates` flag as a prerequisite but do not show its
+YAML layout — the `spec.dashboardConfig` merge-patch pattern above is the one
+documented for other dashboard feature flags, such as `llmGatewayField`.
+Confirm the exact flag key against the live console before patching:
+`oc get odhdashboardconfig odh-dashboard-config -n redhat-ods-applications -o yaml`.
+====
+
+. Then create the topology configuration itself by following
+xref:llmd-core:ROOT:module-03-advanced.adoc[Manage topology and router configuration
+templates] in the llmd-core workshop: open *Settings* → *llm-d topology configurations*,
+click *Add*, pick the *Multi-node data-parallel* topology type, choose *Start from
+sample*, name the configuration, and click *Create*. That walkthrough also covers the
+action menu for editing, duplicating, and deleting existing templates.
+
+. Verify the two settings that drive wizard discovery — the `opendatahub.io/config-type`
+label matches your topology (`workload-multi-node-data-parallel` for this exercise), and
+the `spec.workers` replica and resource settings match your cluster capacity. For
+prefill/decode topologies, `spec.scheduler.replicas` must be `1` or greater — the
+scheduler is required for KV-cache-aware request routing.
+
+[WARNING]
+====
+Never set `spec.baseRefs` on an `LLMInferenceServiceConfig` — the KServe webhook rejects
+it with `baseRefs field is forbidden in LLMInferenceServiceConfig`. Only
+`LLMInferenceService` resources can include `baseRefs`.
+====
+
+=== Verify
+
+* Your new configuration appears on the *llm-d topology configurations* page.
+* In *Data Science Projects* → your project → *Deploy model*, the *Multi-node
+data-parallel* topology radio button is now enabled instead of grayed out.
+* The single-node topology has a built-in default (`single-node-default`) and is always
+available.
+
+With templates in place, add the optional router layer that the wizard exposes.
+
+== Exercise 2: Router configurations and baseRefs merge behavior (admin)
+
+Router `LLMInferenceServiceConfig` templates are optional enhancements — KV-cache-aware
+scheduling, intelligent gateway routing, circuit breaking. A router template carries the
+`opendatahub.io/config-type: router` label plus an `opendatahub.io/supported-topologies`
+annotation (a JSON array of topology strings); the wizard only offers it under *Advanced
+routing* for the topologies it lists.
+
+The full walkthrough is in the llmd-core workshop — follow
+xref:llmd-core:ROOT:module-03-advanced.adoc[Module 03: Advanced Usage] to create the
+KV-cache-aware router template with its inline `prefix-cache-scorer`/`queue-scorer` plugin
+chain, deploy a model with it from the wizard's *Advanced routing* section, and verify the
+merge order: the generated `LLMInferenceService` `spec.baseRefs` array lists the topology
+preset (`kserve-system` namespace) first and your selected router second, so your router
+settings override preset defaults.
+
+=== Verify
+
+* Selecting a topology in your router's annotation shows it in the *Router configuration*
+list; selecting an incompatible topology hides it.
+* The generated `LLMInferenceService` `spec.baseRefs` array includes the topology preset
+config (`kserve-system` namespace) followed by your selected router configuration.
+* Test requests to the deployed model still return `200` (Module 02, Exercise 2 pattern).
+
+Router templates solved routing; the `prefill` stanza changes the workload shape itself.
+
+== Exercise 3: Disaggregated prefill/decode topology (optional)
+
+Disaggregated serving separates prompt processing (prefill, compute-intensive) from token
+generation (decode, memory-intensive) into specialized replica sets. It requires
+RDMA-capable networking (InfiniBand or RoCE v2) — NIXL KV cache transfers between pods
+need RDMA even when both pods run on the same node.
+
+[NOTE]
+====
+You do not need to configure the scheduler manually for disaggregated deployments. When
+`spec.prefill` is present, the controller automatically applies a disaggregated scheduler
+configuration with separate prefill and decode profiles — and you *cannot* override it
+with inline or ConfigMap-based scheduler settings.
+====
+
+. Create a file named `disaggregated-llm.yaml`:
+
+[source,yaml,subs="attributes,callouts"]
+----
+apiVersion: serving.kserve.io/v1alpha2
+kind: LLMInferenceService
+metadata:
+  name: <llm-service-name>
+  namespace: {guid}-{user}
+spec:
+  model:
+    uri: hf://<model-uri>
+    name: <model-name>
+  prefill:
+    minReplicas: 2
+    maxReplicas: 4
+    resources:
+      requests:
+        nvidia.com/gpu: "1"
+        cpu: "4"
+        memory: "16Gi"
+      limits:
+        nvidia.com/gpu: "1"
+        cpu: "8"
+        memory: "32Gi"
+  resources:
+    requests:
+      nvidia.com/gpu: "1"
+      cpu: "2"
+      memory: "32Gi"
+    limits:
+      nvidia.com/gpu: "1"
+      cpu: "4"
+      memory: "64Gi"
+----
+
+*`spec.prefill`*:: Its presence alone activates the disaggregated prefill/decode topology; the Operator processes these values into preset templates.
+
+*`spec.prefill.resources`*:: Prefill pods — allocate more CPU and compute-optimized GPUs for prompt processing.
+
+*`spec.resources`*:: Decode pods (the default replica set) — allocate more memory and memory-optimized GPUs for token generation.
+
+. Apply the configuration and check that both replica sets start:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f disaggregated-llm.yaml
+oc get pods -n {guid}-{user} | grep <llm-service-name>
+----
+
+=== Verify
+
+Verify that the disaggregated topology is active — the Operator normalizes
+`spec.prefill` to an empty presence marker after processing your configuration:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llminferenceservice <llm-service-name> -n {guid}-{user} -o jsonpath={.spec.prefill}
+----
+
+Expected output: `{}` — an empty object confirms disaggregated mode is enabled.
+
+Confirm the scheduler picked up the separate profiles (the EPP pod follows the pattern
+`<service-name>-kserve-router-scheduler<random-suffix>`):
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n {guid}-{user} | grep router-scheduler
+oc logs <epp-pod-name> -n {guid}-{user} | grep -i "profile\|disagg"
+----
+
+The EPP pod logs show initialization messages for the disaggregated profile handler and
+separate prefill/decode scheduler profiles.
+
+If you have not completed the xref:llmd-core::index.adoc[Distributed Inference with llm-d (core)] workshop, the summary below covers what you need.
+
+== Module summary
+
+**What you accomplished:**
+
+* Enabled the topology selector with the `llmdTemplates` flag and followed the llmd-core topology template walkthrough
+* Followed the llmd-core router template and `baseRefs` merge walkthrough
+* Deployed a disaggregated prefill/decode workload and confirmed the automatic scheduler profiles
+
+**Key takeaways:**
+
+* Topology and router `LLMInferenceServiceConfig` templates are admin-controlled; their labels and annotations are what the wizard filters on
+* In a generated `LLMInferenceService`, `baseRefs` merges the topology preset first and your selected router second
+* The `prefill` stanza switches on disaggregated serving, with scheduler profiles the controller configures and locks automatically
+
+**Next steps:**
+
+Wrap up with a recap of the workshop and pointers to the source documentation in the
+conclusion.

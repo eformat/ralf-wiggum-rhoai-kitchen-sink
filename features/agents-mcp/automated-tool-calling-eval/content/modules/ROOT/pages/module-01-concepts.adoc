@@ -1,0 +1,170 @@
+= Module 01: Core Concepts
+:navtitle: Module 01: Core Concepts
+
+In this module you will understand how the EvalHub MCP server turns automated tool-calling into evaluation-data generation for custom MCP servers, and how AI coding agents discover, execute, and interpret evaluations in Red Hat OpenShift AI.
+
+**Learning objectives:**
+
+* Explain the EvalHub evaluation orchestration architecture: providers, benchmarks, collections, and jobs
+* Describe the four MCP surfaces that an agent consumes: tools, resources, prompts, and agent skills
+* Inspect the EvalHub and MCP server resources that the TrustyAI Operator manages in your cluster
+
+== Exercise 1: Where automated tool-calling evaluation fits
+
+EvalHub is an evaluation orchestration service for large language models (LLMs) on
+OpenShift AI. It exposes a versioned REST API for submitting evaluation jobs, managing
+benchmark providers, and tracking results through MLflow. The *EvalHub MCP server*
+makes that same API available to AI coding agents through the Model Context Protocol
+(MCP): instead of you writing REST calls, your agent calls MCP tools to discover
+providers, submit evaluations, and interpret results — automatically generating
+evaluation data as it works.
+
+EvalHub consists of three components:
+
+* *EvalHub Server* — a REST API service that handles evaluation workflows, job
+  orchestration, and provider management, with PostgreSQL storage.
+* *EvalHub SDK and CLI* — a Python client library and the `evalhub` command-line
+  tool for submitting evaluations and building framework adapters.
+* *Providers* — evaluation framework adapters such as `lm_evaluation_harness`,
+  `garak`, `guidellm`, and `lighteval`, packaged as UBI9 container images in
+  cluster mode.
+
+The concepts that matter for tool-calling evaluations:
+
+* *Providers* represent an evaluation framework. Each provider includes a set of
+  benchmarks and is read-only when built in.
+* *Benchmarks* are specific evaluation tasks, for example `mmlu`, `hellaswag`,
+  `arc_challenge`, and `gsm8k`, each with a category such as math, reasoning,
+  safety, or code.
+* *Collections* group benchmarks from one or more providers into a reusable suite,
+  for example `safety-and-fairness-v1`.
+* *Pass criteria and thresholds* are resolved at three levels, most specific first:
+  benchmark level, then collection level, then provider level.
+* *Evaluation jobs* progress through the states `pending`, `running`, `completed`,
+  `failed`, `cancelled`, or `partially_failed`.
+
+The MCP server exposes four surfaces to an agent:
+
+* *Tools* — callable functions: `discover_providers`, `submit_evaluation`,
+  `get_job_status`, and `cancel_job`.
+* *Resources* — read-only data browsed through `evalhub://` URIs, such as
+  `evalhub://providers` and `evalhub://jobs/<job_id>`.
+* *Prompts* — guided workflow templates: `evaluate_model`, `compare_runs`, and
+  `edd_workflow` for evaluation-driven development.
+* *Agent skills* — a Python-script plugin that provides the same discovery and
+  job-management capabilities when MCP is not connected, useful for CI pipelines.
+
+The agent works with structured *agent metadata* embedded on providers, benchmarks,
+and collections. Metadata is optional and backwards-compatible: built-in providers
+include it by default, and custom providers add it to make their evaluations
+discoverable. An agent follows a three-step workflow:
+
+* *Discover* — match user intent to `evaluates` tags and `recommended_when`
+  conditions. Asking "Is my model safe for production?" matches providers where
+  `evaluates` includes `safety`.
+* *Execute* — read `hints` before submitting a job, such as required endpoint
+  formats and expected benchmark duration.
+* *Interpret* — use `result_interpretation` guidance and benchmark `score_ranges`
+  to explain what the scores mean, for example that an `attack_success_rate` of
+  `0.15` is acceptable because scores above `0.3` indicate significant vulnerability.
+
+The MCP server supports two transport modes:
+
+* `stdio` — JSON-RPC over standard input and output; use when the MCP client
+  launches the server as a local child process, such as in Claude Code or VS Code.
+* `http` — Streamable HTTP; use when the server runs remotely or when multiple
+  clients share a single server instance. The server exposes a health endpoint at
+  `GET /health`.
+
+This workshop uses the `http` transport so that your coding agent connects to the
+MCP server running on the cluster.
+
+=== Verify
+
+You can name the four MCP tool names, the three agent workflow steps, and the two
+transport modes without looking back.
+
+== Exercise 2: Inspect the cluster
+
+An administrator deploys EvalHub through the TrustyAI Operator as part of OpenShift
+AI, so the feature appears in the cluster as an `EvalHub` custom resource with a
+matching pod and route. Inspect the resources that back this workshop:
+
+. Confirm the `EvalHub` custom resource exists in the EvalHub namespace.
+If no `EvalHub` instance is deployed yet, create one (the TrustyAI operator
+reconciles it into the matching pod and route):
++
+[source,bash,role="execute",subs="attributes"]
+----
+EVALHUB_NS={guid}-evalhub
+oc new-project $EVALHUB_NS --skip-config-write 2>/dev/null || true
+cat <<EOF | oc apply -n $EVALHUB_NS -f -
+apiVersion: trustyai.opendatahub.io/v1
+kind: EvalHub
+metadata:
+  name: evalhub
+spec:
+  replicas: 1
+  database:
+    type: postgresql
+    secret: evalhub-db-credentials
+  providers:
+    - lm-evaluation-harness
+    - garak
+  mcp:
+    enabled: true
+    transport: http
+    port: 3001
+EOF
+oc get evalhub -n $EVALHUB_NS
+----
++
+Expected output lists the `evalhub` instance with an `AGE` value.
+
+. List the EvalHub pods and show each container's readiness. The MCP server runs
+as a container alongside the EvalHub server when `spec.mcp.enabled` is `true`:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n $EVALHUB_NS -l app=eval-hub -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .status.containerStatuses[*]}{.name}={.ready}{" "}{end}{"\n"}{end}'
+----
++
+Expected output shows a `Running` pod with its containers set to `true`, including
+an `mcp` container:
+----
+evalhub-7b9f4c6d88-x2k4p  server=true mcp=true
+----
+
+. Check the routes that expose the EvalHub REST API and the MCP server:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get routes -n $EVALHUB_NS
+----
++
+Expected output shows `evalhub` and `evalhub-mcp` routes.
+
+=== Verify
+
+The `oc get evalhub` command lists a resource, the EvalHub pod reports its
+containers ready, and both the `evalhub` and `evalhub-mcp` routes exist. If the
+`EvalHub` resource is missing, the TrustyAI Operator has not deployed the feature
+yet and you cannot continue to the hands-on module — ask your facilitator.
+
+== Module summary
+
+**What you accomplished:**
+
+* Mapped the EvalHub architecture — server, SDK and CLI, and provider adapters — and how the MCP server exposes it to coding agents
+* Identified the MCP tools, resources, prompts, and agent skills an agent consumes during tool-calling evaluations
+* Inspected the `EvalHub` custom resource, its pod containers, and its routes in your cluster
+
+**Key takeaways:**
+
+* Agent metadata on providers, benchmarks, and collections lets an agent discover, execute, and interpret evaluations without hard-coded provider lists
+* The MCP server runs as a container beside the EvalHub server and is exposed through its own route
+* Job state transitions (`pending` to `running` to `completed`) are the backbone of every tool-calling evaluation
+
+**Next steps:**
+
+In the next module you will connect an AI coding agent to the EvalHub MCP server and generate evaluation data through real tool calls.

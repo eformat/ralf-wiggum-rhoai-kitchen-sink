@@ -1,0 +1,292 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will grant user groups access to your published model with
+MaaS governance custom resources, then call the model end to end through the
+MaaS gateway with an OpenAI-compatible API key.
+
+**Learning objectives:**
+
+* Grant model access with `MaaSSubscription` and `MaaSAuthPolicy` custom resources
+* Generate an MaaS API key bound to your subscription
+* Call the model through the MaaS gateway with body-based routing and verify token rate limits
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: This feature is a *Technology Preview*. APIs and manifests shown
+here may change between releases.
+endif::[]
+
+IMPORTANT: Both a `MaaSSubscription` and a `MaaSAuthPolicy` are required for
+each model to be accessible through MaaS. A policy without a subscription
+yields `429 Too Many Requests` (no token quota); a subscription without a
+policy yields `403 Forbidden` (no gateway access).
+
+== Exercise 1: Grant access with a subscription and authorization policy
+
+In this exercise you create the governance custom resources that make your
+Module 01 model reachable through the MaaS gateway.
+
+. If you have not completed the MaaS core workshop, create the governance
+resources directly (the manifests below match the annotated manifests in
+xref:maas-core:ROOT:module-03-advanced.adoc[Module 03: Apply governance by
+YAML] with these workshop values). The Module 01 wizard-published model is
+`maas-llmd-demo`; on a CPU-only cluster use the published
+`granite-vllm-maas`:
++
+[source,bash,role="execute"]
+----
+cat > maas-subscription.yaml <<EOF
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSSubscription
+metadata:
+  name: workshop-models-subscription
+  namespace: models-as-a-service
+spec:
+  owner:
+    groups:
+      - name: workshop-users
+  tokenMetadata:
+    costCenter: na
+    organizationId: na
+  modelRefs:
+    - name: maas-llmd-demo
+      namespace: {guid}-{user}
+      tokenRateLimits:
+        - limit: 10000
+          window: 1m
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSAuthPolicy
+metadata:
+  name: workshop-models-access
+  namespace: models-as-a-service
+spec:
+  subjects:
+    groups:
+      - name: workshop-users
+  modelRefs:
+    - name: maas-llmd-demo
+      namespace: {guid}-{user}
+EOF
+oc apply -f maas-subscription.yaml
+----
+
+=== Verify
+
+. Verify that all three MaaS resources exist:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get maasmodelref -n {guid}-{user}
+oc get maassubscription -n models-as-a-service
+oc get maasauthpolicy -n models-as-a-service
+----
+
+You should see the `MaaSModelRef` from Module 01 plus your new subscription
+and authorization policy.
+
+. Verify that the MaaS controller generated the gateway authentication and
+rate-limit policies for the model:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get authpolicy -n {guid}-{user}
+oc get tokenratelimitpolicy -n {guid}-{user}
+----
+
+Each model should have a corresponding `AuthPolicy` and
+`TokenRateLimitPolicy` created by the controller. If these policies are
+missing, check the MaaS controller logs for errors:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc logs -n redhat-ai-gateway-infra -l app=maas-controller --tail=50
+----
+
+NOTE: The default MaaS infrastructure namespace in RHOAI 3.5 is
+`redhat-ai-gateway-infra`. To determine the infrastructure namespace for your
+deployment, run `oc get maastenantconfig default-tenant -n models-as-a-service
+-o jsonpath='{.status.infraNamespace}'`.
+
+With access granted, you can now call the model through the MaaS gateway.
+
+== Exercise 2: Call the model through the MaaS gateway
+
+In this exercise you consume your llm-d-served model through the MaaS gateway
+using the OpenAI-compatible API.
+
+. In the OpenShift AI dashboard, click *Gen AI studio* → *AI asset endpoints*.
+
+. On the *Models* tab, locate your `maas-llmd-demo` model and click *View* in
+the *Endpoints* column.
+
+. In the *Endpoints* dialog, verify that the model displays a *Model as a
+Service* badge at the top. Copy the external API endpoint URL and store it
+securely.
+
+. Under the *Authentication* section, select your subscription from the
+*Subscription* dropdown, then click *Generate API key*. Copy the generated API
+key immediately and store it securely.
+
+IMPORTANT: The temporary API key is displayed only once and expires after 1
+hour. Keys generated from the *Endpoints* dialog are scoped to the selected
+subscription. To create API keys with custom expiration dates, navigate to
+*Gen AI studio* → *API keys*.
+
+. In your terminal, set your API key and the gateway URL as environment
+variables:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+export MAAS_API_KEY="<your_api_key>"
+export MAAS_URL="https://maas.{openshift_cluster_ingress_domain}"
+----
+
+TIP: To derive the gateway URL at runtime instead of hardcoding the domain,
+use `export MAAS_URL="maas.$(oc get ingresses.config.openshift.io cluster -o
+jsonpath='{.spec.domain}')"`. A successful gateway URL looks like
+`https://maas.apps.cluster.example.com`.
+
+. List the models available to your API key:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -X GET "${MAAS_URL}/v1/models" \
+  -H "Authorization: Bearer ${MAAS_API_KEY}"
+----
+
+Example response in OpenAI-compatible format:
+
+----
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "maas-llmd-demo",
+      "object": "model",
+      "created": 1758520800,
+      "owned_by": "llm",
+      "ready": true
+    }
+  ]
+}
+----
+
+. Call the model using body-based routing on the standard
+`/v1/chat/completions` endpoint. The `model` field in the request body
+determines which model receives the request:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -X POST "${MAAS_URL}/v1/chat/completions" \
+  -H "Authorization: Bearer ${MAAS_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"maas-llmd-demo","messages":[{"role":"user","content":"Explain quantum computing in simple terms."}],"max_tokens":150,"temperature":0.7}'
+----
+
+Example response:
+
+----
+{
+  "id": "chatcmpl-abc123",
+  "object": "chat.completion",
+  "created": 1758520800,
+  "model": "maas-llmd-demo",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Quantum computing is a type of computing that uses quantum mechanics..."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 12,
+    "completion_tokens": 45,
+    "total_tokens": 57
+  }
+}
+----
+
+. Optional: test legacy path-based routing, which uses a per-model URL path and
+is supported for backwards compatibility with existing integrations:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -X POST "${MAAS_URL}/llm/maas-llmd-demo/v1/chat/completions" \
+  -H "Authorization: Bearer ${MAAS_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"maas-llmd-demo","messages":[{"role":"user","content":"test"}],"max_tokens":10}'
+----
+
+. Optional: test that token rate limits are enforced by sending rapid requests
+to the endpoint:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+for i in $(seq 1 20); do
+  curl -s -o /dev/null -w "%{http_code}\n" \
+    -H "Authorization: Bearer ${MAAS_API_KEY}" \
+    "${MAAS_URL}/llm/maas-llmd-demo/v1/chat/completions" \
+    -H "Content-Type: application/json" \
+    -d '{"model":"maas-llmd-demo","messages":[{"role":"user","content":"test"}],"max_tokens":50}'
+done | sort | uniq -c
+----
+
+The output should include a mix of `200` and `429` status codes, confirming
+that the subscription token limits from Exercise 1 are enforced. If your
+subscription has high token limits, this test may not trigger rate limiting;
+in that case verify that the `TokenRateLimitPolicy` exists for the model.
+
+=== Verify
+
+* The `/v1/models` response includes `maas-llmd-demo`
+* Chat completion requests return responses in the OpenAI-compatible JSON format
+* Rapid requests return a mix of `200` and `429` codes when the token limit is low
+* A request with an invalid API key returns `401 Unauthorized` or `403 Forbidden`:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -o /dev/null -w "%{http_code}\n" \
+  -H "Authorization: Bearer invalid-key" \
+  -H "Content-Type: application/json" \
+  -X POST "${MAAS_URL}/llm/maas-llmd-demo/v1/chat/completions" \
+  -d '{"model":"maas-llmd-demo","messages":[{"role":"user","content":"test"}],"max_tokens":10}'
+----
+
+TIP: If you receive `401 Unauthorized`, verify that your API key is valid and
+has not been revoked. If you receive `429 Too Many Requests` during normal
+use, your subscription token limit has been reached; wait for the token limit
+window to reset.
+
+You have served a model through the llm-d distributed inference path and
+governed it end to end with MaaS.
+
+== Module summary
+
+**What you accomplished:**
+
+* Created a MaaSSubscription and MaaSAuthPolicy to grant workshop groups token quota and gateway access
+* Generated a subscription-scoped API key from the AI asset endpoints dialog
+* Called the llm-d-served model through the MaaS gateway with body-based routing and tested rate limiting
+
+**Key takeaways:**
+
+* Subscriptions and authorization policies work together: subscription for quota, policy for gateway access
+* Body-based routing on `/v1/chat/completions` gives drop-in compatibility with any OpenAI-compatible SDK
+* Token rate limits from the subscription are enforced by the `TokenRateLimitPolicy` at the gateway
+
+**Next steps:**
+
+Continue to the conclusion for links to the full RHOAI 3.5 documentation on
+MaaS governance and distributed inference with llm-d.

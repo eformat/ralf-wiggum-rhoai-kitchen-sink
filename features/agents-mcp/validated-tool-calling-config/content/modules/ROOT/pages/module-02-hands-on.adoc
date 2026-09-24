@@ -1,0 +1,257 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will validate a model's tool-calling accuracy end to end:
+generate tool-calling evaluation benchmark data from your own MCP servers with
+the SDG Hub evaluation pipeline, then score candidate models against those
+benchmarks before deploying to production.
+
+**Learning objectives:**
+
+* Generate verified question-answer-tool-call triplets from custom MCP servers
+* Evaluate candidate models against the generated benchmarks with LLM-as-judge and trace metrics
+* Tune the quality validation settings and interpret the scoring dimensions
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: This feature is a *Technology Preview*. The example directory layout,
+notebook names, configuration dictionaries, and default teacher/judge model
+names shown here may change between releases.
+endif::[]
+
+WARNING: The evaluation pipeline actively invokes tools on your MCP servers
+during exploration, not just reading their schemas. Tools with side effects can
+modify data or system state.
+
+IMPORTANT: Always run the evaluation pipeline against development or staging
+MCP servers before using it against production systems, and use dedicated test
+data so that pipeline-generated tool calls do not affect real business data.
+
+== How the pipeline validates tool calling
+
+The SDG Hub MCP evaluation pipeline operates in four stages:
+
+* *MCP exploration* — connects to your MCP servers, lists tools, discovers
+schemas, and invokes tools with a frontier LLM to capture real behavioral
+patterns, including tool dependencies.
+* *Question generation* — generates evaluation questions at configurable
+complexity levels. The `num_samples` value controls how many tools each
+scenario must use: `2` simple, `4` moderate, `8` complex tool-chaining.
+* *Ground truth generation* — executes the expected tool-call sequence for each
+question and records verified expert tool traces and answers.
+* *Quality validation* — a two-tier approach combining programmatic trace
+metrics for objective tool-call correctness with LLM-as-judge scoring. Examples
+failing quality thresholds are filtered out automatically.
+
+The same LangGraph agent is used for data generation and evaluation; during
+evaluation the underlying LLM is swapped to the candidate model while the full
+agent stack stays identical, so scores reflect the candidate model's
+tool-calling accuracy in isolation.
+
+== Exercise 1: Generate tool-calling evaluation benchmarks from your MCP servers
+
+Prerequisites: the SDG Hub library is installed (`pip install sdg-hub`; default
+RHOAI workbench images are pre-configured to use the Red Hat Python index), one
+or more custom MCP servers are accessible, and you have an OpenAI
+API-compatible frontier LLM endpoint with its API key.
+
+. Clone the SDG Hub repository and navigate to the MCP evaluation example
+directory, then install the example requirements:
++
+[source,bash,role="execute"]
+----
+git clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
+cd sdg_hub/examples/agentic/mcp_distillation_evaluation
+pip install -r requirements.txt
+----
+
+. Create a `.env` file with your frontier LLM credentials (add `.env` to your
+`.gitignore` — never commit it):
++
+[source,bash]
+----
+OPENAI_API_KEY=<your_api_key>
+TEACHER_MODEL=openai/gpt-5.2
+JUDGE_MODEL=openai/gpt-4o
+----
+where:
++
+* *OPENAI_API_KEY* — API key for the frontier LLM endpoint used by both the teacher and judge models.
+* *TEACHER_MODEL* — frontier model used for question generation and ground truth creation.
+* *JUDGE_MODEL* — model used for LLM-as-judge quality scoring during evaluation.
+
+. Start your MCP servers and verify they are healthy. By default the example
+servers start on ports 8001 through 8006; if you use your own servers, update
+`MCP_SERVERS` in the generation notebook:
++
+[source,bash,role="execute"]
+----
+bash start_servers.sh
+bash start_servers.sh --check
+----
++
+The `--check` output displays the status of each server. All servers must be
+running before proceeding.
+
+. Deploy LangGraph agents connected to each MCP server and verify them. One
+agent is deployed per server on ports 2024 through 2029 by default:
++
+[source,bash,role="execute"]
+----
+bash start_agents.sh
+bash start_agents.sh --check
+----
++
+The `--check` output shows the status of each agent. All agents must be in a
+running state before proceeding.
+
+. Open the `generate.ipynb` notebook and configure the dictionaries to match
+your MCP server deployment:
++
+[source,python,subs="attributes"]
+----
+MCP_SERVERS = {"my_server": "http://localhost:8001"}
+AGENT_URLS = {"my_server": "http://localhost:2024"}
+SERVER_DESCRIPTIONS = {"my_server": "Workshop demo ticketing service"}
+NUM_SAMPLES_LEVELS = [2, 4, 8]
+----
++
+* *MCP_SERVERS* — maps server names to MCP server streamable HTTP URLs.
+* *AGENT_URLS* — maps server names to LangGraph agent URLs.
+* *SERVER_DESCRIPTIONS* — natural language descriptions the pipeline uses to generate contextually relevant questions.
+* *NUM_SAMPLES_LEVELS* — complexity levels; a server with fewer tools than a level value skips that level.
+
+. Run all cells in `generate.ipynb` to execute the four-stage pipeline.
+
+=== Verify
+
+Confirm the benchmark file exists and contains well-formed records for each
+server:
++
+[source,bash,role="execute"]
+----
+wc -l benchmark_tasks.jsonl
+head -1 benchmark_tasks.jsonl | python3 -m json.tool
+----
++
+`wc -l` reports one line per generated task (the exact count depends on your
+servers and `NUM_SAMPLES_LEVELS`), and each record contains the `server`,
+`question`, `expert_answer`, `expert_tools`, `expert_tool_trace`,
+`question_quality_rating`, and `completeness_rating` fields.
+
+Benchmarks in hand, you can now score candidate models against them.
+
+== Exercise 2: Evaluate candidate models and tune quality validation
+
+. Open the `evaluate.ipynb` notebook and configure the `MODEL_CONFIGS`
+dictionary with the candidate models to score:
++
+[source,python,subs="attributes"]
+----
+MODEL_CONFIGS = {
+    "<model_name_1>": {
+        "api_base": "<model_endpoint_url_1>",
+        "api_key": "<model_api_key_1>"
+    },
+    "<model_name_2>": {
+        "api_base": "<model_endpoint_url_2>",
+        "api_key": "<model_api_key_2>"
+    }
+}
+----
+where:
++
+* *model_name_1, model_name_2* — name of each candidate model.
+* *model_endpoint_url_1, model_endpoint_url_2* — OpenAI API-compatible endpoint URL for each model.
+* *model_api_key_1, model_api_key_2* — API key for each model endpoint.
++
+Each candidate is scored through the same LangGraph agent harness used for data
+generation; the underlying LLM is swapped while the agent stack stays identical.
+
+. Run the evaluation notebook cells. The evaluation produces per-server scores,
+the six LLM-as-judge dimension scores, the four programmatic trace metrics, and
+overall model rankings based on composite scores across all servers.
+
+. Set the judge model and check that the judge temperature stays at `0.0` (the
+default) for deterministic, reproducible scoring:
++
+[source,bash,role="execute"]
+----
+export JUDGE_MODEL="openai/gpt-4o"
+----
++
+Compatible alternative judge models include `openai/gpt-5.2` and
+`openai/gpt-5-mini`; the `openai/` prefix is required for all model names.
+
+. Review the scores to identify specific weaknesses. Low
+`task_fulfillment` or `grounding` means answers are incomplete or not grounded
+in tool output; low `tool_appropriateness` or `parameter_accuracy` means the
+model selects wrong tools or passes wrong parameters; low
+`dependency_awareness` or `parallelism_and_efficiency` means the model does not
+plan tool-call sequences effectively.
+
+NOTE: Evaluation results are cached in the `evaluation_results.jsonl` file and
+reused across runs; the cache is automatically invalidated when
+`benchmark_tasks.jsonl` changes. To force re-evaluation of all models, delete
+`evaluation_results.jsonl` before re-running the notebook — expect additional
+LLM inference cost and time.
+
+=== Verify
+
+. Confirm every configured model has scores in the results file:
++
+[source,bash,role="execute"]
+----
+grep -c "<model_name>" evaluation_results.jsonl
+----
++
+Replace `<model_name>` with each candidate model name; the count must be
+non-zero for every model.
+
+. Check the evaluation results summary for `ZERO_JUDGE` and `ZERO_METRICS`
+failure indicators. These constants mark tasks where a model produced no valid
+response; a high proportion of zero-value results for a model suggests it
+cannot handle the tool-calling tasks.
+
+. Check the four programmatic trace metrics for objective tool-calling
+failures:
+
+[cols="1,2",options="header"]
+|===
+|Metric |What a low score indicates
+
+|tool_recall
+|The model missed required tools.
+
+|tool_precision
+|The model called unnecessary tools.
+
+|order_match
+|The model called tools in the wrong sequence.
+
+|param_match
+|The model passed incorrect parameters.
+|===
+
+Every model now has scores across all servers, and you can rank candidates by
+their tool-calling accuracy on your own tool ecosystem.
+
+== Module summary
+
+**What you accomplished:**
+
+* Generated tool-calling evaluation benchmarks from your MCP servers with the SDG Hub evaluation pipeline
+* Scored candidate models against the benchmarks with LLM-as-judge and trace metrics
+* Verified the benchmark and results files and interpreted the scoring dimensions
+
+**Key takeaways:**
+
+* Verified question-answer-tool-call triplets ground tool-calling evaluation in your real tool ecosystem
+* Two-tier quality validation combines objective trace metrics with LLM-as-judge scoring across six dimensions
+* Model swapping inside an identical agent harness isolates a candidate model's tool-calling accuracy
+
+**Next steps:**
+
+Use the rankings to select the model whose validated tool-calling arguments you
+found in Module 01, then register and deploy it from the model catalog. When
+your MCP servers or tools change, regenerate the benchmarks to re-validate
+before promoting a model to production.

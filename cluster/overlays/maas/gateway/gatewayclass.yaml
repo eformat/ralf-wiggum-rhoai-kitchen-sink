@@ -1,0 +1,10 @@
+---
+# The default GatewayClass (OpenShift Gateway API controller) the maas-default-gateway
+# uses. Present on OCP 4.19+ by default; declared here so the maas overlay is
+# self-contained.
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: openshift-default
+spec:
+  controllerName: "openshift.io/gateway-controller/v1"

@@ -1,0 +1,229 @@
+= Module 01: Guided tour of the MCP Catalog administrative interface
+:navtitle: Module 01: Guided tour of the MCP Catalog administrative interface
+
+In this module you take a guided tour of the *MCP Catalog administrative interface*, a
+Developer Preview feature in RHOAI 3.5. You confirm your cluster is ready for MCP catalog
+administration, tour the dashboard Settings page where MCP catalog source entries live,
+and walk through the YAML-based add, edit, and remove workflows.
+
+**Learning objectives:**
+
+* Explain what the MCP Catalog administrative interface does and who can use it
+* Verify that the MCP Lifecycle Operator and the `mcpCatalog` dashboard feature flag are enabled
+* Tour the Settings page workflow for adding, editing, and removing MCP catalog entries
+* Contrast the interface with the ConfigMap-based approach it replaces
+
+[NOTE]
+====
+This feature is a *Developer Preview*: it is provided as-is with no support and no
+guarantee of future availability. The Settings page layout and dialog fields may change
+between releases, so treat exact labels as indicative rather than definitive.
+====
+
+== Before you start: what the administrative interface is
+
+The MCP Catalog administrative interface lets OpenShift AI administrators manage
+Model Context Protocol (MCP) *catalog source configurations* directly from the
+Settings page of the dashboard. From this single interface you can add, edit, and
+remove MCP server catalog entries using YAML-based creation — eliminating the need to
+manually edit Kubernetes `ConfigMap` resources.
+
+Three properties define the interface:
+
+* *Administrator-only.* Access to these catalog management operations is restricted
+  strictly to OpenShift AI administrators; regular users see the resulting catalog
+  entries but cannot change them.
+* *YAML-based.* Entries are authored as YAML in the dashboard, in the same style as
+  the Model Catalog administrative interface — the two experiences are deliberately
+  aligned, so skills transfer between them.
+* *Catalog-wide.* Entries you manage here feed the AI Hub MCP Catalog
+  (*AI hub* → *MCP servers*), the discovery surface that developers browse when
+  deploying MCP servers to their namespaces.
+
+Before the interface is useful, two pieces must already be in place on the cluster: the
+MCP Lifecycle Operator (the deploy runtime behind the catalog) and the `mcpCatalog`
+dashboard feature flag. You verify both next.
+
+== Exercise 1: Verify your cluster is ready
+
+In this exercise you confirm that your cluster meets the workshop prerequisites: RHOAI
+3.5 installed, the MCP Lifecycle Operator enabled, and the MCP Catalog dashboard flag on.
+These are observe steps — you run read-only commands and check the output.
+
+. Confirm that the `DataScienceCluster` object exists and note its name:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get datasciencecluster
+----
++
+You should see one `DataScienceCluster` object, typically named `default-dsc`.
+
+. Confirm that the MCP Lifecycle Operator is reported as installed. Replace
+`default-dsc` with your object name if different:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get datasciencecluster default-dsc \
+  -o jsonpath='{.status.installedComponents.mcplifecycleoperator}'
+----
++
+The expected output is `true`.
+
+. Confirm that the `mcpCatalog` dashboard feature flag is enabled. This is the flag
+that surfaces MCP catalog features in the dashboard:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get odhdashboardconfig odh-dashboard-config -n redhat-ods-applications \
+  -o jsonpath='{.spec.dashboardConfig.mcpCatalog}'
+----
++
+The expected output is `true`.
+
+=== Verify
+
+All three commands succeed and the two jsonpath checks return `true`. If the
+`mcpCatalog` flag is missing or `false`, your facilitator must enable it first:
+
+[source,bash]
+----
+oc patch datasciencecluster default-dsc --type=merge \
+  -p '{"spec":{"components":{"mcplifecycleoperator":{"managementState":"Managed"}}}}'
+oc patch odhdashboardconfig odh-dashboard-config -n redhat-ods-applications \
+  --type=merge -p '{"spec":{"dashboardConfig":{"mcpCatalog":true}}}'
+----
+
+[NOTE]
+====
+The enablement steps are walked through hands-on in the *MCP Catalog support-tier
+labeling* workshop in this catalog. If the `mcplifecycleoperator` jsonpath check
+returns `false`, complete that workshop's Exercise 1 before continuing here.
+====
+
+With the cluster confirmed ready, you can open the dashboard and tour the interface itself.
+
+== Exercise 2: Tour the Settings page
+
+In this exercise you explore where MCP catalog source management lives in the dashboard.
+This is a guided tour: you observe the screen, its list of entries, and the access
+controls around it.
+
+. Open the Red Hat OpenShift AI dashboard and navigate to the *Settings* page. MCP
+catalog source management sits in the Settings area, mirroring the Model Catalog
+administrative interface, which lives under *Settings* → *Model resources and
+operations* → *Model catalog settings*.
+
+// TODO: capture screenshot
+image::01-mcp-catalog-settings.png[Settings page in the RHOAI dashboard showing MCP catalog source management,link=self,window=blank,width=700]
+
+. Observe the list of configured MCP catalog source entries. Each entry represents a
+catalog source whose MCP servers appear in the AI Hub MCP Catalog; the list also shows
+the status of each source.
+. Confirm the access boundary: if you are logged in as a regular (non-administrator)
+user, the catalog management controls are not available — these operations are
+restricted strictly to OpenShift AI administrators.
+. Optional: contrast this with the *Model catalog settings* screen in the same
+Settings area. The two administrative interfaces follow the same UX, so the add,
+edit, and remove patterns you learn here apply to model catalog sources too.
+
+[NOTE]
+====
+Because this is a Developer Preview, the exact submenu label for the MCP catalog
+settings entry may differ between releases. If you cannot find it under the Settings
+page, check the RHOAI 3.5 release notes linked from the conclusion for the current
+location.
+====
+
+Now that you know where the interface lives, walk through the entry lifecycle it provides.
+
+== Exercise 3: Add, edit, and remove an MCP catalog entry
+
+In this exercise you walk through the YAML-based creation workflow that the interface
+provides, and see how it replaces the old ConfigMap-driven approach.
+
+**The old way: manual ConfigMap edits.** In RHOAI 3.5, MCP server configuration at the
+platform level is documented as a `ConfigMap` in the `redhat-ods-applications`
+namespace, where each case-sensitive key holds a JSON definition for one MCP server:
+
+[source,yaml]
+----
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: gen-ai-aa-mcp-servers <1>
+  namespace: redhat-ods-applications
+data:
+  GitHub-MCP-Server: | <2>
+    {
+      "url": "https://api.githubcopilot.com/mcp/x/repos/readonly",
+      "description": "The GitHub MCP server enables exploration and interaction with
+      repositories, code, and developer resources on GitHub."
+    }
+----
+<1> *`name`* — a dedicated ConfigMap holding one entry per MCP server, applied by a cluster administrator.
+<2> *entry key* — case-sensitive and unique; the value must be valid JSON describing the server.
+
+Managing catalog entries this way means writing YAML to local files, applying them with
+`oc`, and keeping track of ConfigMap state by hand — easy to get wrong and invisible to
+anyone without cluster CLI access.
+
+**The new way: YAML-based creation in the dashboard.** The administrative interface
+gives you the same outcome through guided dialogs:
+
+. *Add.* In the MCP catalog settings screen, start the add-entry flow and provide the
+entry as YAML. The YAML-based creation accepts the same kind of source configuration
+that previously required a hand-edited ConfigMap, but with form validation and no
+cluster CLI round-trip. Keep the entry disabled while you finish authoring it if you
+do not want its servers visible to users yet.
+. *Edit.* Open an existing entry, update its YAML, and save. Changes apply to the
+catalog source configuration without touching any ConfigMap resources.
+. *Remove.* Delete an entry from the list. The entry and its servers disappear from
+the AI Hub MCP Catalog; the underlying catalog source configuration is cleaned up for
+you.
+
+[IMPORTANT]
+====
+Removing a catalog entry changes what every user in the organization can discover in
+the AI Hub MCP Catalog. Coordinate with your team before deleting entries that others
+may be browsing or deploying from.
+====
+
+=== Verify
+
+Confirm the round trip from the developer's point of view:
+
+. In the dashboard, navigate to *AI hub* → *MCP servers*. The catalog cards reflect
+the entries you just managed — a newly added entry's servers are listed, a removed
+entry's servers are gone.
+. From the CLI, confirm you never had to touch a ConfigMap: there is no
+`oc apply` step anywhere in this exercise. The interface performed the configuration
+changes for you.
+
+You have now seen the full administrative workflow — the last step is to consolidate
+what you learned.
+
+== Module summary
+
+**What you accomplished:**
+
+* Verified the cluster was ready for MCP catalog administration: the MCP Lifecycle
+  Operator installed and the `mcpCatalog` dashboard flag enabled
+* Toured the dashboard Settings page where MCP catalog source configurations are managed
+* Walked through the YAML-based add, edit, and remove workflows and saw how they replace
+  manual ConfigMap edits
+
+**Key takeaways:**
+
+* The MCP Catalog administrative interface restricts catalog management strictly to
+  OpenShift AI administrators
+* YAML-based creation in the Settings page eliminates the need to manually edit
+  Kubernetes ConfigMap resources
+* The interface UX aligns with the Model Catalog administrative interface, so the same
+  patterns apply to both catalog surfaces
+
+**Next steps:**
+
+To deploy an MCP server from a catalog entry you manage, continue with the *MCP Catalog
+support-tier labeling* workshop in this catalog, which walks the AI Hub MCP Catalog
+deploy workflow end to end.

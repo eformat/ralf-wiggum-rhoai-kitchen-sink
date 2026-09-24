@@ -1,0 +1,233 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will work through the latency-aware routing workflow end to
+end: you will inspect a latency-aware scheduler configuration, attach it to a
+model deployment from the RHOAI dashboard, and observe the service-level
+latency metrics that show how requests were routed.
+
+**Learning objectives:**
+
+* Recognize the plugins that make a scheduler configuration latency-aware
+* Select a router configuration in the model deployment wizard and verify it on the deployed model
+* Observe TTFT, TPOT, and ITL metrics and interpret latency patterns for your deployment
+
+== Exercise 1: Explore a latency-aware scheduler configuration
+
+Scheduler configuration lives in the `EndpointPickerConfig`, embedded in an
+`LLMInferenceService` resource under `spec.router.scheduler.config.inline`. The
+default profile uses the four default scorers; a latency-aware configuration
+swaps in the three plugins you read about in module 01. The documentation
+specifies the plugin requirements (`latency-scorer` requires
+`predicted-latency-producer` and `weighted-random-picker`, recommended weight
+3); the following example combines them with the documented inline structure:
+
+[source,yaml]
+----
+apiVersion: llm-d.ai/v1alpha1
+kind: EndpointPickerConfig
+plugins:
+- type: predicted-latency-producer <1>
+- type: latency-scorer <2>
+- type: weighted-random-picker <3>
+schedulingProfiles:
+- name: default <4>
+  plugins:
+  - pluginRef: predicted-latency-producer
+  - pluginRef: latency-scorer
+    weight: 3 <5>
+  - pluginRef: weighted-random-picker
+----
+
+<1> **`predicted-latency-producer`** — a required data producer plugin that
+calls the latency predictor service and annotates each candidate endpoint with
+predicted TTFT and TPOT values.
+<2> **`latency-scorer`** — scores replicas by predicted response latency; lower
+predicted latency scores higher.
+<3> **`weighted-random-picker`** — replaces the default `max-score-picker` to
+spread requests proportionally to score, avoiding hot-spotting on the fastest
+replica.
+<4> **`schedulingProfiles[].name: default`** — the profile the scheduler uses
+for every request when no other profile is selected.
+<5> **`weight: 3`** — the recommended weight for `latency-scorer` in the
+documentation.
+
+. In the RHOAI dashboard, click *Settings* and then *llm-d routing
+configurations*. This page is visible to administrators only. Any
+latency-aware router configuration your administrator created appears here.
+
+. If a router config exists, open the action menu (⋮) next to it and click
+*Edit* to inspect the YAML. Compare the plugin list you see with the example
+above: latency-aware configs carry `predicted-latency-producer` and
+`latency-scorer` instead of (or in addition to) the default scorers.
+
+[NOTE]
+====
+Router configurations are `LLMInferenceServiceConfig` resources labeled
+`opendatahub.io/config-type: router`, filtered by the
+`opendatahub.io/supported-topologies` annotation. If the routing
+configurations page is empty, ask your workshop facilitator — do not edit
+cluster configuration on your own.
+====
+
+=== Verify
+
+You can name the three plugins that make a scheduler configuration
+latency-aware, the plugin the scorer depends on for its predictions, and the
+picker that replaces `max-score-picker`.
+
+== Exercise 2: Apply latency-aware routing to a deployment
+
+With a compatible router configuration available, the advanced routing section
+of the model deployment wizard attaches it to new model deployments.
+
+. In the dashboard, navigate to *Data Science Projects*, select your project,
+and click *Deploy model*.
+. Select a deployment topology that matches one of the router's supported
+topology types, then configure model storage.
+. Click *Advanced routing* to expand the routing options. By default,
+*Default optimized routing* is pre-selected, which means the LLM-D controller
+uses built-in defaults.
+. From the *Router configuration* list, select a router config with
+latency-aware scheduling. The list shows only configurations compatible with
+your selected topology.
+. Click *Create* and wait for the deployment to reach *Ready* status on the
+*Models* tab of your project.
+. Verify that the router configuration was attached. On the model details page,
+check the YAML representation of the generated `LLMInferenceService` resource:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llmisvc -n {guid}-{user} -o yaml | grep -A 6 baseRefs
+----
++
+Expected output shows the topology preset first, then your selected router
+configuration:
++
+----
+spec:
+  baseRefs:
+  - name: config-llm-template
+    namespace: kserve-system
+  - name: latency-router-config
+----
+
+If no router configuration is available in your workshop environment, stay with
+the default *Default optimized routing* and continue to Exercise 3 — the
+metrics you observe there are the same ones a latency-aware configuration
+optimizes.
+
+=== Verify
+
+Your deployed model's `LLMInferenceService` resource lists the selected router
+configuration in `spec.baseRefs` after the topology preset config.
+
+== Exercise 3: Observe latency behavior with metrics
+
+The Endpoint Picker exposes Prometheus service-level metrics at the `/metrics`
+endpoint on the metrics service port. These metrics measure user-perceived
+latency — they include scheduler queue wait time and network latency between
+the scheduler and the model server, unlike pod-level vLLM metrics — and support
+P90 and P99 percentile calculations for SLO compliance. The most useful ones
+for latency-aware routing are:
+
+[cols="2,3",options="header"]
+|===
+|Metric |What to observe
+
+|`llm_d_epp_request_ttft_seconds`
+|Time-to-first-token distribution in seconds, from request receipt to first response byte. For non-streaming requests this equals the total request duration.
+
+|`llm_d_epp_request_streaming_tpot_seconds`
+|Time per output token distribution for streaming requests, computed as (end-to-end latency - TTFT) / (output tokens - 1).
+
+|`llm_d_epp_request_streaming_itl_seconds`
+|Inter-token latency distribution for streaming requests. Use ITL to detect decode-phase lag spikes that TPOT averaging can mask.
+
+|`llm_d_epp_request_duration_seconds`
+|End-to-end inference request duration distribution.
+
+|`llm_d_epp_request_total`
+|Total requests processed, labeled by model, target model, fairness ID, and priority — the priority label lets you compare how latency-sensitive tiers are served.
+|===
+
+. Generate inference traffic so the latency histograms have data. Copy the
+*Inference endpoint* URL from your model details page, then send a request —
+with an Authorization header if your deployment has authentication enabled, as
+described in the *Make authenticated inference requests* chapter of the llm-d
+documentation:
++
+[source,bash,role="execute",subs="attributes"]
+----
+INFER_URL=<inference-endpoint-url>
+curl -k $INFER_URL/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "<model-name>", "messages": [{"role": "user", "content": "What is Red Hat OpenShift AI?"}]}'
+----
++
+Replace `<inference-endpoint-url>` with the endpoint from your model details
+page and `<model-name>` with the model you deployed in Exercise 2. Send a few
+requests, including longer prompts, so the TTFT and TPOT distributions have
+spread.
+
+. Open the built-in *LLM Performance* dashboard in the *Observe* section of
+the OpenShift AI console. It shows TTFT percentiles, inter-token latency,
+end-to-end latency, and KV cache hit rate without deploying a separate Grafana
+instance. The dashboards require User Workload Monitoring to be enabled and
+the Cluster Observability Operator to be installed on your cluster.
+
+. Interpret the latency patterns the documentation defines for diagnosing a
+deployment:
+
+* High TTFT with normal inter-token latency indicates a prefill bottleneck
+  from prompt processing or KV cache misses.
+* High inter-token latency with normal TTFT indicates a decode bottleneck from
+  token generation contention.
+* Normal TTFT and ITL with high end-to-end latency indicates scheduling
+  delays — check request queue depth in the *LLM Utilization* dashboard.
+
+This drill-down — *LLM Traffic* for errors and throughput, *LLM Performance*
+for latency targets, *LLM Utilization* for per-replica saturation — is the
+structured investigation workflow for deciding whether a latency-aware
+configuration is improving your deployment.
+
+[TIP]
+====
+A latency-aware configuration helps most when the diagnostic shows scheduling
+delays or uneven pod load: the `weighted-random-picker` distributes requests
+based on predicted latency instead of concentrating them on one fastest
+replica. If your TTFT is uniformly high across pods, the bottleneck is
+prefill capacity, not routing.
+====
+
+[NOTE]
+====
+Which metrics are scraped into your cluster's monitoring stack depends on your
+workshop configuration. If the dashboards are empty, ask your facilitator how
+User Workload Monitoring is configured in your environment.
+====
+
+=== Verify
+
+You generated inference traffic and located at least one
+`llm_d_epp_request_` latency metric (or the LLM Performance dashboard panels
+that chart it) for your deployment.
+
+== Module summary
+
+**What you accomplished:**
+
+* Inspected a latency-aware scheduler configuration and its three required plugins
+* Applied a router configuration through the deployment wizard and verified it in `baseRefs`
+* Observed TTFT, TPOT, and ITL metrics and interpreted the documented latency patterns
+
+**Key takeaways:**
+
+* `predicted-latency-producer` annotates endpoints with predicted TTFT and TPOT before `latency-scorer` ranks them
+* Service-level EPP metrics include queue wait and network latency, making them the right source for SLO compliance
+* The TTFT-versus-ITL diagnostic pattern tells you whether latency-aware routing is the right fix
+
+**Next steps:**
+
+Head to the conclusion for the resources that go deeper, including the
+*Configure request routing* chapters of the llm-d documentation.

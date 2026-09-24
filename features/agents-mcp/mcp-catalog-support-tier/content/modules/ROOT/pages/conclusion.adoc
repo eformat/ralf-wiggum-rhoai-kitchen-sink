@@ -1,0 +1,23 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the MCP Catalog support-tier labeling workshop.
+
+== What you covered
+
+* xref:module-01-hands-on.adoc[Hands-on Exercise]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/working_with_the_mcp_catalog/index[Working with the MCP catalog — RHOAI 3.5]
+* link:https://docs.redhat.com/en/documentation/red_hat_connectivity_link/1.4/html/mcp_gateway/index[MCP gateway — Red Hat Connectivity Link 1.4]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5[RHOAI 3.5 documentation]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:mcp-gateway-operator::index.adoc[MCP gateway Operator]
+* xref:mcp-lifecycle-operator::index.adoc[MCP Lifecycle Operator]

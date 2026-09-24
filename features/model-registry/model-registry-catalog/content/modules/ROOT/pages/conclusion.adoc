@@ -1,0 +1,27 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the Model registry and model catalog workshop.
+
+== What you covered
+
+* xref:module-01-concepts.adoc[Module 01: Core Concepts]
+* xref:module-02-hands-on.adoc[Module 02: Hands-on Exercise]
+* xref:module-03-advanced.adoc[Module 03: Advanced Usage]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/managing_model_registries/index[Managing model registries] — the administrator guide this workshop was built from: enabling the `modelregistry` component, creating and editing registries, managing registry permissions, and deleting registries
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/working_with_model_registries/index[Working with model registries] — registering models and versions, storing models as OCI images with transfer jobs, deploying versions, and archiving and restoring
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/working_with_the_model_catalog/index[Working with the model catalog] — discovering models, performance and safety insights, and registering and deploying from the catalog
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/manage_and_govern_model_catalog_sources/index[Manage and govern model catalog sources] — adding and managing catalog sources, model visibility allow/disallow patterns, and the `model-catalog-sources` ConfigMap
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5[RHOAI 3.5 documentation]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:vllm-serving-runtime-kserve::index.adoc[vLLM ServingRuntime for KServe]
+* xref:llmd-core::index.adoc[Distributed Inference with llm-d (core)]

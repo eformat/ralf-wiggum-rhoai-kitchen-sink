@@ -1,0 +1,42 @@
+= Welcome to the CSV export for Model Catalog data Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *CSV export for Model Catalog data*, a Developer Preview capability in
+Red Hat OpenShift AI 3.5. You can export model catalog metadata to CSV format by using a standalone
+Python CLI script. The script queries the Model Catalog REST API, paginates through the full result
+set, and produces an RFC 4180-compliant CSV file that includes all model metadata and custom
+properties.
+
+**What you will learn:**
+
+* What CSV export for Model Catalog data does and where it fits in the model catalog workflow
+* Where Model Catalog metadata lives in the OpenShift AI dashboard and what the export includes
+* How to run the standalone Python export script with its documented options and validate the RFC 4180 CSV output
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI 3.5 installed
+* RHOAI operator installed
+* Model Catalog accessible
+* Python 3.10 or newer (the export script has no additional dependencies)
+
+== Estimated time
+
+About 45 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

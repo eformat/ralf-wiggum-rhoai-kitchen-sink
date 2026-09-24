@@ -1,0 +1,25 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the Gen AI Studio saved-agent configuration workshop.
+
+== What you covered
+
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/experimenting_with_models_in_the_gen_ai_playground/index[Experimenting with models in the gen AI playground — RHOAI 3.5] — Chapter 15, *Saved agents in the gen AI playground*, is the chapter this workshop follows (saving, loading, and managing agents, plus validation on load); Chapter 13, *Reusable system instructions*, covers the MLflow prompt references that saved agents point to
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/release_notes/index[RHOAI 3.5 Release notes] — describes Configuration persistence for Gen AI Studio and the `agentConfigManagement` feature flag (Developer Preview)
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/managing_resources/index[Managing resources — RHOAI 3.5] — the `OdhDashboardConfig` custom resource and dashboard configuration options behind the feature flag
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/working_with_mlflow/index[Working with MLflow — RHOAI 3.5] — the MLflow service that stores the prompt references captured in a saved agent
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:view-agent-deployments::index.adoc[View running agent deployments in dashboard]
+* xref:automated-tool-calling-eval::index.adoc[Automated tool-calling evaluation-data generation for custom MCP servers]

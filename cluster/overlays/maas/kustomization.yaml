@@ -1,0 +1,27 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# MaaS (Models-as-a-Service): phased aigateway.modelsAsAService flip + the MaaS
+# PostgreSQL database + the maas-default-gateway.
+#
+# APPLY ORDER (all required first):
+#   1. overlays/gateway      (RHCL + cert-manager; then gateway/activation after
+#                             the RHCL CSV Succeeds)
+#   2. overlays/monitoring   (UWM — default Tenant Ready depends on it)
+#   3. overlays/serving      (kserve — MaaS deploys models on the serving platform)
+#   4. make maas-secrets     (postgres-creds + maas-db-config — not in git)
+#   5. THIS OVERLAY, with the cluster domain rendered:
+#        export CLUSTER_DOMAIN=$(oc get ingress.config cluster -o jsonpath='{.spec.domain}')
+#        oc kustomize cluster/overlays/maas | envsubst '${CLUSTER_DOMAIN}' | oc apply -f -
+#
+# The maas-controller bootstraps the singleton `default-tenant` Tenant itself
+# once modelsAsService is Managed and RHCL is installed — no tenant manifest
+# needed here (publishing models, subscriptions, and auth policies are the
+# maas labs' exercises).
+resources:
+  - ../../base
+  - postgres
+  - gateway
+patches:
+  - path: dsc-maas-patch.yaml

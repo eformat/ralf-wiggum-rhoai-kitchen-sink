@@ -1,0 +1,113 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will take a guided tour of the *OpenClaw agent starter kit* — a
+Developer Preview feature of Red Hat OpenShift AI 3.5 that lets you deploy and manage
+OpenClaw, an open-source general-purpose agent, on OpenShift AI from validated
+Kustomize manifests and an automated installer. Because this is a Developer Preview,
+this module is a guided tour of what the kit provides and how it fits together, not a
+deployment walkthrough.
+
+**Learning objectives:**
+
+* Explain what OpenClaw is and what the starter kit provides in RHOAI 3.5
+* Compare the two deployment options: validated Kustomize manifests and the automated installer
+* Describe how the agent connects to self-hosted models through vLLM via the OGX gateway
+
+[NOTE]
+====
+This feature is a *Developer Preview*. It is provided as-is with no support and no
+guarantee of future availability, so focus on the concepts in this tour rather than on
+memorizing specific commands — the deployment interface may change between releases.
+====
+
+== Exercise 1: What the starter kit provides
+
+OpenClaw is a general-purpose agent, and the starter kit is Red Hat's validated path
+for running it on OpenShift AI. Per the RHOAI 3.5 release notes, the kit includes the
+following capabilities:
+
+* **Deployment**: deploy OpenClaw by using validated Kustomize manifests or the
+  automated OpenClaw installer — no bespoke image builds or hand-written YAML required.
+* **Model connection**: connect to self-hosted models through vLLM by using the OGX
+  inference gateway with an OpenAI-compatible API.
+* **Observability**: capture model calls, tool executions, and context assembly spans
+  in MLflow by using native OpenTelemetry tracing through the diagnostics-otel plugin.
+* **Access control**: enforce browser-based access control backed by OpenShift
+  role-based access control (RBAC) through OAuth proxy integration.
+* **Persistence**: workspace storage is maintained across pod restarts.
+* **Validation**: validate your environment by using an included model compatibility
+  matrix and troubleshooting guide.
+* **Security**: workloads run securely under the OpenShift restricted-v2 security
+  context constraint (SCC).
+
+. Confirm that you are still connected to your workshop environment and working in your
+  own project:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc whoami && oc project
+----
+
+The first line shows your workshop username and the second shows your project from
+xref:getting-connected.adoc[Getting Connected]. Everything in this workshop happens in
+your own namespace, which is exactly the kind of boundary the restricted-v2 SCC
+enforces for the agent itself.
+
+TIP: OpenClaw established the agent onboarding pattern that other starter kits on
+OpenShift AI follow. Per the 3.5 release notes, OpenCode is the first coding agent
+validated to follow the pattern established by OpenClaw, so what you learn here
+generalizes to the wider agent starter kit family.
+
+== Exercise 2: Deployment options and model connection
+
+The kit ships with two deployment options. Choosing between them is the first decision
+you make when using the starter kit:
+
+[options="header"]
+|===
+|Deployment option |What it does |When to choose it
+
+|Validated Kustomize manifests
+|Declarative manifests you apply to your cluster and can inspect or customize
+|You want reviewable, version-controlled deployment definitions
+
+|Automated OpenClaw installer
+|An automated installer that manages runtime concerns and optimizes workspace persistence
+|You want the fastest path to a running OpenClaw instance
+|===
+
+TIP: Both options converge on the same validated deployment. If you are unsure, the
+automated installer manages the runtime concerns for you; the Kustomize manifests are
+there when you need the deployment to be explicit and inspectable.
+
+On the model side, the kit connects OpenClaw to *self-hosted models through vLLM by
+using the OGX inference gateway with an OpenAI-compatible API*. Notice what this
+implies: the agent talks the OpenAI-compatible protocol, and OGX fronts your vLLM
+servers, so you can run OpenClaw against models you host in your own cluster without
+any external model subscription.
+
+== Module summary
+
+**What you accomplished:**
+
+* Toured the seven capabilities of the OpenClaw agent starter kit from the RHOAI 3.5
+  release notes
+* Compared the two deployment options: validated Kustomize manifests and the automated
+  OpenClaw installer
+* Reviewed how the agent connects to self-hosted models through vLLM via the OGX
+  gateway with an OpenAI-compatible API
+
+**Key takeaways:**
+
+* The starter kit deploys OpenClaw from validated Kustomize manifests or an automated
+  installer, so setup is a configuration exercise rather than an image build
+* The OGX inference gateway provides the OpenAI-compatible API that lets OpenClaw use
+  self-hosted vLLM models
+* OpenClaw established the agent onboarding pattern that later starter kits, such as
+  OpenCode, follow
+
+**Next steps:**
+
+Continue to the next module for a guided tour of the kit's observability, access
+control, persistence, and security posture in action.

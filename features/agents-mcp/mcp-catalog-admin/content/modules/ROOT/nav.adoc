@@ -1,0 +1,11 @@
+= MCP Catalog administrative interface Workshop
+
+.Workshop
+* xref:index.adoc[Overview]
+* xref:getting-connected.adoc[Getting Connected]
+
+.Modules
+* xref:module-01-hands-on.adoc[Hands-on Exercise]
+
+.Wrap-up
+* xref:conclusion.adoc[Conclusion]

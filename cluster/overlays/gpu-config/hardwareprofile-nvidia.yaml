@@ -1,0 +1,53 @@
+---
+# NVIDIA GPU HardwareProfile so the labs' "select a hardware profile" wizards
+# have a GPU option. No lab creates one — every GPU lab assumes it pre-exists.
+# This is that profile.
+#
+# 3.5 GROUND TRUTH (cluster-prelude2, 2026-09-23): RHOAI 3.5.1 ships
+# HardwareProfile (infrastructure.opendatahub.io/v1) — the AcceleratorProfile
+# (dashboard.opendatahub.io/v1) CRD does NOT exist in 3.5.1. The wizard shows
+# HardwareProfiles. The operator seeds a `default-profile` (CPU/memory) in
+# redhat-ods-applications; this adds the GPU one.
+#
+# Scheduling: Node selector on `nvidia.com/gpu.present` targets the GPU
+# workers (this cluster's GPU nodes are NOT tainted). Verify with
+# `oc get hardwareprofiles -n redhat-ods-applications`.
+apiVersion: infrastructure.opendatahub.io/v1
+kind: HardwareProfile
+metadata:
+  name: nvidia-gpu
+  namespace: redhat-ods-applications
+  labels:
+    app.kubernetes.io/part-of: hardwareprofile
+    app.opendatahub.io/hardwareprofile: "true"
+  annotations:
+    opendatahub.io/dashboard-feature-visibility: '[]'
+    opendatahub.io/description: NVIDIA GPU profile — 1 NVIDIA L40S GPU (48 GB),
+      4 CPUs, 32 GiB memory per node.
+    opendatahub.io/disabled: "false"
+    opendatahub.io/display-name: nvidia-gpu
+spec:
+  identifiers:
+    - identifier: nvidia.com/gpu
+      displayName: GPU
+      resourceType: Accelerator
+      minCount: "1"
+      maxCount: "1"
+      defaultCount: "1"
+    - identifier: cpu
+      displayName: CPU
+      resourceType: CPU
+      minCount: "1"
+      maxCount: "4"
+      defaultCount: "4"
+    - identifier: memory
+      displayName: Memory
+      resourceType: Memory
+      minCount: "2Gi"
+      maxCount: "32Gi"
+      defaultCount: "32Gi"
+  scheduling:
+    type: Node
+    node:
+      nodeSelector:
+        nvidia.com/gpu.present: "true"

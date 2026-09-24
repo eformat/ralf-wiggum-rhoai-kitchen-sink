@@ -1,0 +1,17 @@
+---
+# Strategic-merge patch enabling OGX (Open GenAI Stack / Llama Stack successor).
+#
+# ORDERING CONSTRAINT: llamastackoperator must be Removed before ogx can be
+# Managed — they are mutually exclusive (OGX supersedes LlamaStack). The base
+# DSC already sets llamastackoperator Removed; this patch re-asserts it.
+apiVersion: datasciencecluster.opendatahub.io/v2
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+  namespace: redhat-ods-operator
+spec:
+  components:
+    ogx:
+      managementState: Managed
+    llamastackoperator:
+      managementState: Removed

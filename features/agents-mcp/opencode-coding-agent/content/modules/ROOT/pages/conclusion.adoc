@@ -1,0 +1,23 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the OpenCode coding-agent deployment workshop.
+
+== What you covered
+
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/release_notes/technology-preview-features[RHOAI 3.5 release notes — Technology Preview features] (source of the OpenCode coding-agent deployment and operation description)
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/working_in_your_data_science_ide[Working in your data science IDE] (workbench IDE access, terminal, and Git collaboration)
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/customize_models_for_gen_ai_and_agentic_ai_applications[Customize Models for Gen AI and Agentic AI Applications] (OpenAI-compatible endpoint connection model)
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:openclaw-starter-kit::index.adoc[OpenClaw agent starter kit]

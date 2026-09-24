@@ -1,0 +1,52 @@
+= Welcome to the Distributed Inference with llm-d (core) Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *Distributed Inference with llm-d (core)*: deploying and serving
+large language models at scale with the llm-d serving stack on Red Hat OpenShift AI 3.5.
+
+**What you will learn:**
+
+* How the llm-d serving stack fits into RHOAI's single *Deploy model* entry point, and which
+CRs back it (`LLMInferenceService`, `LLMInferenceServiceConfig`, Gateway API resources)
+* The four validated deployment topology patterns — single-node, multi-node data-parallel,
+and the two prefill/decode disaggregate patterns — and their hardware requirements
+* Deploy a model with the llm-d topology selector from the dashboard, then repeat the
+deployment from the CLI with an `LLMInferenceService` manifest
+* Make authenticated inference requests against a deployed model with a ServiceAccount token
+* Create router and topology configuration templates as an administrator and apply advanced
+routing
+
+== Prerequisites
+
+* RHOAI operator installed
+* Distributed Inference enabled in DSC (the `kserve` component of the `DataScienceCluster`
+resource set to `Managed`)
+* The model serving platform enabled in the RHOAI dashboard
+* A `GatewayClass` and a `Gateway` named `openshift-ai-inference` in the `openshift-ingress`
+namespace
+* OpenShift Service Mesh v2 is *not* installed in the cluster
+* A project with GPU capacity; the LeaderWorkerSet Operator is an optional dependency for
+multi-node deployments
+
+== Estimated time
+
+About 2 hours
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:module-03-advanced.adoc[Advanced Usage]
+* xref:conclusion.adoc[Conclusion]

@@ -1,0 +1,228 @@
+= Module 01: Getting Started with Guardrails and the MCP Gateway
+:navtitle: Module 01: Getting Started
+
+In this module you will learn how NeMo Guardrails enforcement works at the MCP
+gateway layer, verify that the workshop cluster has the required pieces, and
+deploy a standalone NeMo Guardrails service with built-in detectors that you
+test yourself.
+
+**Learning objectives:**
+
+* Explain how the TrustyAI operator enforces guardrails on agent tool calls at the MCP gateway
+* Verify the MCP gateway prerequisites from the CLI
+* Deploy a standalone NeMo Guardrails service and test its input rails with `/v1/guardrail/checks`
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: NeMo Guardrails integration with MCP gateway is a *Technology Preview*
+feature only. Technology Preview features are not supported with Red Hat
+production service-level agreements (SLAs) and might not be functionally
+complete. Red Hat does not recommend using them in production.
+endif::[]
+
+== How the integration works
+
+The MCP gateway routes agent tool calls from AI agents to backend tool servers
+using the Model Context Protocol (MCP). When you integrate NeMo Guardrails with
+the MCP gateway, agent tool-call traffic passes through guardrail enforcement
+before reaching the backend tool servers. This protects against PII leakage,
+prompt injection, and content safety violations without implementing guardrails
+in each agent application — every agent that uses the gateway benefits from the
+same safety policies.
+
+You configure the integration through the `mcpGateway` field of the
+`NemoGuardrails` custom resource (CR). During reconciliation, the TrustyAI
+operator:
+
+. *Discovers the MCP gateway* — searches for `MCPGatewayExtension` resources in
+  the specified namespace and resolves each `targetRef` to a Kubernetes
+  `Gateway` resource.
+. *Detects the BBR plugin* — scans `EnvoyFilter` resources in the gateway
+  namespace for the Inference Payload Processing (IPP) ext_proc filter, which
+  contains the `nemo-request-guard` and `nemo-response-guard` Body-Based
+  Routing (BBR) plugins that route traffic to the NeMo Guardrails service.
+. *Auto-provisions an EnvoyFilter* — creates an `EnvoyFilter` named
+  `mcp-sse-strip` that converts MCP server responses from server-sent events
+  (SSE) to JSON, which NeMo Guardrails requires for processing.
+
+The operator supports two discovery modes: *named gateway lookup* (you specify
+both `name` and `namespace`) and *zero-config auto-discovery* (you specify only
+`namespace` and the operator uses the first `MCPGatewayExtension` it finds).
+
+== Exercise 1: Verify the MCP gateway prerequisites
+
+The MCP gateway Operator is an external prerequisite that your workshop
+facilitator deployed. Verify that the pieces are in place before configuring
+the integration.
+
+NOTE: The TrustyAI operator requires additional RBAC permissions for MCP
+gateway integration. The `nemo-guardrails-manager-role` ClusterRole includes
+read-only access to `mcpgatewayextensions` and `gateways` resources, and full
+CRUD access to `envoyfilters`.
+
+. Set the gateway namespace. On the workshop cluster the MCP gateway Operator
+is deployed in `abc123-mcp-system` (gateway `mcp-gateway-one`, extension
+namespace) — export it for the steps below:
++
+[source,bash,role="execute"]
+----
+export MCP_GATEWAY_NS=abc123-mcp-system
+----
+. Verify that the `MCPGatewayExtension` CRD is available and that at least one
+  resource exists:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mcpgatewayextensions -n ${MCP_GATEWAY_NS:-mcp-gateway-system}
+----
+
+The command returns a list of `MCPGatewayExtension` resources. If it returns an
+error indicating the resource type is not found, the MCP gateway CRDs are not
+installed.
+
+. Verify that the BBR plugin `EnvoyFilter` is present in the gateway namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get envoyfilters -n ${MCP_GATEWAY_NS:-mcp-gateway-system} -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
+----
+
+. Confirm that at least one `EnvoyFilter` contains the BBR ext_proc sub-filter:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get envoyfilters -n ${MCP_GATEWAY_NS:-mcp-gateway-system} -o yaml | grep "envoy.filters.http.ext_proc.bbr"
+----
+
+=== Verify
+
+The `oc get mcpgatewayextensions` command lists at least one resource, and the
+grep command returns output containing `envoy.filters.http.ext_proc.bbr`. Both
+conditions must hold before the operator can discover the gateway and provision
+the integration.
+
+With the cluster prerequisites confirmed, the next step is to deploy a NeMo
+Guardrails service whose rails you can test directly.
+
+== Exercise 2: Deploy a standalone NeMo Guardrails service
+
+You can deploy NeMo Guardrails in a standalone mode without the full TrustyAI
+observability stack. In this exercise you deploy a service with built-in
+detectors — Presidio sensitive data detection and regex pattern matching — that
+run entirely inside the NeMo Guardrails pod and require no external services or
+LLM calls.
+
+. If you have not completed the NeMo Guardrails workshop, the summary below
+covers what you need. The quickstart is a `nemo-quickstart-config` ConfigMap
+holding the rails configuration — built-in Presidio sensitive data detection
+and regex pattern matching — plus a `NemoGuardrails` custom resource named
+`nemo-quickstart` that mounts the ConfigMap, enables OpenShift AI
+authentication on the service route, and sets a placeholder `OPENAI_API_KEY`.
+Deploy both into `{guid}-{user}` exactly as walked through in
+xref:nemo-guardrails:ROOT:module-02-hands-on.adoc[Module 02: Deploy a standalone guardrails service].
+
+. Wait for the deployment to become ready:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get nemoguardrails nemo-quickstart -n {guid}-{user} -w
+----
+
+Expected output:
+
+----
+NAME             PHASE   AGE
+nemo-quickstart  Ready   2m
+----
+
+Press `Ctrl+C` to exit the watch command.
+
+. Set the guardrails route as an environment variable:
+
+[source,bash,role="execute",subs="attributes"]
+----
+export GUARDRAILS_ROUTE=https://$(oc get routes/nemo-quickstart -n {guid}-{user} -o jsonpath='{.status.ingress[0].host}')
+----
+
+=== Verify
+
+Test the service with safe content that should pass all rails:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k -X POST $GUARDRAILS_ROUTE/v1/guardrail/checks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(oc whoami -t)" \
+  -d '{
+    "model": "test",
+    "messages": [
+      {"role": "user", "content": "What is the capital of France?"}
+    ]
+  }'
+----
+
+Expected output:
+
+----
+{
+  "status": "success",
+  "rails_status": {
+    "detect sensitive data on input": {"status": "success"},
+    "regex check input": {"status": "success"},
+    ...
+  }
+}
+----
+
+Then trigger the Presidio detector with an email address:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k -X POST $GUARDRAILS_ROUTE/v1/guardrail/checks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(oc whoami -t)" \
+  -d '{
+    "model": "test",
+    "messages": [
+      {"role": "user", "content": "Please contact me at alice@example.com"}
+    ]
+  }'
+----
+
+Expected output:
+
+----
+{
+  "status": "blocked",
+  "rails_status": {
+    "detect sensitive data on input": {"status": "blocked"}
+  },
+  "guardrails_data": {
+    "log": {
+      "activated_rails": ["detect sensitive data on input"]
+    }
+  }
+}
+----
+
+The `status` is `blocked` because the message contained an email address. You
+now have a working NeMo Guardrails service whose rails behave as expected.
+
+== Module summary
+
+**What you accomplished:**
+
+* Verified that the MCP gateway and BBR plugin prerequisites are installed on the cluster
+* Deployed a standalone NeMo Guardrails service with built-in Presidio and regex detectors
+* Blocked and allowed test messages using the `/v1/guardrail/checks` endpoint
+
+**Key takeaways:**
+
+* Gateway-layer enforcement centralizes safety policy so every agent using the MCP gateway is covered
+* The operator discovers the gateway through `MCPGatewayExtension` resources and the IPP BBR plugin
+* Built-in detectors run inside the NeMo Guardrails pod and require no LLM calls
+
+**Next steps:**
+
+In the next module you wire this NeMo Guardrails configuration into the MCP
+gateway by adding the `mcpGateway` field to the `NemoGuardrails` CR, then watch
+the operator discover the gateway and provision the enforcement plumbing.

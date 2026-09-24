@@ -1,0 +1,333 @@
+= Module 02: Run a Risk Assessment
+:navtitle: Module 02: Run a Risk Assessment
+
+In this module you will register your project as an EvalHub tenant, authenticate
+to EvalHub, and run an intent-based risk assessment against a model endpoint
+through the EvalHub API.
+
+**Learning objectives:**
+
+* Register a namespace as an EvalHub tenant and grant a ServiceAccount access
+* Authenticate to EvalHub with a bearer token
+* Submit an intent-based risk assessment and validate the results
+
+== Exercise 1: Prepare the tenant namespace
+
+Register your workshop project as an EvalHub tenant so that you can submit
+evaluation jobs in that namespace.
+
+[NOTE]
+====
+Labeling a namespace requires project administrator privileges. The
+`{guid}-evalhub` namespace has NetworkPolicies that restrict cross-namespace
+traffic; use a dedicated namespace for EvalHub rather than
+`redhat-ods-applications`.
+====
+
+. Add the tenant label to your project:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc label namespace {guid}-{user} evalhub.trustyai.opendatahub.io/tenant=
+----
++
+The label value is intentionally empty. The TrustyAI Operator checks for the
+presence of the label, not its value.
+
+The operator watches for this label and automatically provisions the job RBAC
+your namespace needs: a job ServiceAccount, RoleBindings for the EvalHub API
+ServiceAccount, and a service CA ConfigMap. The
+xref:evalhub:ROOT:module-01-concepts.adoc[EvalHub concepts module] walks
+through this provisioning and the EvalHub architecture in depth; if you have
+not completed the EvalHub workshop, that module covers what you need to
+continue here.
+
+=== Verify
+
+. Confirm that the tenant label is set on the namespace:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get namespace {guid}-{user} --show-labels | grep evalhub
+----
++
+Expected output includes `evalhub.trustyai.opendatahub.io/tenant=`.
+
+. Confirm that the operator provisioned the expected resources:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get serviceaccount,rolebinding,configmap -n {guid}-{user} | grep evalhub
+----
++
+The output should include a ServiceAccount, RoleBinding resources, and a
+service CA ConfigMap created by the operator.
+
+== Exercise 2: Authenticate to EvalHub
+
+EvalHub validates bearer tokens with the Kubernetes TokenReview API, so scans
+run as a ServiceAccount that has access to the EvalHub virtual resources. The
+xref:evalhub:ROOT:module-02-hands-on.adoc[EvalHub hands-on module] covers the
+token and access-control flow in depth; if you have not completed the EvalHub
+workshop, the steps below give you everything you need for this lab.
+
+. Create a ServiceAccount for your scans:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc create serviceaccount my-sa -n {guid}-{user}
+----
+
+. Create a Role in your tenant namespace that grants access to the EvalHub
+virtual resources, plus a RoleBinding for the ServiceAccount:
++
+[source,bash,role="execute",subs="attributes"]
+----
+cat > evalhub-evaluator-role.yaml <<'EOF'
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: evalhub-evaluator
+  namespace: {guid}-{user}
+rules:
+  - apiGroups: ["trustyai.opendatahub.io"]
+    resources: ["evaluations", "collections", "providers"]
+    verbs: ["get", "list", "create", "update", "delete"]
+  - apiGroups: ["mlflow.kubeflow.org"]
+    resources: ["experiments"]
+    verbs: ["create", "get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-sa-evalhub-access
+  namespace: {guid}-{user}
+subjects:
+  - kind: ServiceAccount
+    name: my-sa
+    namespace: {guid}-{user}
+roleRef:
+  kind: Role
+  name: evalhub-evaluator
+  apiGroup: rbac.authorization.k8s.io
+EOF
+oc apply -f evalhub-evaluator-role.yaml
+----
+
+. Create a token and store the EvalHub URL:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export TOKEN=$(oc create token my-sa -n {guid}-{user} --duration=1h)
+export EVALHUB_URL=https://$(oc get routes evalhub -o jsonpath='{.spec.host}' -n {guid}-evalhub)
+echo $EVALHUB_URL
+----
++
+Replace `my-sa` with a ServiceAccount that has EvalHub access if you use a
+different principal.
+
+[NOTE]
+====
+Tokens created by using `oc create token` expire. If you get a `401
+Unauthorized` response later in this module, mint a new token and repeat the
+`export TOKEN` command.
+====
+
+=== Verify
+
+. Query the health endpoint:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl $EVALHUB_URL/api/v1/health | jq .
+----
++
+----
+{
+  "status": "healthy",
+  "timestamp": "2026-04-13T10:00:00Z",
+  "version": "0.3.0",
+  "uptime": 3600000000000
+}
+----
+
+. List the registered providers to confirm `garak` is enabled:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -H "Authorization: Bearer $TOKEN" -H "X-Tenant: {guid}-{user}" \
+  $EVALHUB_URL/api/v1/evaluations/providers | jq .
+----
++
+Expected output includes `lm_evaluation_harness` and `garak`. An empty list or
+`401 Unauthorized` means the token expired or the `X-Tenant` header does not
+match your tenant namespace.
+
+== Exercise 3: Run the assessment
+
+Submit an intent-based risk assessment. The scan generates adversarial prompts,
+attacks every prompt your model refuses at baseline, and produces a report
+showing where your model is vulnerable.
+
+Prerequisites:
+
+* A test model inference endpoint compatible with the OpenAI `/v1` API
+* A judge model inference endpoint compatible with the OpenAI `/v1` API — this
+  should be a different model from the target
+* An S3-compatible storage endpoint for pipeline artifacts
+* A Kubernetes secret containing your model API key
+
+. Create a Secret containing your model API key:
++
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: model-auth
+  type: Opaque
+stringData:
+  api-key: "<api_key>" <1>
+----
+<1> *model-auth* — the Secret name referenced later by `model.auth.secret_ref`
+in the scan request; *api-key* is the default key EvalHub uses for model
+endpoint authentication.
+
+. Apply the Secret to your tenant namespace:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f model-auth.yaml -n {guid}-{user}
+----
+
+. Create a JSON file called `intents-scan.json` with the following content:
++
+[source,json]
+----
+{
+  "name": "intents-scan",
+  "model": {
+    "url": "https://<your-model-endpoint>/v1",
+    "name": "<your-model-name>",
+    "auth": {
+      "secret_ref": "model-auth" <1>
+    }
+  },
+  "benchmarks": [
+    {
+      "id": "intents",
+      "provider_id": "garak-kfp" <2>,
+      "parameters": {
+        "kfp_config": {
+          "endpoint": "https://ds-pipeline-dspa.<pipeline-namespace>.svc.cluster.local:8443",
+          "namespace": "<pipeline-namespace>",
+          "s3_secret_name": "<s3-secret-name>",
+          "s3_endpoint": "http://minio-dspa.<pipeline-namespace>.svc.cluster.local:9000",
+          "s3_bucket": "mlpipeline",
+          "verify_ssl": false
+        } <3>,
+        "intents_models": {
+          "judge": {
+            "url": "https://<judge-model-endpoint>/v1",
+            "name": "<judge-model-name>"
+          },
+          "sdg": {
+            "url": "https://<sdg-model-endpoint>/v1",
+            "name": "hosted_vllm/<sdg-model-name>"
+          }
+        } <4>,
+        "hf_cache_path": "s3://<bucket>/<prefix>" <5>
+      }
+    }
+  ],
+  "experiment": {
+    "name": "intents"
+  }
+}
+----
++
+<1> **model** — the target to test. Provide the OpenAI-compatible endpoint URL,
+the model name, and a `secret_ref` pointing to the Secret that holds the API
+key.
+<2> **provider_id** — must be `garak-kfp` for intent-based risk assessment;
+the benchmark `id` must be `intents`.
+<3> **kfp_config** — connection details for the Kubeflow Pipelines backend that
+orchestrates the assessment. The `s3_secret_name` Secret must contain
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET`,
+`AWS_DEFAULT_REGION`, and `AWS_S3_ENDPOINT`.
+<4> **intents_models** — the auxiliary models. The *judge* classifies whether
+the target complied or refused; the *sdg* model generates the adversarial
+prompts. The `sdg` name uses the `hosted_vllm/` prefix.
+<5> **hf_cache_path** — optional on connected clusters. Required on disconnected
+clusters where the translation strategy cannot download models at runtime. Omit
+it if your cluster has internet access.
+
+[IMPORTANT]
+====
+If your cluster has internet access, omit `hf_cache_path` from the request. If
+your cluster is disconnected, pre-download the Helsinki-NLP translation models
+and upload them to S3 first — see module 3.
+====
+
+. Submit the risk assessment:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -X POST "$EVALHUB_URL/api/v1/evaluations/jobs" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant: {guid}-{user}" \
+  -d @intents-scan.json
+----
++
+The server returns a `202 Accepted` response with the job resource, including a
+job ID for tracking.
+
+. While the assessment runs, the pipeline progresses through the following
+stages:
++
+* The prompt generation model creates adversarial test prompts across the harm
+  categories, producing diverse prompts that vary by demographic, region,
+  writing style, and other dimensions.
+* Each test prompt is sent unmodified to the target model in a baseline test.
+  The judge model classifies whether the target complied or refused.
+* Prompts that the model refused in the baseline are progressively attacked
+  with increasingly sophisticated techniques. Only prompts that remain refused
+  continue to the next strategy.
+* Results are aggregated into a risk assessment report and logged to MLflow as
+  an experiment run.
+
+=== Verify
+
+Results are stored in the S3 bucket configured in `kfp_config`. If MLflow is
+connected to EvalHub, results are also available as experiment artifacts in the
+MLflow tracking UI, where you can compare runs across models and
+configurations. The report's overview metrics include *Total attempts*,
+*Unsafe prompts*, *Safe prompts*, and the primary *Attack Success Rate (ASR)*.
+
+[NOTE]
+====
+A scan of all default harm categories and strategies takes a while to run —
+the SPO variants, translation, and TAP each probe prompts that survived the
+previous strategy. Check the pipeline run in the KFP UI to watch per-stage
+progress.
+====
+
+== Module summary
+
+**What you accomplished:**
+
+* Registered your project as an EvalHub tenant and verified the operator-provisioned RBAC
+* Granted a ServiceAccount access to EvalHub and authenticated with a bearer token
+* Submitted an intent-based risk assessment through the EvalHub API and traced its pipeline stages
+
+**Key takeaways:**
+
+* The tenant label is what triggers the TrustyAI Operator to provision job RBAC in your namespace
+* The benchmark `id` must be `intents` and the `provider_id` must be `garak-kfp` for this scan
+* Results land in S3 and, when configured, as MLflow experiment artifacts
+
+**Next steps:**
+
+Once your scan completes, tune the scan configuration and add custom harm
+categories in the advanced module.

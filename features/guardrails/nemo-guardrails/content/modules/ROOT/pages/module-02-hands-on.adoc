@@ -1,0 +1,503 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will deploy a NeMo Guardrails service with built-in
+detectors only, test it with the `/v1/guardrail/checks` endpoint, and then
+front a deployed model with the same guardrails via `/v1/chat/completions`.
+
+**Learning objectives:**
+
+* Deploy a `NemoGuardrails` custom resource backed by a configuration ConfigMap
+* Test input rails with the `/v1/guardrail/checks` endpoint
+* Guardrail a live model and block sensitive data with `/v1/chat/completions`
+
+== Exercise 1: Deploy a standalone guardrails service
+
+The standalone quickstart uses only built-in detectors — Presidio sensitive
+data detection and regex pattern matching — that run entirely inside the NeMo
+Guardrails pod. No LLM and no external services are required.
+
+[NOTE]
+====
+You need cluster administrator permissions, or sufficient permissions to create
+ConfigMaps and `NemoGuardrails` resources in your project. The TrustyAI
+component must be set to `Managed` in your DataScienceCluster.
+====
+
+. Confirm you are working in your project:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc project
+----
++
+The output shows `{guid}-{user}` as the current namespace.
+
+. Create a file named `nemo-quickstart-config.yaml` with the guardrails
+configuration:
++
+[source,bash,role="execute"]
+----
+cat > nemo-quickstart-config.yaml <<'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-quickstart-config
+data:
+  config.yaml: |
+    rails:
+      config:
+        sensitive_data_detection:
+          input:
+            entities:
+              - EMAIL_ADDRESS
+              - PERSON
+              - PHONE_NUMBER
+        regex_detection:
+          input:
+            patterns:
+              - "\\b(password|secret|api[_-]?key|token)\\b"
+              - "\\d{3}-\\d{2}-\\d{4}"
+            case_insensitive: true
+      input:
+        flows:
+          - detect sensitive data on input
+          - regex check input
+  rails.co: |
+    # Using built-in rails only
+EOF
+----
+`sensitive_data_detection.input.entities` — the Presidio entity types to
+detect on input. Presidio also supports `CREDIT_CARD`, `US_SSN`, `LOCATION`,
+`IP_ADDRESS`, and more. `regex_detection.input.patterns` — regex patterns for
+security keywords and Social Security Number patterns; use double backslashes
+(`\\`) for regex escape sequences in YAML. `case_insensitive` — matches
+`Password`, `SECRET`, and `Api-Key` alike. `rails.input.flows` — the built-in
+rail flows executed on every user message. `rails.co` is the Colang file that
+defines custom flows; an empty file is sufficient when using only built-in
+rails.
+
+. Apply the ConfigMap:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f nemo-quickstart-config.yaml -n {guid}-{user}
+----
+
+. Create a file named `nemo-quickstart-cr.yaml` with the custom resource:
++
+[source,bash,role="execute"]
+----
+cat > nemo-quickstart-cr.yaml <<'EOF'
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: NemoGuardrails
+metadata:
+  name: nemo-quickstart
+  annotations:
+    security.opendatahub.io/enable-auth: 'true'
+spec:
+  nemoConfigs:
+  - name: nemo-quickstart-config
+    configMaps:
+    - nemo-quickstart-config
+  env:
+  - name: OPENAI_API_KEY
+    value: not-used
+EOF
+----
+
+`security.opendatahub.io/enable-auth` requires authentication for the NeMo
+Guardrails route. `spec.nemoConfigs` — the list of NeMo configurations to
+load; each entry creates a directory at `/app/config/<name>` inside the
+container. `spec.configMaps` — the ConfigMaps whose files are mounted into
+`/app/config/<name>`. `spec.env` — environment variables for the container.
+`OPENAI_API_KEY` is required; set it to any value when using only internal
+detectors without an LLM.
+
+. Apply the custom resource:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f nemo-quickstart-cr.yaml -n {guid}-{user}
+----
+
+. Wait for the deployment to be ready:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get nemoguardrails nemo-quickstart -n {guid}-{user} -w
+----
++
+Wait until the `PHASE` column shows `Ready`, then press `Ctrl+C` to exit:
++
+----
+NAME             PHASE   AGE
+nemo-quickstart  Ready   2m
+----
+
+. Set the guardrails route as an environment variable:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export GUARDRAILS_ROUTE=https://$(oc get routes/nemo-quickstart -n {guid}-{user} -o jsonpath='{.status.ingress[0].host}')
+echo $GUARDRAILS_ROUTE
+----
+
+=== Verify
+
+`oc get nemoguardrails nemo-quickstart` reports `PHASE` `Ready`, and
+`oc get routes/nemo-quickstart` returns a route host. The TrustyAI Operator
+has deployed the server pod, service, and route into `{guid}-{user}`.
+
+== Exercise 2: Validate the guardrails
+
+The `/v1/guardrail/checks` endpoint validates messages against your configured
+guardrails without generating an LLM response. Because the quickstart uses only
+internal detectors, no LLM needs to be configured. The `model` field is
+required but only used for logging.
+
+. Test with safe content that should pass all rails:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k -X POST $GUARDRAILS_ROUTE/v1/guardrail/checks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(oc whoami -t)" \
+  -d '{
+    "model": "test",
+    "messages": [
+      {"role": "user", "content": "What is the capital of France?"}
+    ]
+  }'
+----
++
+----
+{
+  "status": "success",
+  "rails_status": {
+    "detect sensitive data on input": {"status": "success"},
+    "regex check input": {"status": "success"}
+  }
+}
+----
++
+The status is `success` because the content passed all configured rails.
+
+. Test with an email address to trigger the Presidio detector:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k -X POST $GUARDRAILS_ROUTE/v1/guardrail/checks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(oc whoami -t)" \
+  -d '{
+    "model": "test",
+    "messages": [
+      {"role": "user", "content": "Please contact me at alice@example.com"}
+    ]
+  }'
+----
++
+----
+{
+  "status": "blocked",
+  "rails_status": {
+    "detect sensitive data on input": {"status": "blocked"}
+  },
+  "guardrails_data": {
+    "log": {
+      "activated_rails": ["detect sensitive data on input"]
+    }
+  }
+}
+----
++
+The `detect sensitive data on input` rail blocked the content because it
+detected an email address.
+
+. Test with a security keyword to trigger the regex detector:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k -X POST $GUARDRAILS_ROUTE/v1/guardrail/checks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(oc whoami -t)" \
+  -d '{
+    "model": "test",
+    "messages": [
+      {"role": "user", "content": "Here is my password for the system"}
+    ]
+  }'
+----
++
+----
+{
+  "status": "blocked",
+  "rails_status": {
+    "regex check input": {"status": "blocked"}
+  },
+  "guardrails_data": {
+    "log": {
+      "activated_rails": ["regex check input"]
+    }
+  }
+}
+----
+
+. Send multiple messages in one request to see per-message results:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k -X POST $GUARDRAILS_ROUTE/v1/guardrail/checks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(oc whoami -t)" \
+  -d '{
+    "model": "test",
+    "messages": [
+      {"role": "user", "content": "What is the weather?"},
+      {"role": "user", "content": "My name is John Smith"},
+      {"role": "user", "content": "Here is my api-key"}
+    ]
+  }'
+----
++
+----
+{
+  "status": "blocked",
+  "rails_status": {
+    "detect sensitive data on input": {"status": "blocked"},
+    "regex check input": {"status": "blocked"}
+  },
+  "messages": [
+    {"index": 0, "role": "user", "rails": {"detect sensitive data on input": {"status": "success"}, "regex check input": {"status": "success"}}},
+    {"index": 1, "role": "user", "rails": {"detect sensitive data on input": {"status": "blocked"}}},
+    {"index": 2, "role": "user", "rails": {"detect sensitive data on input": {"status": "success"}, "regex check input": {"status": "blocked"}}}
+  ]
+}
+----
++
+The overall status is `blocked` because at least one message triggered a
+blocking rail. The first message passed all rails, the second was blocked by
+the Presidio detector (person name), and the third by the regex rail
+(`api-key` pattern).
+
+=== Verify
+
+Every request returns a `status` of `success` or `blocked`:
+
+* `status` — overall result: `success`, `blocked`, or `error`
+* `rails_status` — per-rail results across all messages
+* `messages` — per-message results, so you can pinpoint which message tripped which rail
+* `guardrails_data.log.activated_rails` — the rails that blocked content
+* `guardrails_data.log.stats` — performance statistics, including `llm_calls_count` (0 for built-in detectors)
+
+=== Check the standalone checks endpoint
+
+The `/v1/checks` endpoint runs standalone single-turn content checks and can
+return transformed content, such as PII anonymization, rather than only
+blocking requests. Unlike `/v1/guardrail/checks`, it focuses on single-turn
+payload processing. You will use masking flows through this endpoint in
+module 3.
+
+== Exercise 3: Front an LLM with guardrails
+
+With a deployed model, guardrails the live inference path: input rails
+validate user messages, the LLM responds, and output rails validate the
+response before it is returned.
+
+[NOTE]
+====
+This exercise requires a model deployed on the model-serving platform whose
+predictor URL ends in `/v1`, for example
+`https://phi3predictor.model-namespace.svc.cluster.local:8443/v1`. The
+exercises use the `{model_name}` model served at `{model_predictor_url}` —
+substitute your deployed model's predictor URL and name if different.
+====
+
+. Create the authentication assets for the NeMo Guardrails pod. Create a file
+named `nemo-auth.yaml` with a ServiceAccount and a RoleBinding:
++
+[source,yaml]
+----
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nemo-guardrails-service-account
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: nemo-guardrails-service-account-view
+subjects:
+- kind: ServiceAccount
+  name: nemo-guardrails-service-account
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+----
++
+The RoleBinding grants the ServiceAccount `view` permissions within the
+namespace, allowing NeMo Guardrails to discover and communicate with model
+serving endpoints.
+
+. Apply the manifest and create a secret with a token for the ServiceAccount:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f nemo-auth.yaml -n {guid}-{user}
+oc create secret generic api-token-secret -n {guid}-{user} \
+  --from-literal=token=$(oc create token nemo-guardrails-service-account -n {guid}-{user} --duration=336h)
+----
++
+The token duration is set to 336 hours (2 weeks). Adjust this value based on
+your security requirements.
+
+. Create a file named `nemo-simple-config.yaml` with a configuration that
+points at your model:
++
+[source,bash,role="execute"]
+----
+cat > nemo-simple-config.yaml <<'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-simple-config
+data:
+  config.yaml: |
+    models:
+    - type: main
+      engine: openai
+      parameters:
+        openai_api_base: "http://granite-vllm-predictor:8000/v1"
+        model_name: "granite-vllm"
+    rails:
+      config:
+        sensitive_data_detection:
+          input:
+            entities:
+              - EMAIL_ADDRESS
+              - PERSON
+          output:
+            entities:
+              - PERSON
+      input:
+        flows:
+          - detect sensitive data on input
+      output:
+        flows:
+          - detect sensitive data on output
+  rails.co: |
+    # Using built-in sensitive data detection rails
+EOF
+----
+
+`models.engine` — set to `openai` when serving via vLLM; `openai_api_base` is
+the internal predictor service URL and must end in `/v1` (here, the
+`granite-vllm` predictor from the vLLM ServingRuntime workshop — on a GPU
+cluster, substitute your deployed model's predictor service and name).
+`output.entities` — Presidio entities checked on model output; here, person
+names are stripped from responses. `rails.input.flows` and
+`rails.output.flows` — the flows executed on user input and model output
+respectively.
+
+. Create a file named `nemo-simple-cr.yaml` with the custom resource:
++
+[source,bash,role="execute"]
+----
+cat > nemo-simple-cr.yaml <<'EOF'
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: NemoGuardrails
+metadata:
+  name: nemo-simple
+  annotations:
+    security.opendatahub.io/enable-auth: 'true'
+spec:
+  nemoConfigs:
+  - name: nemo-simple-config
+    configMaps:
+    - nemo-simple-config
+  env:
+  - name: OPENAI_API_KEY
+    value: not-used
+EOF
+----
+
+`secretKeyRef` references a secret key for sensitive values — use it instead
+of `value` for credentials and tokens (here the internal detectors need no
+real key, so a placeholder works).
+
+. Apply both manifests and wait for readiness:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f nemo-simple-config.yaml -n {guid}-{user}
+oc apply -f nemo-simple-cr.yaml -n {guid}-{user}
+oc get nemoguardrails nemo-simple -n {guid}-{user} -w
+----
++
+Wait until the `PHASE` column shows `Ready`, then press `Ctrl+C`.
+
+. Export the new route and test with a safe question:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export NEMO_SIMPLE_ROUTE=https://$(oc get routes/nemo-simple -n {guid}-{user} -o jsonpath='{.status.ingress[0].host}')
+curl -k -X POST $NEMO_SIMPLE_ROUTE/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(oc whoami -t)" \
+  -d '{"model": "{model_name}", "messages":[{"role":"user","content":"What is the capital of France?"}]}'
+----
++
+The response includes the LLM's answer.
+
+. Test the sensitive data detection:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k -X POST $NEMO_SIMPLE_ROUTE/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(oc whoami -t)" \
+  -d '{"model": "{model_name}", "messages":[{"role":"user","content":"My email is user@example.com"}]}'
+----
++
+The request is blocked with a message indicating that sensitive data was
+detected.
+
+=== Verify
+
+* A safe question through `/v1/chat/completions` returns the model's answer.
+* A message containing an email address is blocked before the LLM is called.
+* `oc get pods -n {guid}-{user}` shows a `nemo-simple` pod, and
+  `oc get routes/nemo-simple` returns a route host.
+
+[IMPORTANT]
+====
+The `/v1/chat/completions` endpoint is not a transparent proxy. Depending on
+your configuration, NeMo Guardrails might modify, drop, or overwrite user
+request parameters and the model response payload. If you require transparent
+handling of request and response payloads, or advanced inference features such
+as tool calling, separate inference and guardrailing into discrete steps by
+calling your model inference endpoint and the `/v1/guardrail/checks` endpoint
+individually.
+====
+
+== Module summary
+
+**What you accomplished:**
+
+* Deployed a standalone NeMo Guardrails service with built-in Presidio and regex detectors
+* Tested blocking behaviour with `/v1/guardrail/checks`, including per-message results
+* Fronted a deployed model with input and output rails via `/v1/chat/completions`
+
+**Key takeaways:**
+
+* Built-in detectors run inside the NeMo Guardrails pod — no LLM or external service required
+* `/v1/guardrail/checks` validates multi-turn histories without calling the LLM
+* `OPENAI_API_KEY` is always required, sourced from a secret when it holds a real token
+
+**Next steps:**
+
+With the guardrails service running, the advanced module shows you how to
+switch policies, mask PII instead of blocking, and add custom rails with
+Python actions.

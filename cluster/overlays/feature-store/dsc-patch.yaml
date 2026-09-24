@@ -1,0 +1,12 @@
+---
+# Strategic-merge patch enabling the Feast Feature Store operator. Defaults to
+# Removed.
+apiVersion: datasciencecluster.opendatahub.io/v2
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+  namespace: redhat-ods-operator
+spec:
+  components:
+    feastoperator:
+      managementState: Managed

@@ -1,0 +1,16 @@
+---
+# RHOAI operator subscription. The stable-3.5 channel pins the Red Hat build of
+# Kueue (RHBoK) shipped with the operator at 1.3.x — Kubeflow Trainer v2 is NOT
+# compatible with RHBoK 1.4+ (see overlays/distributed/README.md). Do not bump
+# the channel without checking the Trainer v2 compatibility constraint.
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: rhods-operator
+  namespace: redhat-ods-operator
+spec:
+  channel: stable-3.5
+  installPlanApproval: Automatic
+  name: rhods-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

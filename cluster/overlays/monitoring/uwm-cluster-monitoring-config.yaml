@@ -1,0 +1,12 @@
+---
+# Enable User Workload Monitoring so served-model (kserve_vllm), llm_d_epp_, and
+# MaaS token metrics are scraped — required by the maas, llmd-routing, and kueue
+# labs (tenant Ready depends on it too).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+data:
+  config.yaml: |
+    enableUserWorkload: true

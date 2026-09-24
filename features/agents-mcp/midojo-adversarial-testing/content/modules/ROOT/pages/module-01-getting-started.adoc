@@ -1,0 +1,126 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will take a guided tour of *MiDojo*, the man-in-the-middle
+adversarial testing execution engine for AI agents in Red Hat OpenShift AI 3.5.
+Because MiDojo is a Developer Preview feature, this module is a guided tour of
+how it works and where it fits, not a deployment walkthrough — the release
+notes describe the feature's capabilities and design, and that is exactly what
+we follow here.
+
+**Learning objectives:**
+
+* Explain what MiDojo does and why it intercepts agents at the tool layer
+* Describe the anatomy of a MiDojo adversarial scenario
+* Explain how MiDojo grades both utility and security
+
+[NOTE]
+====
+This feature is a *Developer Preview*. It is provided as-is with no support and
+no guarantee of future availability, so focus on the concepts in this tour
+rather than on memorizing specific commands — the deployment interface and
+scenario format may change between releases.
+====
+
+== Exercise 1: What MiDojo does
+
+Traditional model testing sends prompts straight to a model and inspects the
+responses. Agent testing is harder: an agent's behavior emerges from the tool
+calls it makes, and an attacker rarely talks to the agent directly — they
+compromise the *tools* the agent trusts. MiDojo is built around that insight.
+According to the RHOAI 3.5 release notes, MiDojo is a *man-in-the-middle
+adversarial testing execution engine* that:
+
+* **Intercepts communications at the tool layer** — MiDojo sits between the
+  agent and its tools, injecting attack payloads into tool responses while
+  forwarding legitimate calls upstream.
+* **Tests agents without modifying them** — you can test agents against
+  realistic attack scenarios without rebuilding infrastructure or modifying
+  the agent under test.
+* **Uses declarative scenarios** — scenarios are authored in a YAML format
+  that covers environment state, tasks, and injection vectors.
+* **Records the full tool trace** — every run captures the complete sequence
+  of tool calls, so you can audit exactly how the agent reacted.
+* **Deploys on Kubernetes** — this release supports Kubernetes-native
+  deployment, custom external suites, and pluggable backends.
+
+The man-in-the-middle position is what makes this realistic. Because payloads
+arrive inside tool responses — data the agent is inclined to trust — a
+successful injection tests exactly the failure mode that prompt-level testing
+cannot reach.
+
+. Confirm that you are still connected to your workshop environment and working
+  in your own project:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc whoami && oc project
+----
+
+The first line shows your workshop username and the second shows your project
+from xref:getting-connected.adoc[Getting Connected]. Agent testing in this
+workshop happens inside your own namespace boundary — the same isolation model
+you have used throughout this catalog.
+
+== Exercise 2: The anatomy of a MiDojo scenario
+
+A MiDojo scenario is declarative YAML built from three ingredients. Each run
+combines legitimate and injection tasks, and each run is graded on two axes:
+
+[options="header"]
+|===
+|Scenario ingredient |What it describes
+
+|Environment state
+|The world the agent operates in — accounts, balances, records, and other
+state the agent can observe and change through tools
+
+|Tasks
+|The work the agent must complete, both legitimate tasks and injection tasks
+carrying attack payloads
+
+|Injection vectors
+|Where attack payloads are delivered: in prompts, in data sources, or in tool
+responses
+|===
+
+Every execution is graded on both:
+
+* **Utility** — did the agent still complete its legitimate task despite the
+  attack? An agent that becomes useless under attack has failed utility, even
+  if it was never compromised.
+* **Security** — did the agent resist the injected payload? An agent that
+  completes its task but executes the attacker's instructions has failed
+  security.
+
+This two-axis grading is the core of the feature: a passing agent must be both
+*resistant* and *still useful*.
+
+TIP: The full tool trace is what makes results actionable. When an agent fails
+security, you can read the trace to find the exact tool response that carried
+the payload and the exact call where the agent followed it.
+
+== Module summary
+
+**What you accomplished:**
+
+* Toured the MiDojo man-in-the-middle architecture and its tool-layer
+  interception model from the RHOAI 3.5 release notes
+* Broke down the three ingredients of a declarative MiDojo scenario
+* Explained the dual utility/security grading model
+
+**Key takeaways:**
+
+* MiDojo injects attack payloads into tool responses while forwarding
+  legitimate calls upstream, so agents are tested where they are actually
+  attacked
+* Scenarios are declarative YAML covering environment state, tasks, and
+  injection vectors
+* A good result requires both attack resistance (security) and task
+  completion (utility), recorded in a full tool trace
+
+**Next steps:**
+
+Continue to the next module for a guided tour of the building blocks you would
+use in a real MiDojo testing session — suites, backends, agent protocols, and
+the reference MiniBank scenario.

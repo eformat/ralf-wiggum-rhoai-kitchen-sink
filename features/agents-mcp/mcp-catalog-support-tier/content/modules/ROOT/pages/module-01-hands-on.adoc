@@ -1,0 +1,275 @@
+= Module 01: MCP Catalog support tiers in action
+:navtitle: Module 01: MCP Catalog support tiers in action
+
+In this module you enable the MCP Lifecycle Operator that powers the AI Hub MCP Catalog,
+learn to read the support-tier labels on every catalog card, deploy an MCP server from the
+catalog into your working project, and verify the resulting workload from the CLI.
+
+**Learning objectives:**
+
+* Explain what the *Red Hat*, *Partner*, and *Community* support tiers mean on MCP server cards
+* Enable MCP server lifecycle management with the `DataScienceCluster` and `OdhDashboardConfig` resources
+* Deploy an MCP server from the AI Hub MCP Catalog and confirm its `READY` status
+* Monitor and remove an `MCPServer` custom resource from the CLI
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are not
+supported with Red Hat production service-level agreements (SLAs) and might not be
+functionally complete. Red Hat does not recommend using them in production. The
+`MCPServer` custom resource API version is `v1alpha1`; CRD types and fields can change
+in a future release without a migration path, so the commands and manifests shown here
+may change between releases.
+endif::[]
+
+== Before you start: the pieces behind the catalog
+
+The AI Hub MCP Catalog is a federated plugin in the Red Hat OpenShift AI dashboard,
+pre-loaded with MCP servers from Red Hat, technology partners, and the open source
+community. A separate `model-metadata-collection` data container provides the catalog
+metadata used for MCP server discovery.
+
+The *support tier* is a label shown on every server card alongside the server name,
+description, and supported tools. It tells you who maintains and supports that server:
+
+|===
+|Support tier |Description
+
+|*Red Hat*
+|Fully supported by Red Hat.
+
+|*Partner*
+|Supported by the technology partner who maintains the server.
+
+|*Community*
+|Best-effort support from the open source community.
+|===
+
+The `mcplifecycleoperator` component is the deployment runtime behind the catalog. It
+watches for `MCPServer` custom resources and provisions the required `Deployment`,
+`Service`, and `NetworkPolicies` automatically. It defaults to `Removed` in RHOAI 3.5,
+so an administrator must enable it explicitly before the catalog's deploy action works.
+
+[NOTE]
+====
+Additional Technology Preview limitations to be aware of: the operator manages MCP
+servers within a single cluster only (multi-cluster management is not validated), and
+it includes no governance or policy enforcement. Rate limiting and access control for
+MCP servers live in the separate MCP Gateway Operator, part of Red Hat Connectivity
+Link, which must be installed independently if your scenario requires it.
+====
+
+IMPORTANT: Deploying MCP servers from the MCP Catalog requires a cluster administrator
+to enable the MCP Lifecycle Operator first. Until then, the *Deploy MCP server* button
+on the server details page is disabled.
+
+== Exercise 1: Enable MCP server lifecycle management
+
+In this exercise you act as the cluster administrator: you enable the
+`mcplifecycleoperator` component in the `DataScienceCluster` resource and turn on the
+`mcpCatalog` feature flag in the dashboard configuration.
+
+. Identify the name of your `DataScienceCluster` object:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get datasciencecluster
+----
+
+. Enable the MCP Lifecycle Operator by patching the `DataScienceCluster` object.
+Replace `default-dsc` with the name from the previous step if different:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch datasciencecluster default-dsc --type=merge \
+  -p '{"spec":{"components":{"mcplifecycleoperator":{"managementState":"Managed"}}}}'
+----
++
+[NOTE]
+====
+You can also enable the MCP Lifecycle Operator from the OpenShift web console, as
+described in *Installing and uninstalling OpenShift AI* in the RHOAI documentation.
+====
+
+. Enable the MCP lifecycle feature in the dashboard by patching the
+`OdhDashboardConfig` custom resource. This is what makes the MCP Catalog UI and its
+support-tier labels visible to developers:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch odhdashboardconfig odh-dashboard-config -n redhat-ods-applications \
+  --type=merge -p '{"spec":{"dashboardConfig":{"mcpCatalog":true}}}'
+----
+
+=== Verify
+
+Confirm that the MCP Lifecycle Operator pod is running:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n redhat-ods-applications -l app.kubernetes.io/name=mcp-lifecycle-operator
+----
+
+You should see at least one pod in `Running` status, for example:
+
+----
+NAME                                          READY   STATUS    RESTARTS   AGE
+mcp-lifecycle-operator-<id>                   1/1     Running   0          2m
+----
+
+Confirm that the component is reported as installed in the `DataScienceCluster` status:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get datasciencecluster default-dsc \
+  -o jsonpath='{.status.installedComponents.mcplifecycleoperator}'
+----
+
+The expected output is `true`.
+
+With lifecycle management enabled, the catalog is live — next you browse it as a
+developer and put the support-tier labels to work.
+
+== Exercise 2: Read the support tiers and deploy a server from the catalog
+
+In this exercise you browse the AI Hub MCP Catalog in the dashboard, use the support
+tier to choose a server, and deploy it into your working project.
+
+. In the Red Hat OpenShift AI dashboard, navigate to *AI hub* → *MCP servers*.
+. Browse the available MCP servers. Each card displays the server name, a description,
+the supported tools, and the support tier (`Red Hat`, `Partner`, or `Community`).
+
+// TODO: capture screenshot
+image::01-catalog-support-tiers.png[MCP server cards in the AI Hub MCP Catalog showing the support tier badge,link=self,window=blank,width=700]
+
+. Filter the catalog by deployment mode or supported transport protocols to find a
+server that meets your requirements. For the smoothest start, pick a server labeled
+with the *Red Hat* support tier.
+. Click the server you want to deploy to open its details page. Review the server
+metadata: the list of tools it exposes, the supported capabilities, and whether the
+server requires a service account.
+. Click *Deploy MCP server*.
+
+[NOTE]
+====
+The *Deploy MCP server* button stays disabled if the MCP Lifecycle Operator is not
+enabled on the cluster. Recheck Exercise 1 if the button is greyed out.
+====
+
+. In the deployment dialog, review the YAML configuration field. If the MCP server
+requires a service account, set the `serviceAccountName` field under `runtime:` and
+`security:`:
++
+[source,yaml]
+----
+spec:
+  runtime: <1>
+    security:
+      serviceAccountName: <service_account_name> <2>
+----
+<1> *`runtime`* — the runtime section of the server configuration presented in the deployment dialog.
+<2> *`serviceAccountName`* — the name of a `ServiceAccount` resource that already exists in your namespace. Required only if the server metadata says the server needs one.
+
+. Confirm the deployment by clicking *Deploy* in the dialog. The MCP Catalog submits
+the deployment request to the MCP Lifecycle Operator, which creates an `MCPServer`
+custom resource in your namespace and provisions the required `Deployment` and
+`Service`.
+
+=== Verify
+
+Confirm that the `MCPServer` custom resource shows a `READY` status of `True`. Replace
+`<mcp_server_name>` with the server you deployed:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mcpservers -n {guid}-{user}
+----
+
+The output shows your MCP server with `READY` status as `True`, for example:
+
+----
+NAME                READY   ACCEPTED   IMAGE   PORT   ADDRESS   AGE
+<mcp_server_name>   True    True       ...     ...    ...       2m
+----
+
+[TIP]
+====
+Run `oc explain mcpserver.spec.runtime` to view all available runtime configuration
+fields for the CRD version installed on your cluster.
+====
+
+In the dashboard, return to *AI hub* → *MCP servers* and confirm the server appears on
+the *Deployments* tab.
+
+With a real `MCPServer` running in your project, the last step is to read its health
+conditions and clean it up again.
+
+== Exercise 3: Monitor server health and remove the server
+
+In this exercise you inspect the status conditions of your deployed MCP server, then
+delete it and confirm the operator cleans up after it.
+
+. Check the status of all MCP servers in your project:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mcpservers -n {guid}-{user}
+----
+
+. Review the status conditions for your server. Replace `<mcp_server_name>` with your
+server name:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc describe mcpserver <mcp_server_name> -n {guid}-{user}
+----
++
+Look for a condition with `type: Ready` and `status: True` to confirm the server is
+running and ready to accept connections.
+
+. Remove the server:
++
+[WARNING]
+====
+Deleting the `MCPServer` custom resource is destructive. The MCP Lifecycle Operator
+automatically cleans up the associated `Deployment`, `Service`, and other managed
+resources, and the server is no longer available to your agents.
+====
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc delete mcpserver <mcp_server_name> -n {guid}-{user}
+----
+
+=== Verify
+
+Confirm no `MCPServer` resources remain in your project:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mcpservers -n {guid}-{user}
+----
+
+The expected output is `No resources found` or an empty list.
+
+== Module summary
+
+**What you accomplished:**
+
+* Enabled the MCP Lifecycle Operator and the `mcpCatalog` dashboard feature flag on the cluster
+* Read the support-tier labels (`Red Hat`, `Partner`, `Community`) on MCP server cards in the AI Hub MCP Catalog
+* Deployed an MCP server from the catalog, verified its `READY` status, and removed it again
+
+**Key takeaways:**
+
+* The support tier tells you who stands behind each catalog server: Red Hat fully, the
+  technology partner, or best-effort from the community
+* The `mcplifecycleoperator` component defaults to `Removed` and must be set to
+  `Managed` in the `DataScienceCluster` before the catalog's deploy action is available
+* The operator turns catalog cards into `MCPServer` custom resources and provisions the
+  `Deployment` and `Service` for you
+
+**Next steps:**
+
+To upgrade or scale a deployed server, or to route MCP traffic through the governed
+entry point of the MCP Gateway Operator, see the *Working with the MCP catalog* chapter
+in the RHOAI 3.5 documentation linked from the conclusion.

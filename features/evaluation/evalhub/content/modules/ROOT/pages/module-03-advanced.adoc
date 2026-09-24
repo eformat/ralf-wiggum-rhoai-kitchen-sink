@@ -1,0 +1,305 @@
+= Module 03: Advanced Usage
+:navtitle: Module 03: Advanced Usage
+
+In this module you will drive EvalHub from the RHOAI dashboard, build a custom
+benchmark collection, log results to MLflow, and manage tenant access with
+RBAC.
+
+**Learning objectives:**
+
+* Submit evaluation jobs and compare completed runs in the RHOAI dashboard
+* Create a custom collection that groups benchmarks into a reusable suite
+* Associate jobs with MLflow experiments and locate the experiment URL
+* Grant and verify tenant access to EvalHub with Roles and RoleBindings
+
+== Exercise 1: Submit an evaluation from the dashboard
+
+The dashboard provides a visual workflow for selecting benchmarks,
+configuring parameters, and setting pass or fail thresholds.
+
+[NOTE]
+====
+The *Develop & train* → *Evaluations* page may be hidden by default. If it is
+not visible, an administrator must enable it by setting `disableEvalHub` to
+`false` in the `OdhDashboardConfig` custom resource (CR).
+====
+
+. In the RHOAI dashboard, click *Develop & train* → *Evaluations*.
+. Optional: from the *Project* dropdown, select `{guid}-{user}` to filter the
+   evaluations list to your project.
+. Click *Start evaluation run* and select benchmarks to run:
++
+* *Benchmark* — an individual benchmark to evaluate a specific capability or task.
+* *Benchmark suite* — a predefined collection of related benchmarks. Suites in
+  the dashboard correspond to EvalHub collections, such as `leaderboardv2`.
++
+You can select multiple benchmarks or suites; each selection appears as a tag
+below the field.
+
+. Configure the basic parameters:
++
+* *Evaluation name* — a unique name for the job; the default is the timestamp.
+* *MLflow experiment* — an existing MLflow experiment; results are logged as
+  runs within it.
+* *Source* — the model, agent, or pre-recorded responses to evaluate.
+. Optional: drag the *threshold* slider to a value between 0 and 100. This is
+   equivalent to the `0.0`–`1.0` threshold used in the API. Thresholds define
+   pass or fail criteria for the results.
+. Expand *Benchmark parameters* and set benchmark-specific options, for
+   example:
++
+[source,json]
+----
+{
+  "num_examples": 10,
+  "limit": 5,
+  "tokenizer": "google/flan-t5-small"
+}
+----
+. Click *Evaluate*.
+
+=== Verify
+
+On the *Evaluations* page, locate your job. The *Status* column shows
+*Running* while it executes and *Completed* when all benchmarks finish.
+Click the evaluation name to view benchmark scores and the pass or fail
+status if you set a threshold.
+
+Having submitted from the console, compare runs side by side.
+
+== Exercise 2: Compare evaluation runs
+
+You can compare two or more completed evaluation runs in an embedded MLflow
+comparison view. Comparison is artifact-agnostic: models, RAG pipeline
+configurations, agentic systems, or prompt templates all compare, as long as
+each run is `Completed`.
+
+. On the *Evaluations* page, select the checkbox next to each completed run
+   you want to compare.
+. Click *Compare*.
+. If you selected runs with benchmark suites, the *Choose Benchmarks* step
+   opens. Select all benchmarks or a subset to target the comparison — for
+   example, only reasoning benchmarks — and click *Compare* again.
+. Review the results in the comparison view:
++
+* *Visualizations* — plot types such as parallel coordinates or contour plots.
+* *Parameters* — configuration values per run, side by side.
+* *Metrics* — evaluation scores per run, showing what improved or regressed.
+
+[NOTE]
+====
+The comparison view shows raw metric values only: it does not indicate score
+direction (`lower_is_better`), does not display pass or fail thresholds, does
+not group suite metrics by benchmark, and offers no export. Interpret metric
+changes based on your knowledge of each benchmark.
+====
+
+=== Verify
+
+The MLflow comparison view displays parameters and metrics for every selected
+run in aligned columns.
+
+From the console, move to the CLI to build a reusable evaluation suite.
+
+== Exercise 3: Create a custom collection
+
+Collections group benchmarks from one or more providers into a reusable
+suite, so you can submit one job that runs them all with shared weights and
+thresholds.
+
+. Create a collection spec file:
++
+[source,yaml]
+----
+name: my-safety-suite
+category: safety
+benchmarks:
+- provider_id: lm_evaluation_harness
+  benchmark_id: truthfulqa_mc2
+- provider_id: garak
+  benchmark_id: owasp_llm_top_10
+----
++
+where:
+
+* `name` defines the collection name you reference when submitting jobs.
+* `category` groups the collection in the provider catalog.
+* `benchmarks` lists the benchmarks to include, each identified by provider and benchmark ID.
+. Create the collection from the file:
++
+[source,bash,role="execute"]
+----
+evalhub collections create --file my-safety-suite.yaml
+----
+
+. Submit a job that references the collection by ID:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -X POST $EVALHUB_URL/api/v1/evaluations/jobs \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant: {guid}-{user}" \
+  -d '{
+    "name": "my-eval",
+    "model": {
+      "url": "http://<model-svc>.{guid}-{user}.svc.cluster.local:8080/v1",
+      "name": "my-model"
+    },
+    "collection": {
+      "id": "<collection_id>"
+    }
+  }'
+----
++
+Replace `<collection_id>` with the ID returned when you created the
+collection.
+
+=== Verify
+
+Confirm the collection was created:
++
+[source,bash,role="execute"]
+----
+evalhub collections describe <collection_id>
+----
++
+The output shows the collection name, category, and benchmark list.
+
+With suites in place, wire the results into MLflow and lock down access.
+
+== Exercise 4: MLflow tracking and tenant access
+
+**Log results to an MLflow experiment.** When MLflow is configured for
+EvalHub, jobs log benchmark metrics as runs in a designated experiment. Your
+facilitator sets the tracking URI in the EvalHub CR:
+
+[source,yaml]
+----
+env:
+- name: MLFLOW_TRACKING_URI
+  value: "http://mlflow.mlflow.svc.cluster.local:5000"
+----
+
+Include an `experiment` block in your YAML config file when you submit the
+job:
+
+[source,yaml,subs="attributes"]
+----
+name: my-model-v2-eval
+model:
+  url: http://<model-svc>.{guid}-{user}.svc.cluster.local:8080/v1
+  name: my-model
+benchmarks:
+- id: mmlu
+  provider_id: lm_evaluation_harness
+experiment:
+  name: my-model-v2-eval
+----
+
+[source,bash,role="execute"]
+----
+evalhub eval run --config eval-with-mlflow.yaml
+----
+
+When the job completes, the results include an MLflow experiment URL:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -H "Authorization: Bearer $TOKEN" -H "X-Tenant: {guid}-{user}" \
+  $EVALHUB_URL/api/v1/evaluations/jobs/<job_id> | jq .results.mlflow_experiment_url
+----
+
+----
+"https://mlflow.example.com/#/experiments/42"
+----
+
+**Grant tenant access.** EvalHub performs SubjectAccessReview checks against
+virtual resources in the tenant namespace. Grant a teammate access with a
+Role and RoleBinding:
+
+. Create a Role in the tenant namespace:
++
+[source,yaml,subs="attributes"]
+----
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: evalhub-evaluator
+  namespace: {guid}-{user}
+rules:
+- apiGroups: ["trustyai.opendatahub.io"]
+  resources: ["evaluations", "collections", "providers"]
+  verbs: ["get", "list", "create", "update", "delete"]
+- apiGroups: ["mlflow.kubeflow.org"]
+  resources: ["experiments"]
+  verbs: ["create", "get"]
+----
++
+where:
+
+* `trustyai.opendatahub.io` virtual resources control job, collection, and provider operations.
+* `mlflow.kubeflow.org` experiments govern MLflow experiment creation and reads.
+. Apply the Role and bind it to a principal:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f evalhub-evaluator-role.yaml -n {guid}-{user}
+----
++
+For an OpenShift user, the RoleBinding looks like:
+
+[source,yaml,subs="attributes"]
+----
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: user-evalhub-access
+  namespace: {guid}-{user}
+subjects:
+- kind: User
+  name: <user_name>
+roleRef:
+  kind: Role
+  name: evalhub-evaluator
+  apiGroup: rbac.authorization.k8s.io
+----
+
+. Verify the permissions with an impersonation check:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc auth can-i create evaluations.trustyai.opendatahub.io \
+  -n {guid}-{user} \
+  --as=<user_name>
+----
++
+Expected output: `yes`
+
+=== Verify
+
+The MLflow experiment URL resolves in the MLflow UI, and
+`oc auth can-i create evaluations.trustyai.opendatahub.io` returns `yes` for
+the bound principal.
+
+== Module summary
+
+**What you accomplished:**
+
+* Submitted an evaluation from the RHOAI dashboard with benchmarks, thresholds, and benchmark parameters
+* Compared completed evaluation runs in the embedded MLflow comparison view
+* Created a custom collection and ran a job against it
+* Logged results to an MLflow experiment and granted tenant access with RBAC
+
+**Key takeaways:**
+
+* Dashboard benchmark suites map directly to EvalHub collections
+* Thresholds set in the dashboard (0–100) match the API's `0.0`–`1.0` pass criteria
+* EvalHub authorization uses virtual resources such as `evaluations` checked in the tenant namespace
+
+**Next steps:**
+
+To go further, export evaluation artifacts to an OCI registry for long-term
+traceability, or run the EvalHub server in local mode to develop adapters on
+your workstation — both are covered in the RHOAI documentation linked from the
+conclusion.

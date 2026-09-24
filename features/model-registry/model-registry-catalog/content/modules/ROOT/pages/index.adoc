@@ -1,0 +1,43 @@
+= Welcome to the Model registry and model catalog Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *Model registry and model catalog* — the curated
+library where you discover and evaluate gen AI models, and the central
+repository where you register, version, and manage their lifecycle before
+deployment.
+
+**What you will learn:**
+
+* How the Model Catalog and Model Registry fit together in the RHOAI model lifecycle
+* Enable the `modelregistry` component in the DataScienceCluster and create a model registry as an administrator
+* Register models and versions from the registry and the model catalog, and grant registry access
+* Store models as OCI ModelCar images, monitor transfer jobs, and govern model catalog sources
+
+== Prerequisites
+
+* RHOAI operator installed
+* Model registry enabled in DSC (Module 01 walks through the enablement)
+* An OpenShift cluster with RHOAI 3.5 installed
+
+== Estimated time
+
+About 2 hours
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-concepts.adoc[Module 01: Core Concepts]
+* xref:module-02-hands-on.adoc[Module 02: Hands-on Exercise]
+* xref:module-03-advanced.adoc[Module 03: Advanced Usage]
+* xref:conclusion.adoc[Conclusion]

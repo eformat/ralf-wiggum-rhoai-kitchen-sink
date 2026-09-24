@@ -1,0 +1,173 @@
+= Module 01: Guided tour — exporting Model Catalog data as CSV
+:navtitle: Module 01: Guided tour — CSV export
+
+In this module you will take a guided tour of *CSV export for Model Catalog data*, a Developer
+Preview capability in Red Hat OpenShift AI 3.5. You can export model catalog metadata to CSV
+format by using a standalone Python CLI script. The script queries the Model Catalog REST API,
+paginates through the full result set, and produces an RFC 4180-compliant CSV file that includes
+all model metadata and custom properties.
+
+IMPORTANT: This is a guided tour of a Developer Preview feature, so the module is descriptive: you
+observe the data the export reads, run the documented export script, and inspect the resulting CSV.
+The script installation, authentication, and full usage reference are covered in the *CSV Exporter
+for Model Catalog* guide linked from the
+https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/release_notes/index[RHOAI 3.5 release notes].
+
+**Learning objectives:**
+
+* Explain what CSV export for Model Catalog data does and where it fits in the model catalog workflow
+* Locate the Model Catalog in the OpenShift AI dashboard and identify the metadata you can export
+* Run the export script with its documented options and validate the RFC 4180 CSV output
+
+== Exercise 1: Locate the metadata you will export
+
+The model catalog is the source of the data the export script reads. Before exporting, familiarize
+yourself with what the catalog contains and where it lives.
+
+.Model catalog in the RHOAI dashboard
+
+Data scientists and AI engineers use the model catalog to discover and evaluate the gen AI models
+that are available and ready for their organization to register, deploy, and customize. The catalog
+provides models from different providers that you can search, discover, and evaluate before you
+register models in a model registry and deploy them to a model serving runtime.
+
+.Procedure
+
+. Navigate to link:{openshift_console_url}[the OpenShift AI console,window=blank] and log in.
+. From the OpenShift AI dashboard, click *AI hub → Models → Catalog*.
++
+The Catalog page displays a high-level view of available models, including the model category,
+name, description, and labels such as task, license, and provider. Third-party validated models
+also show performance benchmark data.
+. In the menu bar, browse the model categories: *All models*, *Red Hat AI models*,
+*Red Hat AI validated models*, and any custom categories your administrator configured.
+. Use the search bar to find a model by name, description, or provider, and use the filter menu to
+narrow results by task, provider, license, language, or tensor type.
+. Click a model name to open the model details page and note the model description, the model card
+information supplied by the provider, and the key model properties shown in the *Model details*
+section.
+
+Each model entry in the catalog carries metadata — description, provider, labels, model card
+information, and performance metrics for validated models — plus any custom properties. All of
+this is the data the CSV export packages.
+
+// TODO: capture screenshot
+image::01-model-catalog-page.png[Model catalog page in the AI hub,link=self,window=blank,width=700]
+
+=== Verify
+
+You are viewing the Catalog page under *AI hub → Models* in the OpenShift AI dashboard, and you can
+see at least one category of models with their names, descriptions, and labels. If the catalog is
+empty, ask your administrator to check the configured model catalog sources.
+
+Now that you know what the catalog holds, run the export script against it.
+
+== Exercise 2: Run the CSV export script
+
+The export capability ships as a standalone Python CLI script that requires Python 3.10+ with no
+additional dependencies. The script queries the Model Catalog REST API, paginates through the full
+result set, and writes an RFC 4180-compliant CSV file that includes all model metadata and custom
+properties. Writes are atomic, so a failed run never leaves a partial CSV behind.
+
+NOTE: The exact script name and installation steps come from the *CSV Exporter for Model Catalog*
+guide referenced in the release notes; they are not part of the downloaded RHOAI documentation. The
+usage pattern below uses `<placeholders>` that you replace with values from that guide.
+
+.Procedure
+
+. Confirm your Python version meets the 3.10+ requirement:
++
+[source,bash,role="execute",subs="attributes"]
+----
+python3 --version
+----
++
+Expected output:
++
+----
+Python 3.12.3
+----
++
+Any Python 3.10 or newer version is sufficient; the script has no additional dependencies.
+. Install the export script by following the installation instructions in the *CSV Exporter for
+Model Catalog* guide.
+. Run the export using the documented usage pattern:
++
+[source,bash]
+----
+python3 <export-script>.py --source <catalog-source> --limit <count> --header <authorization-header>
+----
++
+The script supports filtering by source with `--source`, limiting the output count with `--limit`,
+and setting authorization headers with `--header` to authenticate against the Model Catalog REST
+API. Omit any option you do not need; with no options the script exports the full catalog result
+set.
+. Wait for the script to finish and note the path of the CSV file it reports.
+
+.Documented script options
+
+|===
+|Option |Behavior
+
+|--source |Filters the export to models from a single catalog source
+|--limit |Limits the number of models included in the output
+|--header |Sets an authorization header used to authenticate against the Model Catalog REST API
+|===
+
+=== Verify
+
+The script exits without errors and reports the path to a CSV file. If the run fails mid-export, no
+partial CSV file is left behind: the script writes atomically and only publishes the file once the
+full result set has been fetched.
+
+With a CSV in hand, validate what the export actually produced.
+
+== Exercise 3: Validate the exported CSV
+
+The export produces an RFC 4180-compliant CSV file that includes all model metadata and custom
+properties from the catalog.
+
+.Procedure
+
+. Inspect the first line of the exported file to confirm the header row:
++
+[source,bash,role="execute",subs="attributes"]
+----
+head -n 1 <exported-file>.csv
+----
++
+Replace `<exported-file>.csv` with the path the script reported. The output is a single line of
+comma-separated column names covering the exported model metadata and custom properties.
+. Open the file in a spreadsheet application or CSV viewer and confirm:
+* Every row is a model from the catalog result set, and the row count matches the `--limit` value
+you set, or the full result set when no limit was given.
+* Each row includes the model metadata you saw on the model details page in Exercise 1, such as
+name, description, provider, and labels.
+* Custom properties appear as columns alongside the standard model metadata.
+. Optional: Re-run the export with `--source` restricted to a single catalog source and confirm
+that the output only contains models from that source.
+
+=== Verify
+
+The exported file opens cleanly as RFC 4180-compliant CSV: a header row followed by one row per
+model, with all model metadata and custom properties present. Rows respect the `--source` and
+`--limit` options you passed to the script.
+
+== Module summary
+
+**What you accomplished:**
+
+* Located the Model Catalog in the OpenShift AI dashboard and identified the metadata it holds
+* Ran the standalone Python CSV export script with its documented options
+* Validated that the exported file is RFC 4180-compliant CSV containing model metadata and custom properties
+
+**Key takeaways:**
+
+* CSV export packages the full Model Catalog result set — metadata plus custom properties — as RFC 4180-compliant CSV via the Model Catalog REST API
+* The export script is standalone Python 3.10+ with no additional dependencies and writes atomically, so failures never leave partial files
+* `--source`, `--limit`, and `--header` control catalog-source filtering, output size, and API authentication
+
+**Next steps:**
+
+You now have a CSV snapshot of your model catalog that you can feed into spreadsheets, scripts, or
+reporting tools. Continue to the conclusion for the related RHOAI documentation.

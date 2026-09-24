@@ -1,0 +1,386 @@
+= Module 01: Getting Started with Multi-provider API passthrough
+:navtitle: Module 01: Getting Started
+
+In this module you will verify the MaaS and external-model prerequisites on your
+workshop cluster, learn how the gateway decides between translation and
+passthrough, then create the provider API key secret and the `ExternalProvider`
+custom resource that defines the external provider endpoint and authentication.
+
+**Learning objectives:**
+
+* Verify the external-model CRDs, MaaS gateway, and subscription prerequisites from the CLI
+* Explain how the gateway detects API formats and which format combinations trigger passthrough
+* Create a provider API key secret and an `ExternalProvider` custom resource in a Ready state
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: Multi-provider API passthrough is a *Technology Preview* feature.
+Technology Preview features are not supported with Red Hat production
+service-level agreements (SLAs) and might not be functionally complete. The
+`ExternalProvider`, `ExternalModel`, and `MaaSModelRef` APIs and the passthrough
+behavior shown here may change between releases.
+endif::[]
+
+== Exercise 1: Verify the prerequisites
+
+External models are a cluster-administrator feature: the `ExternalProvider` and
+`ExternalModel` resources define how the MaaS gateway routes inference requests
+to providers outside the cluster, so a mistake affects every user of the
+gateway. The documentation requires cluster administrator privileges, RHOAI
+installed, MaaS deployed, and at least one MaaS subscription to which you will
+add the external model. Work through the following checks in order.
+
+. Log in to your OpenShift cluster as a cluster administrator:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc login {openshift_api_url} -u {user} -p {password}
+----
+
+. Verify that the external-model custom resource definitions (CRDs) are
+installed:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get crd externalmodels.inference.opendatahub.io \
+  externalproviders.inference.opendatahub.io
+----
++
+Expected output shows both CRDs:
++
+----
+NAME                                            AGE
+externalmodels.inference.opendatahub.io         30d
+externalproviders.inference.opendatahub.io      30d
+----
++
+If a CRD is not found, the MaaS deployment is incomplete — redeploy the
+`maas` component in the `DataScienceCluster` before continuing.
+
+. Verify that the MaaS API component is running. The default infrastructure
+namespace is `redhat-ai-gateway-infra` for OpenShift AI 3.5 and later:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n redhat-ai-gateway-infra -l app.kubernetes.io/name=maas-api
+----
++
+Expected output shows a running pod:
++
+----
+NAME                        READY   STATUS    RESTARTS   AGE
+maas-api-5b7d9c4f6d-xk2qz   1/1     Running   0          2d
+----
+
+. Verify that at least one MaaS subscription exists to which you will add the
+external model:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get maassubscriptions.maas.opendatahub.io -A
+----
++
+Expected output shows at least one subscription. If the list is empty, create a
+subscription first — in the RHOAI dashboard, navigate to *Settings* →
+*MaaS governance* and click *Create subscription*.
+
+=== Verify
+
+* Both external-model CRDs (`externalmodels`, `externalproviders`) are installed.
+* The `maas-api` pod is `Running` in `redhat-ai-gateway-infra`.
+* At least one MaaS subscription exists.
+
+With the prerequisites confirmed, the next exercise maps out how the gateway
+decides between translation and passthrough — the knowledge you need before
+choosing an `apiFormat`.
+
+== Exercise 2: Understand format detection and passthrough eligibility
+
+By default, the MaaS gateway translates all incoming requests to the format
+expected by the external provider — for example, an OpenAI Chat Completions
+request to an Anthropic provider is translated to the Anthropic Messages format
+before forwarding. If your developers use only the standard OpenAI SDK, you do
+not need passthrough. Use passthrough when your developers need
+provider-specific features that translation cannot preserve:
+
+* *Anthropic SDK or Claude Code users:* set `apiFormat: messages` on the
+`ExternalModel` to preserve Anthropic prompt caching, extended thinking, and
+beta flags such as `interleaved-thinking`.
+* *OpenAI Responses API users:* set `apiFormat: openai-responses` to forward
+the Responses API format as-is.
+* *Vertex AI with Anthropic SDK clients:* set `apiFormat: messages` to route
+native Anthropic SDK requests through the Vertex AI Anthropic endpoint — the
+gateway handles Vertex-specific adjustments automatically.
+* *Existing OpenAI-format-only deployments are unaffected:* passthrough
+activates only when the client format matches the configured `apiFormat`.
+
+The gateway detects the client's API format from the request path suffix:
+
+[format-detection]
+|===
+|Request path suffix |Detected format |API type
+
+|`/v1/chat/completions`
+|`openai-chat`
+|OpenAI Chat Completions
+
+|`/v1/messages`
+|`messages`
+|Anthropic Messages
+
+|`/v1/responses`
+|`openai-responses`
+|OpenAI Responses
+
+|Unrecognized path
+|Not detected
+|Returns 400 Bad Request
+|===
+
+Passthrough activates only when the detected client format matches the
+configured `apiFormat`:
+
+[decision-matrix]
+|===
+|Client input format |`ExternalModel` `apiFormat` |Behavior
+
+|`messages`
+|`messages`
+|Passthrough
+
+|`openai-responses`
+|`openai-responses`
+|Passthrough
+
+|`openai-chat`
+|`openai-chat`
+|Translation (path rewriting required — always translation, never passthrough)
+
+|`openai-chat`
+|`messages`
+|Translation (OpenAI to Anthropic)
+
+|`messages`
+|`messages` (Vertex AI)
+|Translation (Anthropic to Vertex Anthropic, with `anthropic_version` body
+injection and Vertex-unsupported field stripping)
+
+|Other combinations
+|Any
+|400 Bad Request (unsupported format combination)
+|===
+
+Inspect the `apiFormat` field on your cluster to see the schema your operator
+ships:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc explain externalmodels.inference.opendatahub.io.spec.externalProviderRefs.apiFormat
+----
++
+Expected output includes the `apiFormat` field description from the
+`ExternalModel` schema. The exact help text may vary with the operator version.
+
+=== Verify
+
+* You can state which request paths map to `messages`, `openai-responses`, and
+`openai-chat`.
+* You can name the only two format combinations that use passthrough:
+`messages` → `messages` and `openai-responses` → `openai-responses`.
+
+With the decision matrix in mind, the next exercise creates the model namespace
+and the provider API key secret that the `ExternalProvider` will reference.
+
+== Exercise 3: Create the model namespace and the provider API key secret
+
+The external model configuration uses a two-resource architecture: an
+`ExternalProvider` defines the provider endpoint and credentials, and an
+`ExternalModel` maps a client-facing model name to one or more providers. Both
+live in a model namespace — the documentation examples use `llm`; this workshop
+uses `{guid}-llm` to keep users isolated.
+
+. Create the model namespace:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc new-project {guid}-llm
+----
+
+. Create a Kubernetes secret with the external provider API key:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc create secret generic anthropic-api-key \
+  --from-literal=api-key=%anthropic-api-key% \
+  -n {guid}-llm
+----
++
+Replace `%anthropic-api-key%` with your Anthropic API key. MaaS uses this key
+to authenticate requests to the external provider.
+
+. Label the secret so it is managed by the external model routing pipeline:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc label secret anthropic-api-key \
+  inference.llm-d.ai/ipp-managed=true \
+  -n {guid}-llm
+----
+
+The resulting secret has the following structure:
++
+[source,yaml,subs="attributes,callouts"]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: anthropic-api-key            # <1>
+  namespace: {guid}-llm
+  labels:
+    inference.llm-d.ai/ipp-managed: "true"  # <2>
+type: Opaque
+data:
+  api-key: <base64-encoded-api-key>  # <3>
+----
+<1> *Secret name* — the `ExternalProvider` `secretRef` references this name in
+the next exercise.
+<2> *Managed label* — marks the secret as managed by the external model
+routing pipeline.
+<3> *API key data* — the base64-encoded provider API key that MaaS uses to
+authenticate requests to the external model.
+
+=== Verify
+
+. Confirm the secret exists and carries the managed label:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get secret anthropic-api-key -n {guid}-llm \
+  -o jsonpath='{.metadata.labels.inference\.llm-d\.ai/ipp-managed}'
+----
++
+Expected output:
++
+----
+true
+----
+
+With the secret in place, the next exercise creates the `ExternalProvider` that
+binds the provider endpoint to those credentials.
+
+== Exercise 4: Create the ExternalProvider custom resource
+
+The `ExternalProvider` custom resource defines the provider endpoint and
+authentication. The following example configures an Anthropic provider — the
+passthrough-eligible provider this workshop tests later.
+
+. Create the `ExternalProvider` resource:
++
+[source,bash,role="execute",subs="attributes"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: inference.opendatahub.io/v1alpha1
+kind: ExternalProvider
+metadata:
+  name: anthropic-provider
+  namespace: {guid}-llm
+spec:
+  provider: anthropic
+  endpoint: api.anthropic.com
+  auth:
+    type: apikey
+    secretRef:
+      name: anthropic-api-key
+EOF
+----
+
+The manifest you applied has the following structure:
++
+[source,yaml,subs="attributes,callouts"]
+----
+apiVersion: inference.opendatahub.io/v1alpha1  # <1>
+kind: ExternalProvider
+metadata:
+  name: anthropic-provider                     # <2>
+  namespace: {guid}-llm
+spec:
+  provider: anthropic                          # <3>
+  endpoint: api.anthropic.com                  # <4>
+  auth:
+    type: apikey                               # <5>
+    secretRef:
+      name: anthropic-api-key
+----
+<1> *API version* — `inference.opendatahub.io/v1alpha1`, the external-model
+API group. As a Technology Preview feature, this group may change between
+releases.
+<2> *Provider name* — the `ExternalModel` `externalProviderRefs` reference
+this name.
+<3> *Provider type* — the gateway has built-in support for `openai`,
+`anthropic`, `azure`, `vertex`, and `bedrock`. The `anthropic` type injects the
+`x-api-key` header; other values fall back to `Authorization: Bearer`.
+<4> *Endpoint* — the fully qualified domain name of the external provider
+without scheme or path, such as `api.openai.com` or `api.anthropic.com`.
+<5> *Auth type* — `apikey` reads the API key from the referenced secret and
+injects it in the provider-specific header. Vertex AI uses `oauth2`; AWS
+Bedrock uses `sigv4`.
+
+. Verify that the `ExternalProvider` status is Ready:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get externalprovider anthropic-provider -n {guid}-llm
+----
++
+Expected output shows the provider in Ready status:
++
+----
+NAME                PROVIDER   ENDPOINT           PHASE   AGE
+anthropic-provider  anthropic  api.anthropic.com  Ready   10s
+----
+
+IMPORTANT: When the `ExternalProvider` resource is created, the controller
+automatically creates the required networking resources: `Service`,
+`ServiceEntry`, and `DestinationRule`. These resources enable routing from the
+MaaS gateway to the external provider endpoint. If external model routing fails
+later, verify that these resources were created successfully in your model
+namespace.
+
+. Verify the networking resources:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get serviceentry,destinationrule -n {guid}-llm
+----
++
+Expected output shows a `ServiceEntry` for `api.anthropic.com` and a
+`DestinationRule` that terminates TLS for the external endpoint.
+
+=== Verify
+
+* `oc get externalprovider anthropic-provider -n {guid}-llm` shows `PHASE: Ready`.
+* The `ServiceEntry` and `DestinationRule` resources exist in `{guid}-llm`.
+
+The provider is registered and routable. Module 02 completes the picture: an
+`ExternalModel` with a passthrough-eligible `apiFormat`, subscription
+governance, and an end-to-end passthrough test with the Anthropic Messages
+format.
+
+== Module summary
+
+**What you accomplished:**
+
+* Verified the external-model CRDs, the MaaS gateway, and your MaaS subscription
+* Created a labeled provider API key secret in the `{guid}-llm` model namespace
+* Created an `ExternalProvider` for Anthropic and confirmed Ready status with its networking resources
+
+**Key takeaways:**
+
+* Passthrough activates only when the client request format matches the configured `apiFormat` — `messages` and `openai-responses` are the only passthrough-eligible values
+* `openai-chat` always uses translation, so OpenAI-SDK-only deployments are unaffected by this feature
+* The `ExternalProvider` controller auto-creates `Service`, `ServiceEntry`, and `DestinationRule` resources; check them when routing fails
+
+**Next steps:**
+
+Continue to the next module, where you create the `ExternalModel` with
+`apiFormat: messages`, publish it to a MaaS subscription, and send a native
+Anthropic Messages request through the gateway.

@@ -1,0 +1,45 @@
+= Welcome to the MLflow experiment tracking / MLOps integration Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *MLflow experiment tracking / MLOps integration* — a
+single shared MLflow instance in RHOAI, deployed through the MLflow Operator,
+where each OpenShift project maps to an MLflow workspace and every API request
+is authorized with Kubernetes RBAC.
+
+**What you will learn:**
+
+* How MLflow fits into RHOAI: the MLflow Operator, project-to-workspace mapping, and the RBAC model behind the MLflow API
+* Install and configure MLflow by enabling the `mlflowoperator` component in the DataScienceCluster and creating the cluster-scoped `MLflow` custom resource
+* Enable automatic MLflow SDK configuration in a workbench with the `opendatahub.io/mlflow-instance` annotation, and track experiments from a notebook
+* View and compare runs in the dashboard's embedded *Experiments (MLflow)* page
+* Override artifact storage per project with `MLflowConfig` and archive trace payloads with the `traceArchival` section
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI 3.5 installed, and you are logged in
+* The `mlflowoperator` component set to `Managed` in your DataScienceCluster (DSC) — module 2 walks through enabling it
+* Cluster administrator privileges for the install steps in module 2
+* A workbench in your project for the notebook exercises in module 2 and 3
+
+== Estimated time
+
+About 2 hours
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:module-03-advanced.adoc[Advanced Usage]
+* xref:conclusion.adoc[Conclusion]

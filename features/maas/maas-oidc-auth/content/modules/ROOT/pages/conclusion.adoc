@@ -1,0 +1,23 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the MaaS-specific external OIDC user authentication workshop.
+
+== What you covered
+
+* xref:module-01-getting-started.adoc[Configure external OIDC authentication]
+* xref:module-02-hands-on.adoc[Govern access and verify OIDC authentication]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/govern_llm_access_with_models-as-a-service/configure-external-oidc-authentication-for-models-as-a-service[Configure external OIDC authentication for Models-as-a-Service] — the feature chapter: the two-tier authentication flow, group-based access control, the API key lifecycle, and the `AITenant` OIDC configuration
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/govern_llm_access_with_models-as-a-service/index[Govern LLM access with Models-as-a-Service] — the full guide, including subscriptions, authorization policies, API key management, and the MaaS API reference
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:maas-multi-tenancy::index.adoc[MaaS multi-tenancy with per-tenant gateway and identity isolation]
+* xref:maas-core::index.adoc[Models-as-a-Service (MaaS) core: access model and token mechanism]

@@ -1,0 +1,159 @@
+= Module 01: Core Concepts
+:navtitle: Module 01: Core Concepts
+
+In this module you will understand what OGX (Open GenAI Stack) is, how it replaces Llama Stack in Red Hat OpenShift AI 3.5, and how its operator, custom resource, and provider model fit together.
+
+**Learning objectives:**
+
+* Explain what OGX does and how it evolved from Llama Stack in RHOAI 3.5
+* Describe the OGX components: the OGX Operator, the OGXServer custom resource, the run.yaml configuration, and the provider model
+* Locate OGX resources in your cluster from the CLI and the console
+
+== Exercise 1: Where OGX fits
+
+OGX is a unified AI runtime environment designed to simplify the deployment and management of
+generative AI workloads on OpenShift AI. The OGX Operator manages the deployment lifecycle of OGX
+server instances, and each server integrates model inference, embedding generation, vector storage,
+and retrieval services into a single stack that is optimized for retrieval-augmented generation (RAG)
+and agent-based AI workflows.
+
+Starting in OpenShift AI 3.5EA1, Llama Stack is fully renamed to OGX. Applications built with the
+Llama Stack Operator must be migrated: the API group changes from `llamastack.io` to `ogx.io`, and the
+`LlamaStackDistribution` kind becomes `OGXServer`.
+
+|===
+|Component |Llama Stack (previous) |OGX (new)
+
+|API group
+|`llamastack.io`
+|`ogx.io`
+
+|API version
+|`v1alpha1`
+|`v1beta1`
+
+|Kind
+|`LlamaStackDistribution`
+|`OGXServer`
+
+|Resource plural
+|`llamastackdistributions`
+|`ogxservers`
+
+|Short name
+|`llsd`
+|`ogxserver`
+
+|Container name
+|`llama-stack`
+|`ogx`
+
+|App label
+|`app: llama-stack`
+|`app: ogx`
+
+|External URL status field
+|`.status.routeURL`
+|`.status.externalURL`
+|===
+
+OGX includes the following core components:
+
+* *OGX Operator* — installs and manages OGX server instances, handling deployment, scaling, and updates.
+* *run.yaml* — defines which APIs are enabled and how backend providers are configured. Red Hat ships a default `run.yaml` for common deployment scenarios; you can supply a custom one for advanced workflows.
+* *OGXServer custom resource* — declares the runtime configuration for a server: model providers, embedding configuration, vector storage, and persistence settings.
+* *Inference model connections* — a proxy between the OGX APIs and model inference servers such as vLLM deployments.
+* *Embedding generation* — generates the vectors used for retrieval. Remote embedding models are the recommended and default option for production deployments.
+* *Vector storage* — stores and indexes embeddings in supported vector databases such as Milvus, PostgreSQL with the pgvector extension, or Qdrant.
+* *Metadata persistence* — stores vector store metadata, file references, and configuration state. PostgreSQL is the default backend for production-grade deployments.
+* *Retrieval and agentic workflows* — manages ingestion, chunking, embedding, and similarity search, and enables agent-based interactions through OpenAI-compatible APIs such as Responses and Chat Completions.
+
+Support levels vary across the OGX API surface in RHOAI 3.5: the OpenAI-compatible *Responses API*
+(`/v1/responses`) is generally available, while several other APIs and providers are Technology
+Preview or Developer Preview. Check the API provider support table in the *Working with OGX*
+documentation before you build on a specific API.
+
+To find the feature in the console, log in as a cluster administrator and click *Ecosystem →
+Installed Operators* (on OpenShift 4.19, *Operators → Installed Operators*). The *OGX Operator*
+appears in the `redhat-ods-applications` namespace once it is activated.
+
+// TODO: capture screenshot
+image::01-ogx-operator-installed.png[OGX Operator in the Installed Operators view,link=self,window=blank,width=700]
+
+=== Verify
+
+Confirm that the OGXServer custom resource definition is registered in your cluster:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get crd ogxservers.ogx.io
+----
+
+You should see `ogxservers.ogx.io` listed with a `CREATED AT` timestamp. If the CRD is missing, the
+OGX Operator is not activated yet — Module 02 covers activation.
+
+With the naming model and components clear, inspect the live cluster state next.
+
+== Exercise 2: Inspect the cluster
+
+Review the operator and custom resources that back OGX in your cluster.
+
+. Confirm the OGX Operator pod is running in the `redhat-ods-applications` namespace:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n redhat-ods-applications -l name=ogx-k8s-operator
+----
+
+Expected output:
+
+----
+NAME                               READY   STATUS    RESTARTS   AGE
+ogx-k8s-operator-<pod-suffix>      1/1     Running   0          <age>
+----
+
+. Check which API versions the CRD exposes:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get crd ogxservers.ogx.io -o jsonpath='{.spec.versions[*].name}'
+----
+
+Expected output:
+
+----
+v1beta1
+----
+
+. List any OGXServer instances across all projects:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get ogxserver -A
+----
+
+On a fresh cluster this reports `No resources found`. After you deploy a server in Module 02, this
+command lists it, and you can inspect its readiness with `oc get ogxserver <name>
+-o jsonpath='{.status.phase}'` and its conditions with `.status.conditions`.
+
+== Module summary
+
+**What you accomplished:**
+
+* Mapped the Llama Stack to OGX renaming model, including the `OGXServer` kind and `ogx.io` API group
+* Identified the OGX Operator, OGXServer CR, run.yaml, and provider components in the architecture
+* Verified the OGX Operator pod and the `ogxservers.ogx.io` CRD in your cluster
+
+**Key takeaways:**
+
+* OGX is the renamed and evolved Llama Stack: same role in RHOAI, new `ogx.io/v1beta1` API surface
+* The OGXServer custom resource is the single declaration point for inference, embeddings, vector storage, and persistence
+* The OpenAI-compatible Responses API is the GA entry point for RAG and agentic workflows
+
+**Next steps:**
+
+Now that you know what the OGX Operator and OGXServer CR do, activate the operator and deploy your
+first OGX server in Module 02.

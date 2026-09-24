@@ -1,0 +1,11 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# TrustyAI guardrails. Labs mapped here: nemo-guardrails,
+# nemo-guardrails-mcp-gateway (with mcp + gateway), evalhub, garak,
+# automated-tool-calling-eval.
+resources:
+  - ../../base
+patches:
+  - path: dsc-patch.yaml

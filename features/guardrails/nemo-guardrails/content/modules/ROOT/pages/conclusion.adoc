@@ -1,0 +1,23 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the NeMo Guardrails workshop.
+
+== What you covered
+
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:module-03-advanced.adoc[Advanced Usage]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/enabling_ai_safety_with_guardrails/enable-ai-safety-with-nemo-guardrails[Enable AI safety with NeMo Guardrails — RHOAI 3.5] — the feature chapter: the standalone quickstart, deploying the service with an LLM, custom rails, the `NemoGuardrails` CR configuration reference, and the full library flows and configuration examples
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/enabling_ai_safety_with_guardrails/index[Enabling AI safety with Guardrails — RHOAI 3.5 guide] — the full guide, including migrating from FMS Guardrails to NeMo Guardrails
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:nemo-guardrails-mcp-gateway::index.adoc[NeMo Guardrails integration with MCP Gateway]

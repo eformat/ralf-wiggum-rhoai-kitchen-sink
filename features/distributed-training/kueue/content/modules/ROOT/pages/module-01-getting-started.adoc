@@ -1,0 +1,205 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will verify the Red Hat build of Kueue Operator in your workshop
+cluster, enable your project for Kueue management, and create the Kueue objects that
+queue and manage batch workloads.
+
+**Learning objectives:**
+
+* Explain the role of the Red Hat build of Kueue Operator in the RHOAI distributed workloads stack
+* Enable a project for Kueue management with the `kueue.openshift.io/managed=true` label
+* Create and inspect ResourceFlavor, ClusterQueue, and LocalQueue objects from the CLI and the console
+
+The Red Hat build of Kueue Operator manages quotas and how distributed workloads
+consume them, and manages the queueing of distributed workloads with respect to those
+quotas. Ray-based distributed workloads use the `kueue` and `ray` components;
+Training Operator-based distributed workloads use the `trainingoperator` and `kueue`
+components. When you submit a workload, Kueue holds it in a queue until the resources
+required by the workload are available within quota.
+
+== Exercise 1: Verify the Kueue infrastructure
+
+Kueue is installed and activated by your cluster administrator as part of the
+distributed workloads components. Confirm that the Kueue custom resource definitions
+(CRDs) and controller pods are present before you continue.
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get crds | grep kueue
+----
+
+Expected output (abbreviated):
+
+----
+clusterqueues.kueue.x-k8s.io        2026-09-22T08:15:00Z
+localqueues.kueue.x-k8s.io          2026-09-22T08:15:00Z
+resourceflavors.kueue.x-k8s.io      2026-09-22T08:15:00Z
+workloads.kueue.x-k8s.io            2026-09-22T08:15:00Z
+----
+
+[IMPORTANT]
+====
+The Kueue controller runs in the `openshift-operators` namespace (the RHBoK
+operator installs AllNamespaces — with the platform-managed component path it
+runs in `redhat-ods-applications`). If the CRDs or
+pods are missing, contact your workshop facilitator — every later step depends on them.
+====
+
+Check that the Kueue controller pods are running:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n openshift-operators | grep kueue
+----
+
+=== Verify
+
+The Kueue CRDs are listed and the `kueue-controller-manager` pod reports a `Running`
+status. If you instead see `no resources found`, the operator is not activated — stop
+here and contact your facilitator.
+
+With the infrastructure confirmed, you can now connect your own project to Kueue.
+
+== Exercise 2: Enable your project for Kueue management
+
+A project (namespace) must carry the `kueue.openshift.io/managed=true` label before
+Kueue manages the workloads that you submit to it.
+
+[WARNING]
+====
+Only label projects that you are supposed to manage. Labeling a shared namespace
+changes how all of its workloads are queued.
+====
+
+Apply the label to your working project:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc label namespace {guid}-{user} kueue.openshift.io/managed=true
+----
+
+=== Verify
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get namespace {guid}-{user} --show-labels | grep kueue
+----
+
+The output shows the `kueue.openshift.io/managed=true` label on your namespace.
+
+Your project is now under Kueue management. Next, create the queue objects that
+define the quota and the queue that your workloads will use.
+
+== Exercise 3: Create the Kueue queue objects
+
+Kueue queues workloads against three objects: a *ResourceFlavor* that describes the
+cluster resources, a *ClusterQueue* that defines the quota for those resources, and a
+*LocalQueue* inside your project that workloads reference.
+
+NOTE: The canonical examples for these objects are in the
+xref:conclusion.adoc#_resources[Managing distributed workloads] guide. This exercise
+uses small CPU-only values that fit the workshop cluster.
+
+Create a file named `kueue-objects.yaml` with the following three resources:
+
+[source,bash,role="execute",subs="attributes,callouts"]
+----
+cat > kueue-objects.yaml <<'EOF'
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: default-flavor
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: workshop-cq
+spec:
+  namespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: {guid}-{user}
+  queueingStrategy: BestEffortFIFO
+  resourceGroups:
+  - coveredResources:
+    - cpu
+    - memory
+    flavors:
+    - name: default-flavor
+      resources:
+      - name: cpu
+        nominalQuota: 8
+      - name: memory
+        nominalQuota: 32Gi
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  name: workshop-lq
+  namespace: {guid}-{user}
+  annotations:
+    kueue.x-k8s.io/default-queue: 'true'
+spec:
+  clusterQueue: workshop-cq
+EOF
+----
+
+The heredoc creates `kueue-objects.yaml` with the three resources:
+**ResourceFlavor** — describes the resources available in the cluster; its name is referenced by the ClusterQueue.
+**ClusterQueue** — defines the shared quota pool for admitted workloads; the
+`namespaceSelector` scopes it to your workshop project only, and
+`nominalQuota` is the maximum resources that Kueue admits from this queue at
+one time. **LocalQueue** — must live in the same namespace as the workloads
+that reference it; the `kueue.x-k8s.io/default-queue` annotation marks it as
+the default queue, so workloads that omit a queue name still get queued.
+
+Apply the objects:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f kueue-objects.yaml -n {guid}-{user}
+----
+
+=== Verify
+
+List the objects from the CLI:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get localqueues,clusterqueues,resourceflavors -n {guid}-{user}
+----
+
+The output lists `workshop-lq`, `workshop-cq`, and `default-flavor`.
+
+Then confirm the same objects from the OpenShift console:
+
+. Open the {openshift_console_url}[OpenShift console] and select your project from the Project list.
+. Click *Search*, and from the Resources list, select *LocalQueue* to show the list of local queues for your project.
+. Click the `workshop-lq` queue name, click the *YAML* tab, and review the `metadata.annotations` section. The `kueue.x-k8s.io/default-queue` annotation is set to `'true'`, so this queue is configured as the default local queue.
+
+TIP: From a workbench, you can also use the CodeFlare SDK `list_local_queues()`
+function to view all local queues in your current namespace and the resource flavors
+associated with each one.
+
+Your queue objects are ready. Continue to Module 02, where you submit a real training
+job through this queue and watch Kueue make the scheduling decisions.
+
+== Module summary
+
+**What you accomplished:**
+
+* Verified the Kueue CRDs and controller pods in the workshop cluster
+* Labeled your project with `kueue.openshift.io/managed=true`
+* Created a ResourceFlavor, a ClusterQueue, and a default LocalQueue, and confirmed them from the CLI and the console
+
+**Key takeaways:**
+
+* Kueue manages quotas and queues distributed workloads with respect to those quotas
+* A project is only Kueue-managed when it carries the `kueue.openshift.io/managed=true` label
+* Workloads reach the ClusterQueue quota through a LocalQueue in their own namespace
+
+**Next steps:**
+
+In Module 02 you submit a PyTorch training job to your LocalQueue, watch Kueue admit
+it and hold a second job that exceeds the quota, and use Workload conditions and
+Kueue alerts to diagnose what is happening.

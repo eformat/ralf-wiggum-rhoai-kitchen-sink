@@ -1,0 +1,456 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will install the EvalHub SDK and CLI, explore the available
+providers and benchmarks, submit an evaluation job against a model endpoint,
+track the job to its results, and route evaluation jobs through a Kueue
+LocalQueue for quota governance.
+
+**Learning objectives:**
+
+* Install and configure the `evalhub` CLI against your EvalHub server
+* List registered providers and their benchmarks
+* Submit an evaluation job from the CLI and from the REST API
+* Track job status and retrieve benchmark results
+* Route evaluation jobs through a Kueue LocalQueue and verify Kueue admission
+
+== Exercise 1: Install and configure the CLI
+
+The EvalHub SDK provides a Python client library; the CLI provides the
+`evalhub` command for terminal workflows. Both talk to the same versioned REST
+API.
+
+. Install the SDK with CLI support. You need Python 3.11 or later and access
+  to PyPI:
++
+[source,bash,role="execute"]
+----
+pip install "eval-hub-sdk[cli]"
+----
+
+. Configure the CLI to point at your EvalHub server route and tenant
+  namespace:
++
+[source,bash,role="execute",subs="attributes"]
+----
+evalhub config set base_url {openshift_api_url}
+evalhub config set tenant {guid}-{user}
+----
++
+Replace the `base_url` value with your EvalHub server route if it differs from
+the cluster API URL — use the `$EVALHUB_URL` value you captured in module 1.
+
+. Set your authentication token. For interactive use, a token from your
+  OpenShift login works:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export TOKEN=$(oc whoami -t)
+evalhub config set token $TOKEN
+----
++
+[NOTE]
+====
+For automation such as CI/CD pipelines or agents, use a ServiceAccount token
+instead: `oc create token <serviceaccount> -n {guid}-{user}`. The principal
+needs an EvalHub Role and RoleBinding in the tenant namespace — module 3
+covers granting access.
+====
+
+. Verify the CLI can connect:
++
+[source,bash,role="execute"]
+----
+evalhub health
+----
++
+----
+{
+  "status": "healthy",
+  "timestamp": "2026-06-03T10:00:00Z",
+  "version": "0.3.0"
+}
+----
+
+=== Verify
+
+`evalhub health` returns `"status": "healthy"` with a version string.
+
+The CLI is connected. Before submitting a job, see which benchmarks are
+available.
+
+== Exercise 2: List providers and benchmarks
+
+. List all registered providers:
++
+[source,bash,role="execute"]
+----
+evalhub providers list
+----
++
+----
+ID                     NAME                    DESCRIPTION                                    BENCHMARKS
+lm_evaluation_harness  LM Evaluation Harness   EleutherAI language model evaluation           167
+garak                  Garak                   LLM vulnerability and safety scanner           12
+guidellm               GuideLLM                Performance benchmarking                       4
+----
+
+. Describe a provider to see its benchmarks, categories, and metrics:
++
+[source,bash,role="execute"]
+----
+evalhub providers describe lm_evaluation_harness
+----
++
+----
+Provider: LM Evaluation Harness
+ID:          lm_evaluation_harness
+Description: EleutherAI language model evaluation framework
+Benchmarks (167):
+ID            NAME                              CATEGORY    METRICS
+mmlu          Massive Multitask Language Und…   knowledge   acc, acc_norm
+hellaswag     HellaSwag                         reasoning   acc, acc_norm
+gsm8k         Grade School Math 8K              math        exact_match
+arc_easy      ARC Easy                          reasoning   acc, acc_norm
+...
+----
+
+. Optionally, query the REST API directly for the same data:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -H "Authorization: Bearer $TOKEN" -H "X-Tenant: {guid}-{user}" \
+  $EVALHUB_URL/api/v1/evaluations/providers | jq .
+----
++
+[NOTE]
+====
+EvalHub is multi-tenant: every API request except `/api/v1/health` must include
+the `X-Tenant` header, which identifies the target namespace. Resources such as
+jobs, providers, and collections are scoped to that tenant. The CLI sets it
+automatically from your configured tenant.
+====
+
+=== Verify
+
+The provider list is not empty and includes the built-in providers enabled in
+your EvalHub deployment, such as `lm_evaluation_harness`.
+
+With the benchmarks identified, submit your first evaluation job.
+
+== Exercise 3: Submit an evaluation job
+
+You need a model endpoint accessible from within the cluster. Most providers
+expect an OpenAI-compatible inference endpoint such as the `/v1` URL of a
+KServe-served model.
+
+[NOTE]
+====
+The required model URL format can vary by provider. Check the provider
+documentation if a job fails with a model connection error.
+====
+
+. Submit a job by using the CLI, specifying the model endpoint and two
+  benchmarks. Replace `<model-svc>` with the service name of your deployed
+  model:
++
+[source,bash,role="execute",subs="attributes"]
+----
+evalhub eval run \
+  --name my-eval \
+  --model-url http://<model-svc>.{guid}-{user}.svc.cluster.local:8080/v1 \
+  --model-name my-model \
+  --provider lm_evaluation_harness \
+  -b mmlu -b hellaswag
+----
++
+The server returns a `202 Accepted` response with a job resource including a
+job ID for tracking.
+
+. Alternatively, submit the same job through the REST API:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -X POST $EVALHUB_URL/api/v1/evaluations/jobs \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant: {guid}-{user}" \
+  -d '{
+    "name": "my-eval",
+    "model": {
+      "url": "http://<model-svc>.{guid}-{user}.svc.cluster.local:8080/v1",
+      "name": "my-model"
+    },
+    "benchmarks": [
+      {"provider_id": "lm_evaluation_harness", "benchmark_id": "mmlu"},
+      {"provider_id": "lm_evaluation_harness", "benchmark_id": "hellaswag"}
+    ]
+  }'
+----
++
+[TIP]
+====
+EvalHub runs one Kubernetes Job per benchmark, in parallel. Submitting several
+benchmarks scales horizontally across your tenant namespace.
+====
+
+=== Verify
+
+Confirm the job is registered and check its state:
++
+[source,bash,role="execute"]
+----
+evalhub eval status <job_id>
+----
++
+The job status transitions from `pending` to `running` to `completed`.
+
+Your first job is submitted. Next, watch it to completion and read the
+results.
+
+== Exercise 4: Track jobs and results
+
+. Watch the job status in real time. The CLI polls at regular intervals and
+  displays benchmark progress until the job reaches a terminal state:
++
+[source,bash,role="execute"]
+----
+evalhub eval status --watch <job_id>
+----
+
+. When the job completes, retrieve the results as a table:
++
+[source,bash,role="execute"]
+----
+evalhub eval results <job_id> --format table
+----
++
+----
+BENCHMARK   PROVIDER               METRIC     VALUE
+mmlu        lm_evaluation_harness  acc        0.65
+mmlu        lm_evaluation_harness  acc_norm   0.68
+hellaswag   lm_evaluation_harness  acc        0.72
+hellaswag   lm_evaluation_harness  acc_norm   0.75
+----
++
+The `--format` flag supports `table`, `json`, `yaml`, and `csv`.
+
+. Optionally, list all your jobs filtered by status:
++
+[source,bash,role="execute"]
+----
+evalhub eval status --help
+----
++
+The REST API supports query parameters for filtering: `status`, `name`,
+`limit`, `offset`, `tags`, and `owner`. For example:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -H "Authorization: Bearer $TOKEN" -H "X-Tenant: {guid}-{user}" \
+  "$EVALHUB_URL/api/v1/evaluations/jobs?status=completed&limit=10" | jq .
+----
++
+[WARNING]
+====
+`evalhub eval cancel <job_id>` performs a soft delete: the job is marked
+`cancelled` but the record is preserved for auditing. Adding `--hard`
+permanently removes the job record and its results from the database — this
+action cannot be undone.
+====
+
+=== Verify
+
+`evalhub eval results <job_id> --format table` shows a row per benchmark
+metric with non-empty values, matching the completed job status.
+
+With jobs flowing end to end, route them through Kueue so evaluation workloads
+participate in cluster-wide quota governance.
+
+== Exercise 5: Route evaluation jobs through a Kueue queue
+
+When the Red Hat build of Kueue Operator is installed on the cluster, EvalHub
+can route evaluation jobs through Kueue queues so they participate in
+cluster-wide quota governance alongside training and inference workloads.
+When you submit a job and specify a Kueue LocalQueue name, EvalHub sets the
+`kueue.x-k8s.io/queue-name` label on the Kubernetes Job resource; the Kueue
+Operator watches for this label and routes the Job through the specified
+queue for admission control and scheduling.
+
+[IMPORTANT]
+====
+EvalHub Kueue integration is a Technology Preview feature only. This exercise
+also requires cluster administrator privileges to create the ClusterQueue and
+label namespaces. If the Kueue Operator is not installed, the
+`kueue.x-k8s.io/queue-name` label is ignored by the default Kubernetes
+scheduler and jobs run immediately — no error occurs.
+====
+
+. Have a cluster administrator create a ClusterQueue that defines the
+   resource pool for evaluation workloads (ClusterQueues are cluster-scoped):
++
+[source,yaml]
+----
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: evaluation-workloads
+spec:
+  namespaceSelector: {}
+  resources:
+  - name: cpu
+    flavors:
+    - name: default
+      resources:
+      - name: cpu
+        nominalQuota: "10"
+  - name: memory
+    flavors:
+    - name: default
+      resources:
+      - name: memory
+        nominalQuota: "40Gi"
+  - name: gpu
+    flavors:
+    - name: default
+      resources:
+      - name: nvidia.com/gpu
+        nominalQuota: "4"
+----
++
+where:
+
+* `resources[].name` / `nominalQuota` define the CPU, memory, and GPU quota
+  that evaluation workloads may consume.
+* `namespaceSelector: {}` admits workloads from any namespace, so borrowing
+  follows the ClusterQueue policies.
++
+Apply it:
++
+[source,bash,role="execute"]
+----
+oc apply -f evaluation-workloads-clusterqueue.yaml
+----
+
+. Create a LocalQueue in your tenant namespace, pointing at the ClusterQueue:
++
+[source,yaml,subs="attributes"]
+----
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  name: evaluation-queue
+  namespace: {guid}-{user}
+spec:
+  clusterQueue: evaluation-workloads
+----
++
+where:
+
+* `spec.clusterQueue` names the ClusterQueue that backs this LocalQueue.
+* The LocalQueue must live in the tenant namespace so EvalHub jobs can
+  reference it.
++
+Apply it:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f evaluation-queue-localqueue.yaml -n {guid}-{user}
+----
+
+. Label your tenant namespace for Kueue management:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc label namespace {guid}-{user} kueue.openshift.io/managed=true
+----
++
+[NOTE]
+====
+This label is in addition to the EvalHub tenant label
+(`evalhub.trustyai.opendatahub.io/tenant=`) that was applied when the tenant
+namespace was created in module 1. Both labels are required for Kueue
+integration to function.
+====
+
+. Verify the queue setup before submitting:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get namespace {guid}-{user} --show-labels | grep -E "kueue.openshift.io|evalhub"
+oc get localqueue -n {guid}-{user}
+----
++
+The namespace output must include both `kueue.openshift.io/managed=true` and
+`evalhub.trustyai.opendatahub.io/tenant=`, and the LocalQueue must be listed
+with status `Active`.
+
+. Submit a job with a Kueue queue specified. Add the `--queue` flag in
+   `kind:name` form:
++
+[source,bash,role="execute",subs="attributes"]
+----
+evalhub eval run \
+  --name my-eval-queued \
+  --model-url http://<model-svc>.{guid}-{user}.svc.cluster.local:8080/v1 \
+  --model-name my-model \
+  --queue kueue:evaluation-queue \
+  --provider lm_evaluation_harness \
+  -b mmlu
+----
++
+[TIP]
+====
+Through the REST API, the queue is an optional `queue` block in the job
+payload: `"queue": {"kind": "kueue", "name": "evaluation-queue"}`. When the
+parameter is omitted, the job runs with the default Kubernetes scheduler.
+====
+
+. Watch the job while Kueue admits it, and confirm Kueue created a Workload
+   resource for the queued Job:
++
+[source,bash,role="execute",subs="attributes"]
+----
+evalhub eval status --watch <job_id>
+oc get workloads -n {guid}-{user}
+----
++
+The job stays `pending` while waiting for Kueue to admit the workload. Once
+Kueue reserves quota in the ClusterQueue, the job transitions to `running`.
+
+=== Verify
+
+`oc get localqueue -n {guid}-{user}` lists `evaluation-queue` with status
+`Active`, `oc get workloads -n {guid}-{user}` lists a Workload for the queued
+job, and `evalhub eval status <job_id>` transitions from `pending` to
+`running` once Kueue reserves quota.
+
+[WARNING]
+====
+If the job fails with a `queue_error` message code, the specified Kueue queue
+could not be resolved: the LocalQueue does not exist in the namespace, or the
+backing ClusterQueue is stopped or unavailable. Check the queue configuration
+and the namespace labels.
+====
+
+== Module summary
+
+**What you accomplished:**
+
+* Installed and configured the EvalHub CLI against your EvalHub server and tenant namespace
+* Listed providers and benchmarks, including the `lm_evaluation_harness` catalog
+* Submitted an evaluation job from the CLI and the REST API and tracked it to completion
+* Retrieved benchmark results and reviewed the job filtering and cancel options
+* Created a ClusterQueue and LocalQueue and routed an evaluation job through Kueue
+
+**Key takeaways:**
+
+* The CLI, SDK, and REST API share the same versioned surface, so scripts port between them unchanged
+* EvalHub runs one Kubernetes Job per benchmark, giving you parallel evaluation for free
+* Job results include per-benchmark metrics such as `acc` and `acc_norm`
+* With a LocalQueue specified, EvalHub sets the `kueue.x-k8s.io/queue-name` label so Kueue governs admission and quota for evaluation jobs
+
+**Next steps:**
+
+Continue to the advanced module to work with collections, MLflow tracking, the
+dashboard, and tenant access control.

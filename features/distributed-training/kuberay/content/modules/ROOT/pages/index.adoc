@@ -1,0 +1,44 @@
+= Welcome to the KubeRay (CodeFlare Operator successor) Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *KubeRay (CodeFlare Operator successor)* — the operator
+that manages and secures remote Ray clusters on OpenShift for Ray-based distributed
+workloads in RHOAI 3.5, queued through the Red Hat build of Kueue.
+
+**What you will learn:**
+
+* How KubeRay, Kueue, and the CodeFlare SDK form the distributed workloads stack, and where Ray-based workloads fit in RHOAI 3.5
+* Create a Ray cluster from a Jupyter notebook with the CodeFlare SDK and run an mTLS-secured distributed workload
+* Run Ray workloads from an AI pipeline, monitor workload metrics, and troubleshoot common Ray cluster failure states
+
+== Prerequisites
+
+* RHOAI operator installed
+* Distributed workloads enabled (`ray` and `kueue` components configured by your cluster administrator)
+* A project with a local queue (or one that you specify explicitly in the cluster configuration)
+* A workbench running an image that includes the CodeFlare SDK, for example the Standard Data Science image
+* An OpenShift cluster with RHOAI 3.5 installed
+* Recommended prerequisite: complete the xref:kueue::index.adoc[Kueue (Red Hat build of Kueue Operator)] workshop first
+
+== Estimated time
+
+About 2 hours
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:module-03-advanced.adoc[Advanced Usage]
+* xref:conclusion.adoc[Conclusion]

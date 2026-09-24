@@ -1,0 +1,134 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will explore the surfaces that back an OpenCode coding-agent
+workload: the OpenAI-compatible inference endpoint that serves its model, the
+workbench IDE terminal where a terminal-based agent operates, and the console
+and tracing views that observe it.
+
+**Learning objectives:**
+
+* Probe an OpenAI-compatible inference endpoint by using the documented connection model
+* Access a workbench IDE terminal from the OpenShift AI dashboard
+* Explore the external model endpoints view and MLflow tracing as agent observability surfaces
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: OpenCode coding-agent deployment is a *Technology Preview* feature. The
+surfaces you explore here (external model endpoints, MLflow tracing) are
+described in the RHOAI 3.5 documentation; the OpenCode-specific deployment
+procedure may change between releases.
+endif::[]
+
+== Exercise 1: Probe the OpenAI-compatible inference backend
+
+OpenCode's validated inference backends — vLLM on Red Hat OpenShift AI and the
+OGX gateway — expose an OpenAI-compatible API. The connection model from the
+RHOAI documentation has three parameters: the endpoint URL, the API key, and the
+model name. If your endpoint does not require authentication, as is common with
+a local vLLM, use `NO_API_KEY`.
+
+. From your facilitator, obtain the endpoint URL, API key, and model name for
+your workshop LLM endpoint, then export them in your terminal:
+
+[source,bash,role="execute"]
+----
+export LLM_ENDPOINT=$(oc get inferenceservice granite-vllm -n {guid}-{user} -o jsonpath='{.status.url}')/v1
+export LLM_API_KEY="NO_API_KEY"
+----
+The CPU-only cluster path derives the endpoint from the deployed
+`granite-vllm` InferenceService route (no token auth on this deployment); a
+GPU cluster substitutes the facilitator's workshop LLM endpoint.
+
+. Verify that the endpoint is reachable and lists its models:
+
+[source,bash,role="execute",subs="attributes,callouts"]
+----
+curl -s $LLM_ENDPOINT/models -H "Authorization: Bearer $LLM_API_KEY"
+----
+
+*OpenAI-compatible probe*: a `GET /models` request is the standard
+OpenAI-compatible health check; any OpenCode-validated backend (vLLM or OGX
+gateway) must answer it.
+
+=== Verify
+
+The response is JSON with `"object": "list"` and a `data` array containing at
+least one model entry, for example:
+
+----
+{
+  "object": "list",
+  "data": [
+    { "id": "your-model-name", "object": "model", ... }
+  ]
+}
+----
+
+If the endpoint is unreachable or returns an error, confirm the URL and key with
+your facilitator before continuing.
+
+== Exercise 2: Explore the workbench IDE and agent observability surfaces
+
+A terminal-based coding agent such as OpenCode operates from a shell. In RHOAI,
+shells are available in workbench IDEs (JupyterLab or code-server), and agent
+behavior is observed through the console's model views and MLflow tracing.
+
+. From the OpenShift AI dashboard, navigate to *Data science projects* and
+select your project.
+. Open the *Workbenches* tab and launch a workbench by using the link provided
+in the OpenShift AI interface. Once the IDE opens, open its terminal and run:
+
+[source,bash,role="execute"]
+----
+git --version && python --version
+----
+
+. In the dashboard, navigate to *AI hub* → *Models* and select the *External
+models* tab on the Model deployments page to see registered external model
+endpoints in the project, including name, provider, and reconciliation status.
+. If your facilitator has MLflow tracing enabled for the agent stack, open the
+MLflow UI and observe where model calls, tool executions, and context assembly
+spans from the onboarding pattern would land.
+
+NOTE: The *External models* tab requires `spec.dashboardConfig.externalModels`
+to be set to `true` in the `OdhDashboardConfig` custom resource. This is a
+platform administrator task:
+
+[source,yaml]
+----
+kind: OdhDashboardConfig
+spec:
+  dashboardConfig: <1>
+    externalModels: true <2>
+----
+
+<1> *dashboardConfig*: platform-level dashboard feature switches live here.
+<2> *externalModels*: enables the External models tab for viewing registered
+external model endpoints and their provider details.
+
+=== Verify
+
+The workbench terminal prints git and Python versions, the *External models*
+tab lists your project's external model endpoints (or is empty if none are
+registered), and MLflow shows a project with tracing experiments when the agent
+stack is deployed. You have now seen every surface an OpenCode deployment
+touches: endpoint, terminal, console view, and traces.
+
+== Module summary
+
+**What you accomplished:**
+
+* Probed an OpenAI-compatible inference endpoint with the documented endpoint/key/model connection model
+* Opened a workbench IDE terminal and exercised the shell where a terminal-based agent operates
+* Explored the External models dashboard view and the MLflow tracing surface
+
+**Key takeaways:**
+
+* OpenCode's validated backends (vLLM, OGX gateway) expose the standard OpenAI-compatible API
+* Terminal-based agents depend on the same workbench IDE shells as notebooks
+* Observability for the agent stack spans console model views and MLflow traces
+
+**Next steps:**
+
+Continue to the conclusion for the RHOAI 3.5 documentation chapters behind this
+workshop and pointers to the starter-kit documentation.

@@ -1,0 +1,46 @@
+= Welcome to the Agent Catalog in AI Hub Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability. The
+catalog contents, feature flag name, and UI panels shown in this workshop may
+change between releases.
+endif::[]
+
+This workshop introduces *Agent Catalog in AI Hub*. The Agent Catalog provides a
+centralized interface for discovering and exploring agent starter kits in Red
+Hat OpenShift AI: you browse available agents, filter by framework or use text
+search to find agents for a specific use case, and read each catalog entry's
+description, framework, and README file before adopting a starter kit.
+
+**What you will learn:**
+
+* What the Agent Catalog in AI Hub does and where it fits in RHOAI {rhoai_version}
+* How to enable the feature with the `agentsCatalog` flag in the `OdhDashboardConfig` custom resource
+* How to browse, filter, and search agent starter kits from *AI hub → Agents* in the dashboard
+* How to read a catalog entry's description, framework, and README to evaluate a starter kit
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI {rhoai_version} installed
+* Cluster administrator access (required to update the `OdhDashboardConfig` custom resource)
+* The OpenShift AI dashboard (AI Hub) accessible
+* The OpenShift CLI (`oc`) installed
+
+== Estimated time
+
+About 30-45 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

@@ -1,0 +1,44 @@
+= Welcome to the OpenCode coding-agent deployment Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *OpenCode coding-agent deployment* on Red Hat OpenShift
+AI. OpenCode is an open-source, terminal-based coding agent. In RHOAI 3.5 it is
+the first coding agent validated to follow the onboarding pattern established by
+OpenClaw: the validation confirms that agent platform operators, vLLM and OGX
+(formerly Llama Stack) inference backends, and MLflow tracing integration
+successfully generalize to coding-specific workloads.
+
+**What you will learn:**
+
+* What OpenCode does, its Technology Preview status in RHOAI 3.5, and what the validation provides (supported container images, operator-managed deployment manifests, verified inference backend interoperability, MLflow tracing integration)
+* The onboarding pattern OpenCode follows, from validated Kustomize manifests to OpenAI-compatible inference backends (vLLM and the OGX gateway)
+* How to verify that your workshop environment is ready: RHOAI operator status and an available LLM serving endpoint
+* How to probe an OpenAI-compatible endpoint and explore the console surfaces that back the agent (external model endpoints, workbench IDE terminal, MLflow tracing)
+
+== Prerequisites
+
+* RHOAI operator installed
+* LLM serving endpoint available
+* An OpenShift cluster with RHOAI 3.5 installed
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

@@ -1,0 +1,28 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the Gateway API and Red Hat Connectivity Link (RHCL) workshop.
+
+== What you covered
+
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:module-03-advanced.adoc[Advanced Usage]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_connectivity_link/1.4[Red Hat Connectivity Link 1.4 documentation]
+* link:https://docs.redhat.com/en/documentation/red_hat_connectivity_link/1.4/html/red_hat_connectivity_link[About Connectivity Link]
+* link:https://docs.redhat.com/en/documentation/red_hat_connectivity_link/1.4/html/install_connectivity_link[Install Connectivity Link]
+* link:https://docs.redhat.com/en/documentation/red_hat_connectivity_link/1.4/html/deploy_red_hat_connectivity_link[Deploy Connectivity Link — configure gateway policies, connect and secure APIs]
+* link:https://docs.redhat.com/en/documentation/red_hat_connectivity_link/1.4/html/observability[Connectivity Link Observability — dashboards, metrics, tracing, access logs]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5[RHOAI 3.5 documentation]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:platform-oidc-auth::index.adoc[Platform-wide direct OIDC authentication (GatewayConfig CR)]
+* xref:llmd-core::index.adoc[Distributed Inference with llm-d (core)]

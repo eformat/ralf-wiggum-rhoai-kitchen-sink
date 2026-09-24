@@ -1,0 +1,183 @@
+= Module 01: Configure external OIDC authentication
+:navtitle: Module 01: Configure external OIDC authentication
+
+In this module you will learn the two-tier authentication flow that MaaS uses for
+external OIDC users, verify that the MaaS default tenant is ready, and configure
+the `AITenant` custom resource with your external OIDC provider.
+
+**Learning objectives:**
+
+* Explain how external OIDC users authenticate to MaaS: an OIDC token for platform APIs and API keys for model access
+* Verify the MaaS default tenant, `MaasTenantConfig`, and gateway are ready
+* Add the `oidc` configuration — issuer URL, client ID, and signing-key cache TTL — to the `AITenant` custom resource
+
+== Exercise 1: Verify the MaaS deployment
+
+MaaS uses a two-tier authentication approach with external OIDC providers:
+
+1. *MaaS platform access*: users retrieve an OIDC token from the external OIDC
+   provider to access platform APIs. MaaS validates the OIDC token.
+2. *Model access*: users create API keys through the MaaS API by using their
+   OIDC token. These API keys are used for programmatic access to models
+   through the MaaS API gateway.
+
+NOTE: When using external OIDC authentication, users create API keys through
+the MaaS API by using `curl` or other HTTP clients. The OpenShift AI dashboard
+does not support API key creation for external OIDC users — the dashboard uses
+OpenShift OAuth for authentication.
+
+When you deploy MaaS, the controller creates a default tenant named
+`models-as-a-service` and a `MaasTenantConfig` resource that stores per-tenant
+runtime configuration, including resolved gateway and OIDC references. Verify
+that the default tenant is ready:
+
+[source,bash,role="execute"]
+----
+oc get aitenant models-as-a-service -n ai-tenants
+----
+
+----
+NAME                  READY   AGE
+models-as-a-service   True    5d
+----
+
+The `READY` column shows `True`.
+
+Confirm that the `MaasTenantConfig` singleton exists and find the
+infrastructure namespace where the MaaS components run:
+
+[source,bash,role="execute"]
+----
+oc get maastenantconfig default-tenant -n models-as-a-service \
+  -o jsonpath='{.status.infraNamespace}'
+----
+
+----
+redhat-ai-gateway-infra
+----
+
+Finally, resolve the MaaS gateway hostname. External OIDC users authenticate
+against the API exposed through this gateway, so you need the URL for the
+verification exercise in module 2:
+
+[source,bash,role="execute",subs="attributes"]
+----
+export MAAS_GATEWAY_URL=https://$(oc get route -n openshift-ingress \
+  -l gateway.networking.k8s.io/gateway-name=maas-default-gateway \
+  -o jsonpath='{.items[0].spec.host}')
+echo $MAAS_GATEWAY_URL
+----
+
+The gateway Route carries the external hostname on every cluster (on
+LoadBalancer clusters the listener hostname equals it). If the listener
+hostname is set on your cluster, the gateway JSON shows it equivalently:
+
+[source,bash,role="execute"]
+----
+oc get gateway maas-default-gateway -n openshift-ingress \
+  -o jsonpath={.spec.listeners[0].hostname}
+----
+
+=== Verify
+
+* `oc get aitenant models-as-a-service -n ai-tenants` shows `READY: True`.
+* The `MaasTenantConfig` status returns an infrastructure namespace, typically
+  `redhat-ai-gateway-infra`.
+* `$MAAS_GATEWAY_URL` contains a hostname, for example
+  `maas-default-gateway-openshift-ingress.apps.cluster.example.com`.
+
+The tenant is ready. Now configure it to trust your external OIDC provider.
+
+== Exercise 2: Configure the AITenant custom resource with OIDC
+
+Prerequisites for this exercise:
+
+* You have cluster administrator privileges for the OpenShift cluster where
+  OpenShift AI is installed.
+* You have registered a client application in your OIDC provider and obtained
+  the issuer URL and client ID.
+* You have created user groups in your external OIDC provider.
+* Your external OIDC provider is configured to include group claims in ID
+  tokens.
+
+In OpenShift AI 3.5, the OIDC configuration lives on the `AITenant` custom
+resource in the `ai-tenants` management namespace.
+
+. In the OpenShift console, navigate to *Administration → CustomResourceDefinitions*.
+. Search for `AITenant` and click the resource name.
+. Click the *Instances* tab and click `models-as-a-service`.
+. Click the *YAML* tab, locate the `spec` section, and add or update the `oidc`
+  configuration:
+
+[source,yaml,subs="attributes,callouts"]
+----
+spec:
+  oidc:
+    clientId: <oidc-client-id> <1>
+    issuerUrl: <oidc-provider-issuer-url> <2>
+    ttl: 300 <3>
+----
+
+<1> *clientId*: the client ID for your MaaS application registered with the
+OIDC provider.
+<2> *issuerUrl*: the OIDC issuer URL for your external identity provider, for
+example `https://keycloak.example.com/realms/my-realm`.
+<3> *ttl*: how long, in seconds, the system caches your identity provider's
+signing keys before refreshing them. The default is 300; the minimum is 30.
+
+. Click *Save*.
+
+Alternatively, apply the same configuration with the CLI:
+
+[source,bash,role="execute"]
+----
+oc patch aitenants.maas.opendatahub.io models-as-a-service -n ai-tenants \
+  --type merge \
+  -p '{"spec":{"oidc":{"clientId":"<oidc-client-id>","issuerUrl":"<oidc-provider-issuer-url>","ttl":300}}}'
+----
+
+Replace `<oidc-client-id>` and `<oidc-provider-issuer-url>` with the values
+from your registered client application.
+
+[NOTE]
+====
+If you are upgrading from a previous version that used the `Tenant` custom
+resource for OIDC configuration, existing `Tenant/default-tenant` `externalOIDC`
+values are migrated to the `AITenant` custom resource automatically during
+upgrade.
+====
+
+=== Verify
+
+Confirm that the OIDC configuration is stored on the resource:
+
+[source,bash,role="execute"]
+----
+oc get aitenants.maas.opendatahub.io models-as-a-service -n ai-tenants \
+  -o jsonpath='{.spec.oidc}'
+----
+
+----
+{"clientId":"<oidc-client-id>","issuerUrl":"<oidc-provider-issuer-url>","ttl":300}
+----
+
+The output shows the `clientId`, `issuerUrl`, and `ttl` values you configured.
+
+== Module summary
+
+**What you accomplished:**
+
+* Verified the MaaS default tenant, `MaasTenantConfig`, and gateway are ready
+* Learned the two-tier authentication flow: OIDC tokens for platform access, API keys for model access
+* Configured the `AITenant` custom resource with your external OIDC provider's issuer URL and client ID
+
+**Key takeaways:**
+
+* MaaS validates OIDC tokens and groups directly from token claims, without requiring OpenShift accounts for every user
+* API keys for external OIDC users are created through the MaaS API, not the dashboard, which uses OpenShift OAuth
+* The `AITenant` resource is the source of truth for OIDC configuration in OpenShift AI 3.5
+
+**Next steps:**
+
+Continue to the hands-on exercise to map your external OIDC groups to MaaS
+subscriptions and verify authentication end to end with a real OIDC token.

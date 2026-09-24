@@ -1,0 +1,104 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will take a guided tour of the *Claude Code agent starter kit* — a
+Developer Preview feature of Red Hat OpenShift AI 3.5 that lets you deploy and configure
+the Anthropic Claude Code agent on OpenShift AI from a pre-configured Containerfile and
+Kustomize deployment manifests. Because this is a Developer Preview, this module is a
+guided tour of what the kit provides and how it fits together, not a deployment
+walkthrough.
+
+**Learning objectives:**
+
+* Explain what the Claude Code agent starter kit provides and where it fits in RHOAI 3.5
+* Compare the three validated inference paths for connecting the agent to models
+* Confirm your workshop environment is ready to explore the kit
+
+[NOTE]
+====
+This feature is a *Developer Preview*. It is provided as-is with no support and no
+guarantee of future availability, so focus on the concepts in this tour rather than on
+memorizing specific commands — the deployment interface may change between releases.
+====
+
+== Exercise 1: What the starter kit provides
+
+The starter kit streamlines setup of Claude Code in a secure OpenShift environment.
+According to the RHOAI 3.5 release notes, it includes the following capabilities:
+
+* **Deployment**: deploy Claude Code using a pre-configured Containerfile and Kustomize
+  deployment manifests — no bespoke image builds or hand-written YAML required.
+* **Validated inference paths**: connect the agent to the direct Anthropic API, to
+  self-hosted models through vLLM, or to vLLM through the OGX gateway, which allows you
+  to use your own models without an Anthropic subscription.
+* **Observability**: observe and track tool calls, token usage, and agent execution
+  traces using built-in MLflow tracing integration.
+* **Extensibility**: inject modular skills and Model Context Protocol (MCP) server
+  configurations at deploy time through a ConfigMap, without rebuilding container images.
+* **Persistence**: workspace storage is maintained across pod restarts.
+* **Security**: workloads run under the OpenShift restricted-v2 security context
+  constraint (SCC) with no special security grants required.
+
+. Confirm that you are still connected to your workshop environment and working in your
+  own project:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc whoami && oc project
+----
+
+The first line shows your workshop username and the second shows your project from
+xref:getting-connected.adoc[Getting Connected]. Everything in this workshop happens in
+your own namespace, which is exactly the kind of boundary the restricted-v2 SCC enforces
+for the agent itself.
+
+== Exercise 2: Compare the validated inference paths
+
+The kit ships with three validated inference paths. Choosing between them is the first
+real decision you make when using the starter kit:
+
+[options="header"]
+|===
+|Inference path |What it connects to |When to choose it
+
+|Direct Anthropic API
+|The hosted Anthropic API
+|You have Anthropic API access and want the hosted models
+
+|Self-hosted models through vLLM
+|A vLLM server serving your own model
+|You host models in your own cluster and want direct access
+
+|vLLM through the OGX gateway
+|vLLM fronted by the OpenShift AI inference gateway (OGX)
+|You want to use your own models without an Anthropic subscription
+|===
+
+TIP: Only the direct Anthropic path requires Anthropic API access. If your workshop
+environment has no Anthropic credentials, the vLLM-based paths are the way to exercise
+the kit with your own models.
+
+Notice that the inference-path choice is a deploy-time decision: the Kustomize manifests
+let you select a path when you deploy rather than reconfiguring the agent afterward.
+
+== Module summary
+
+**What you accomplished:**
+
+* Toured the six capabilities of the Claude Code agent starter kit from the RHOAI 3.5
+  release notes
+* Compared the three validated inference paths and when to choose each
+* Confirmed your workshop connection and project are ready
+
+**Key takeaways:**
+
+* The starter kit deploys Claude Code from a pre-configured Containerfile and Kustomize
+  manifests, so setup is a configuration exercise rather than an image build
+* The OGX-gateway path lets you run the agent against your own models with no Anthropic
+  subscription
+* Everything runs under the restricted-v2 SCC, so no special security grants are needed
+
+**Next steps:**
+
+Continue to the next module for a guided tour of the kit's deploy-time configuration,
+observability, and security posture in action.

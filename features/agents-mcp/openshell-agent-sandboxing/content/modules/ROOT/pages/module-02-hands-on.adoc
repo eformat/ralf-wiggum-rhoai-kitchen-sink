@@ -1,0 +1,121 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will take a guided tour of how the OpenShell guide's five areas fit
+together — deployment, identity, model connectivity, sandbox isolation, and egress
+control — and how OpenShell-managed agents are observed from the dashboard and the
+CLI.
+
+**Learning objectives:**
+
+* Describe how Helm deployment, mTLS, and LLM provider setup connect a sandboxed agent to the platform
+* Explain how isolated sandboxes and controlled network egress contain agent actions
+* Locate OpenShell-managed agents as Sandbox custom resources (CRs) in the dashboard
+
+== Exercise 1: Deployment, identity, and model connectivity
+
+The first three areas of the guide get a sandboxed agent onto the cluster and talking
+to a model:
+
+* **Helm deployment**: OpenShell components are deployed on OpenShift from upstream
+  Helm artifacts. Because the preview uses upstream artifacts, treat any command or
+  chart value from the guide as subject to change between releases.
+* **mTLS**: traffic between sandboxed agents and their backing services is encrypted
+  and mutually authenticated. This is the workload-identity pattern: cryptographic
+  identities issued to workloads and agents enable mutual TLS and fine-grained
+  authorization without static credentials, so the agent does not depend on shared
+  secrets to reach its backing services.
+* **LLM provider setup**: a sandboxed agent still needs to call a model. LLM provider
+  setup connects the agent to its provider — and this is where it interacts with
+  *controlled network egress*: the provider must be one of the destinations the
+  sandbox is allowed to reach.
+
+Explore how these pieces interact:
+
+. Walk through a hypothetical onboarding: an agent is deployed manually in a
+  namespace, Helm brings up the OpenShell components, mTLS gives the agent an
+  identity for its backing services, and LLM provider setup wires the model endpoint
+  in.
+. Consider what would happen if egress were wide open: the sandbox would still
+  restrict system calls and tools, but the agent could reach any network destination —
+  which is exactly what controlled network egress closes off.
+
+== Exercise 2: Isolated sandboxes and controlled network egress
+
+The last two areas of the guide are the core of the sandbox itself:
+
+* **Isolated sandboxes**: each agent runs in a policy-controlled, isolated execution
+  environment with restricted access to system resources, network, and tools. This
+  contains the blast radius of unintended agent actions and enforces security
+  boundaries between agent workloads and the host system.
+* **Controlled network egress**: the network destinations a sandboxed agent can reach
+  are restricted, so a compromised or misbehaving agent cannot exfiltrate data or
+  call arbitrary endpoints.
+
+TIP: For high-security agent workloads, the same isolation goal can be pushed to the
+VM level: in OpenShift AI, Kata Containers — provided through OpenShift Sandboxed
+Containers — launch each container inside a lightweight virtual machine for
+hardware-enforced isolation. Sandbox-level policy enforcement and VM-level isolation
+are complementary containment strategies.
+
+IMPORTANT: Loosening egress rules to make an agent easier to reach defeats the
+containment the sandbox is designed to provide. Any provider or tool the agent needs
+should be an explicit, allow-listed destination.
+
+== Exercise 3: Observe OpenShell-managed agents
+
+OpenShell keeps track of agent instances as *OpenShell-managed Sandbox custom
+resources (CRs)*. A related Developer Preview feature in RHOAI 3.5 surfaces these in
+the dashboard: you can view a list of running agent deployments directly in the
+dashboard, with the name and status of each deployed agent instance in each
+namespace, and filtering capabilities to help manage deployed agents.
+
+. From the OpenShift AI dashboard, look for the running agent deployments view for
+  your namespace. Agents that were deployed manually appear there as
+  OpenShell-managed Sandbox CRs.
+
+// TODO: capture screenshot
+image::02-agent-deployments-dashboard.png[Running agent deployments in the RHOAI dashboard,link=self,window=blank,width=700]
+
+. If your facilitator has deployed an agent into your workshop namespace, observe the
+  workloads the sandbox produces:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n {guid}-{user}
+----
+
+Expect a pod for the sandboxed agent alongside any supporting components, such as
+identity or proxy sidecars; the exact names depend on the deployment, so treat this as
+an observation rather than a fixed output.
+
+[NOTE]
+====
+Because the dashboard view and the OpenShell CRs come from Developer Preview
+features, the exact console location and resource names may change between releases.
+====
+
+== Module summary
+
+**What you accomplished:**
+
+* Toured how Helm deployment, mTLS, and LLM provider setup onboard a sandboxed agent
+  to the platform
+* Reviewed how isolated sandboxes and controlled network egress contain agent actions
+* Located OpenShell-managed agents as Sandbox CRs in the dashboard and observed the
+  workloads in your namespace
+
+**Key takeaways:**
+
+* Deployment, mTLS identity, and LLM provider setup are what connect a sandboxed
+  agent to the platform, and egress control governs which of those destinations the
+  agent may reach
+* Sandbox isolation restricts system calls, network, and tools; VM-level isolation
+  with Kata Containers is a complementary containment strategy for high-security
+  workloads
+* Agents deployed manually surface as OpenShell-managed Sandbox CRs, visible in the
+  dashboard with name, status, and filtering per namespace
+
+**Next steps:**
+
+Continue to the conclusion for resources and pointers to the source documentation.

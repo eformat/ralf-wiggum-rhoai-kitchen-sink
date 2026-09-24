@@ -1,0 +1,32 @@
+---
+# Strategic-merge patch enabling distributed workloads: Ray + Kueue (RHBoK) +
+# Kubeflow Trainer (v2) + legacy Training Operator.
+#
+# RHBoK VERSION PIN: Kubeflow Trainer v2 is NOT compatible with Red Hat build
+# of Kueue (RHBoK) 1.4+ — the RHBoK operator subscription in this overlay pins
+# the kueue-operator channel to stable-v1.3 (see kueue-operator-subscription.yaml).
+# Keep it on stable-v1.3; do not bump to 1.4+ on workshop clusters.
+#
+# NOTE (3.5 ground truth): the DSC `kueue` component is DEPRECATED — setting
+# `kueue: Managed` is rejected by the admission webhook ("Managed is no longer
+# supported as a managementState"). Kueue (RHBoK) installs via the SEPARATE
+# kueue-operator subscription in this overlay (stable-v1.3), not via the DSC
+# component.
+#
+# The Kueue substrate (ResourceFlavor / ClusterQueue / LocalQueue) is the kueue
+# lab's exercise — NOT scaffolded here (labs do their own exercises).
+# The JobSet operator the trainer labs need comes from overlays/llmd
+# (serving-operators).
+apiVersion: datasciencecluster.opendatahub.io/v2
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+  namespace: redhat-ods-operator
+spec:
+  components:
+    ray:
+      managementState: Managed
+    trainer:
+      managementState: Managed
+    trainingoperator:
+      managementState: Managed

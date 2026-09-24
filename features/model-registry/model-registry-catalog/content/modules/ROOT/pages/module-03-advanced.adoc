@@ -1,0 +1,401 @@
+= Module 03: Advanced Usage
+:navtitle: Module 03: Advanced Usage
+
+In this module you will go beyond the basic registry workflow: discover models
+in the model catalog and register one into your registry, deploy a model
+directly from the catalog, store a model as an OCI ModelCar image with a
+background transfer job, govern model catalog sources as an administrator, and
+manage the registry lifecycle with archive, restore, and delete.
+
+**Learning objectives:**
+
+* Browse the model catalog, read performance and safety insights, and register a catalog model into your registry
+* Deploy a model directly from the catalog through the *Deploy a model* wizard
+* Store a registered model as an OCI image and monitor, retry, or delete its model transfer job
+* Add and govern a catalog source and archive, restore, or delete registry assets
+
+== Exercise 1: Discover models in the catalog and register one
+
+The model catalog is a curated library of gen AI models that you can search,
+filter, evaluate, and register directly into your model registry.
+
+. From the RHOAI dashboard, click *AI hub → Models → Catalog*. The *Catalog*
+page shows the model category, name, description, and labels such as task,
+license, and provider, plus performance benchmark data for third-party
+validated models.
++
+NOTE: On the s390x architecture, only the `granite-3.3-8b-instruct` model is
+supported.
+
+. In the menu bar, select from the available model categories: *All models*,
+*Red Hat AI models* (provided and supported by Red Hat), *Red Hat AI validated
+models* (third-party models benchmarked by Red Hat), and *Other models*
+(custom models configured by your administrator, shown only when there are
+unlabeled catalog sources).
+
+. Use the search bar to find a model by name, description, or provider, and
+the filter menu to filter by *Task* (for example, Text-generation),
+*Provider* (for example, Meta), *License* (for example, Apache 2.0),
+*Language* (for example, Japanese), or *Tensor type* (for example, BF16).
+
+. Click the name of a model to view the model details page: the *Model card*
+from the provider (intended use, limitations, training parameters, datasets,
+evaluation results) and the *Model details* sidebar. Validated models show
+*Minimum vRAM* (GiB) and *Container size* (GiB) in the sidebar.
+
+. On a validated model, click the *Performance insights* tab and compare
+hardware configurations by *Workload type*, *Latency* metric (E2E, TTFT, TPS,
+or ITL with a percentile such as P90), *Max RPS*, and *Hardware*. The
+performance table also shows *Cold start load time* and the vLLM *Runtime
+command* used during benchmark validation.
+
+. On models with evaluation data, click the *Safety and security insights* tab
+to review the evaluation benchmarks table (Evaluation name, Category,
+Benchmark, Evaluation score) covering risk vectors such as prompt injection,
+jailbreak resistance, and harmful content generation.
++
+NOTE: Models that were not evaluated show a *No safety and security insights*
+message — this is not an error condition.
+
+. Register the model into your registry: on the model details page, click
+*Register model*, select `workshop-registry` from the *Model registry*
+drop-down list, review the prefilled model details, enter the version details,
+and click *Register model*.
++
+NOTE: For catalog models, the URI in the *Model location* section is displayed
+automatically. Registering models from the catalog is not supported on the
+s390x architecture.
+
+=== Verify
+
+The new model details and version are displayed on the *Overview* tab on the
+model details page, and the model appears on the *Model registry* page. From
+the CLI, list your project's models to confirm the registry holds the model:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get modelregistries
+----
+
+Expected output lists `workshop-registry` as in the previous module.
+
+Now that a catalog model is registered, deploy it directly from the catalog.
+
+== Exercise 2: Deploy a model directly from the catalog
+
+You can also deploy models directly from the model catalog, without going
+through the registry first. This reuses the model serving platform you set up
+in Module 02 and creates an inference service the same way.
+
+. From the RHOAI dashboard, click *AI hub → Models → Catalog* and use the
+search bar or filter menu to find the model you registered in Exercise 1.
+
+. Click the name of the model to open the model details page, then click
+*Deploy model* to display the *Deploy a model* wizard.
+
+. On the *Model details* page, the *Model type* field lets you select
+*Generative AI model* or *Predictive model* — the default model type in the
+catalog is generative.
++
+NOTE: For models in the catalog, the *Model details* page displays read-only
+information in the *Model location* and *URI* fields. Unlike the registry
+deploy flow in Module 02, OpenShift AI does not scan your project's
+connections: model serving deployments use the global cluster pull secret to
+pull models in OCI-compliant ModelCar format from the catalog.
+
+. On the *Model deployment* page, configure the deployment:
++
+* *Project*: select your working project `{guid}-{user}`.
+* *Model deployment name*: a unique name for your deployment, autofilled with
+the model name by default — this is the name of the inference service that is
+created. Optionally click *Edit resource name* and enter a specific
+*Resource name*.
+* *Description*: an optional description of the deployment.
+* *Hardware profile*: select a hardware profile — models provided in the
+catalog use `default-profile`. Optionally click *Customize resource requests
+and limits* to modify the default CPU and memory allocation.
+* *Serving runtime*: auto-select the best runtime for your model based on
+model type, model format, and hardware profile, or select from a list of
+global and project-scoped serving runtime templates, including custom ones.
+* *Number of model server replicas to deploy*: specify a value.
++
+IMPORTANT: Resource names cannot exceed 253 characters, must consist of
+lowercase alphanumeric characters or `-`, and must start and end with an
+alphanumeric character. Resource names cannot be edited after creation and
+must not match the name of any other model deployment resource in your
+cluster.
+
+. Click *Next* and configure the *Advanced settings* page: optionally select
+*Add as AI asset endpoint* to add the model endpoint to the *Gen AI studio →
+AI asset endpoints* page with a *Use case* such as chat, multimodal, or
+natural language processing, select *Require token authentication* and add the
+*Service account* names that tokens are generated for, add custom runtime
+arguments or environment variables in *Configuration parameters*, and choose a
+*Deployment strategy* — *Rolling update* (default; new pods start before
+existing pods are terminated, for zero downtime) or *Recreate* (existing pods
+are terminated first, saving resources but guaranteeing downtime).
++
+NOTE: Advanced settings are not supported on the s390x architecture.
+
+. Review your settings on the *Review* page and click *Deploy model*.
+
+=== Verify
+
+The model deployment is displayed on the *AI hub → Deployments* page, in the
+*Latest deployments* section of the model details page, and on the
+*Deployments* tab for the model version. Confirm the inference service from
+the CLI:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get inferenceservices -n {guid}-{user}
+----
++
+Expected output shows an inference service named after the *Model deployment
+name* you configured in the wizard.
+
+TIP: The *Deploy a model* wizard shares its serving-runtime machinery with the
+deployment wizard used for registered models. To go deeper on serving runtimes
+— custom vLLM runtimes, hardware profiles, and KServe internals — continue to
+the xref:vllm-serving-runtime-kserve::index.adoc[vLLM ServingRuntime for
+KServe] workshop.
+
+With your catalog model deployed, store a model in your own OCI registry as a
+ModelCar image.
+
+== Exercise 3: Store a model as an OCI image and manage transfer jobs
+
+When you *Register and store* a model, OpenShift AI runs a background
+Kubernetes Job that copies the model into an OCI registry as a ModelCar-format
+image, enabling fast deployment with KServe.
+
+. From the RHOAI dashboard, click *AI hub → Models → Registry* and select
+`workshop-registry`.
+
+. Click *Register model* to create a new model, or navigate to an existing
+model and click *Register new version*.
+
+. In the *Model location and storage* section, select *Register and store*.
+This starts an async Kubernetes Job that copies the model into an OCI registry
+as a ModelCar-format image and then registers the metadata. The plain
+*Register* option registers metadata only and points to an artifact that is
+already stored elsewhere.
++
+NOTE: If you register a catalog model whose source is already an `oci://` URI,
+the UI forces *Register* mode only, because the model is already stored in OCI
+format.
+
+. In the *Model transfer job name* field, provide a human-readable display
+name, for example `Upload granite-7b to Quay`. Optionally click *Edit
+resource name* to edit the autogenerated Kubernetes Job resource name.
+
+. In the *Project* field, select your working project — the Kubernetes
+namespace where the transfer job runs. The UI validates that the selected
+namespace has access to the model registry instance.
+
+. In the *Model origin location* section, select the source location type and
+provide the details:
++
+* *Object storage* (S3-compatible): *Endpoint* (for example,
+`https://s3.amazonaws.com`), *Bucket*, *Region*, *Path* to the model files,
+plus the *Access Key ID* and *Secret Access Key* for the source bucket.
+* *URI*: a direct URL using `https://`, `http://`, or `hf://` for HuggingFace
+Hub (which uses snapshot download). For catalog models, the URI is prefilled
+from the catalog source and cannot be changed.
+
+. In the *Model destination location* section, provide the OCI registry
+details: *Registry* (for example, `quay.io` or your self-hosted registry), a
+*URI* without a scheme (for example, `myorg/granite-7b:v1`), a *Username*, and
+a *Password* (OCI registry token or password).
++
+In the background, a `busybox:latest` base image is pulled (for Quay
+destinations, `quay.io/quay/busybox:latest` is used automatically), model
+files are layered on top using `olot` (OCI Layers On Top), and the resulting
+image is pushed to your destination. OpenShift AI also creates a ConfigMap
+with model metadata, a Secret with source credentials (S3 only), a Secret with
+destination registry credentials in `.dockerconfigjson` format, and the
+Kubernetes Job running the async-upload container. The ConfigMap and Secrets
+are owned by the Job and are garbage-collected when the Job is deleted.
+
+. Click *Register*. A *Model transfer job started* notification displays
+immediately with a link to the job.
+
+=== Verify
+
+When the transfer job completes, click the link in the notification message.
+On the newly registered model version page, the *Storage location* section
+shows the OCI destination details, and the artifact URI is set to
+`oci://<registry>/<image>:<tag>`, which KServe ModelCar can use for model
+serving. Confirm the job from the CLI:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get jobs -n {guid}-{user}
+----
++
+Expected output shows the transfer job with `COMPLETIONS 1/1` once the
+transfer finishes.
+
+Review the transfer job logs to see the download, layering, push, and Model
+Registry API call:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc logs job/<job-resource-name> -n {guid}-{user}
+----
+
+You can also monitor jobs from the dashboard: click the action menu (⋮) beside
+the *Register model* button and select *View model transfer jobs*. The table
+shows the job name, model and version, namespace, created timestamp, author,
+and transfer job status (`Pending`, `Running`, `Complete`, or `Failed`); the
+page auto-polls while any job is active. Click a status indicator to open the
+*Status* dialog and review the *Event log* tab for Kubernetes events.
++
+// TODO: capture screenshot
+image::03-model-transfer-jobs.png[The Model transfer jobs table with job names, namespaces, and statuses,link=self,window=blank,width=700]
+
+If a job fails, click *Retry* in the *Transfer job status* column to create a
+new job with the same configuration (optionally deleting the failed job as
+part of the retry). To remove a job entirely, click the row action menu (⋮)
+and select *Delete* — this deletes the Job and its owned ConfigMap and
+Secrets, but a successfully transferred model remains available in the OCI
+registry and the model registry.
+
+With your model stored in OCI, govern which models appear in the catalog.
+
+== Exercise 4: Govern catalog sources and manage the lifecycle
+
+As an administrator, you control which models are available in the catalog by
+managing catalog sources, and you manage the registry lifecycle with archive,
+restore, and delete.
+
+. From the RHOAI dashboard, click *Settings → Model resources and operations →
+Model catalog settings*. The page shows all configured sources — the defaults
+*Red Hat AI*, *Red Hat AI validated*, and *Other* — with their source name,
+organization (Hugging Face sources only), model visibility, source type, and
+validation status.
+
+. Click *Add a source*. Enter a descriptive *Name* and select the *Source
+type*:
++
+* *Hugging Face repository*: enter the *Allowed organization* to sync models
+from, for example `ibm-granite`. All public models from that organization
+become available in the catalog.
++
+NOTE: You must enter the organization name used in the Hugging Face URL slug,
+for example `meta-llama`, not the display name. Hugging Face sources support
+public non-gated models only, are not supported in disconnected environments,
+and are not validated by Red Hat.
++
+* *YAML file*: drag and drop or paste a catalog YAML file containing model
+metadata (model name, description, deployment information).
+
+. Optional: click *Model visibility* to govern which models from the source
+are available. In *Include models*, enter patterns such as `Llama*` to include
+only matching models (for YAML sources, specify the full model name prefix
+including the organization). In *Exclude models*, enter patterns such as
+`Llama-2*` or `*DeepSeek*` to filter models out. Click *Preview* to check
+which models are included and excluded.
+
+. Optional: select *Enable source* to make its models available immediately —
+disabled sources are saved but hidden. When enabled, the validation status
+moves from *Starting* to *Connected* once OpenShift AI confirms the source is
+accessible.
+
+. Click *Add*.
+
+. As a cluster administrator, you can also configure a catalog source directly
+in OpenShift. In the console, go to *Workloads → ConfigMaps*, select the
+`rhoai-model-registries` project, open the `model-catalog-sources` ConfigMap,
+and add an entry under the `data.sources.yaml` section's `catalogs` field:
++
+[source,yaml]
+----
+data:
+  sources.yaml: | <1>
+    catalogs:
+      - name: Sample Catalog <2>
+        id: sample_custom_catalog <3>
+        type: yaml <4>
+        enabled: true <5>
+        properties:
+          yamlCatalogPath: sample-catalog.yaml
+        labels:
+          - Sample Catalog
+  sample-catalog.yaml: |
+    <contents of your catalog file>
+----
+<1> *`sources.yaml`* — the key holding the catalog source definitions; add your entry under the `catalogs` field.
+<2> *`name`* — the user-friendly name of the catalog source.
+<3> *`id`* — the unique ID of the catalog source.
+<4> *`type`* — the catalog source type; use `yaml`.
+<5> *`enabled`* — whether the source is enabled; defaults to `true`.
++
+The `properties.yamlCatalogPath` field points at your catalog file, stored as
+a sibling key of `sources.yaml` in the same ConfigMap. The optional `labels`
+make the source appear as a `<label>` category in the catalog.
++
+NOTE: Configuring custom model catalog sources is not supported on the s390x
+architecture, and changes might take a few minutes to appear in the catalog.
+
+=== Verify
+
+On the *Model catalog settings* page, the new source displays with validation
+status *Connected*, and *AI hub → Catalog* shows its models under *Other
+models* or the `<label>` category. Check the ConfigMap from the CLI:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get configmap model-catalog-sources -n rhoai-model-registries
+----
+
+Finally, manage the lifecycle of your registry assets:
+
+. Archive a model: from *AI hub → Registry*, click the action menu (⋮) beside
+a model and select *Archive model*, then type the model name to confirm. The
+model and all of its versions are archived and unavailable until restored.
++
+IMPORTANT: Models with deployed versions cannot be archived. To archive a
+model, first delete all deployments of its registered versions from the
+*AI hub → Deployments* page.
+
+. Restore a model: click the action menu (⋮) beside the *Register model*
+button, select *View archived models*, click the action menu (⋮) beside the
+model, and select *Restore model*.
+
+. Optional: delete a registry you no longer require from *Settings → Model
+resources and operations → AI registry settings*: click the action menu (⋮)
+beside the registry, select *Delete model registry*, and type the registry
+name to confirm.
++
+WARNING: Deleting a model registry is destructive. Databases connected to the
+model registry are not removed — to remove any remaining databases, contact
+your cluster administrator.
+
+=== Verify
+
+Archived models are no longer visible on the *Model registry* page but appear
+in *View archived models*; restored models return to the registered models
+list. A deleted registry is no longer displayed on the *AI registry settings*
+page.
+
+== Module summary
+
+**What you accomplished:**
+
+* Discovered a catalog model with performance and safety insights and registered it into your registry
+* Deployed a model directly from the catalog through the *Deploy a model* wizard and confirmed the inference service
+* Stored a model as an OCI ModelCar image with a transfer job and verified the `oci://` artifact URI
+* Added a governed catalog source with visibility patterns, and archived and restored registry assets
+
+**Key takeaways:**
+
+* Catalog deployments skip connection scanning — the global cluster pull secret pulls the read-only catalog URI, and the wizard autoselects or lets you choose the serving runtime
+* *Register and store* creates a background Kubernetes Job that layers model files onto a `busybox` base with `olot` and pushes a ModelCar image to your OCI registry
+* Catalog sources control which models users see; include/exclude patterns give you governance for regulated environments
+* Deployed versions block archiving, and deleting a registry does not remove its connected databases
+
+**Next steps:**
+
+You now have models registered, deployed, and stored in OCI. Continue to the
+conclusion for the full documentation set behind this workshop.

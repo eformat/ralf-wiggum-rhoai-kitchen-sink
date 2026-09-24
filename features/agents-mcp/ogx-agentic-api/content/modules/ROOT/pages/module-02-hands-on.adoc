@@ -1,0 +1,278 @@
+= Module 02: Responses and Conversations hands-on
+:navtitle: Module 02: Responses and Conversations hands-on
+
+In this module you will deploy an OGXServer, connect an OpenAI SDK client to its
+OpenAI-compatible surface, and drive a multi-turn conversation with server-side state.
+
+**Learning objectives:**
+
+* Deploy an OGXServer and verify it reaches the Running phase
+* Configure an OpenAI SDK client against the OGX route
+* Use the Conversations API to build multi-turn, context-aware chats
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: This feature is a *Technology Preview*. While the Conversations API is functional and
+suitable for evaluation, some endpoints and parameters might change in future releases. It is not
+recommended for production use.
+endif::[]
+
+== Exercise 1: Deploy an OGXServer
+
+An OGXServer CR declares the OGX runtime for your project. The following example uses the
+`rh-dev` distribution with an inline Ollama inference model, which is self-contained for workshop
+environments.
+
+. Create a file named `ogxserver.yaml`:
+
+[source,yaml]
+----
+apiVersion: ogx.io/v1beta1
+kind: OGXServer
+metadata:
+  name: ogx-agentic
+spec:
+  distribution:
+    name: rh-dev <1>
+  workload:
+    replicas: 1 <2>
+  storage:
+    size: "20Gi" <3>
+  overrides:
+    env:
+      - name: OLLAMA_INFERENCE_MODEL <4>
+        value: "llama3.2:1b"
+      - name: OLLAMA_URL <5>
+        value: "http://ollama-server-service.ollama-dist.svc.cluster.local:11434"
+----
+
+<1> **distribution.name** — the OGX distribution that runs the server; `rh-dev` is the
+developer-oriented distribution shipped with RHOAI.
+<2> **workload.replicas** — the number of OGX server pods to run; one is sufficient for
+evaluation.
+<3> **storage.size** — persistent storage for OGX metadata and state.
+<4> **OLLAMA_INFERENCE_MODEL** — the inference model the server uses for generation.
+<5> **OLLAMA_URL** — the in-cluster endpoint of the Ollama inference server.
+
+. Apply the CR to your project:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f ogxserver.yaml -n {guid}-{user}
+----
+
+. Watch the server reach the Running phase:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get ogxserver ogx-agentic -n {guid}-{user} -o jsonpath='{.status.phase}'
+----
+
+NOTE: The first deployment takes several minutes while the operator pulls images and provisions
+the persistent volume. Re-run the command until the phase prints `Running`.
+
+. Once the pods are running, list the services the operator created and identify the OGX service:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get svc -n {guid}-{user}
+----
+
+Expected output:
+
+----
+NAME                        TYPE        CLUSTER-IP       PORT(S)
+ogx-distribution-service    ClusterIP   172.30.145.19    8321/TCP
+----
+
+=== Verify
+
+* `oc get ogxserver ogx-agentic -n {guid}-{user} -o jsonpath='{.status.phase}'` prints `Running`.
+* `oc get svc -n {guid}-{user}` shows a service exposing port `8321`.
+
+With your OGXServer Running, you can now connect a client to its OpenAI-compatible API surface.
+
+== Exercise 2: Connect an OpenAI SDK client and list models
+
+The OGX server exposes OpenAI-compatible endpoints on port `8321`. The `base_url` must include
+the `/v1` path suffix so the SDK routes requests to the OpenAI-compatible surface.
+
+. In your workbench notebook or local Python environment, install the client libraries:
+
+[source,bash,role="execute"]
+----
+pip install -q openai rich
+----
+
+. Configure a client pointing at your OGX endpoint. Use the service hostname you identified in
+Exercise 1:
+
+[source,python,subs="attributes"]
+----
+from openai import OpenAI
+import rich
+
+# We'll be using a OGX server deployed in RHOAI.
+# Once all pods associated to the OGXServer are running,
+# create the base_url using the ogx service hostname (with /v1 at the end when using the OpenAI SDK)
+base_url = "http://ogx-distribution-service.{guid}-{user}.svc.cluster.local:8321/v1"
+client = OpenAI(
+    api_key="your-ogx-key",
+    base_url=base_url
+)
+----
+
+. List the models available in the OGX server and select the first LLM:
+
+[source,python]
+----
+models = client.models.list()
+rich.print(models)
+
+model_id = next(m for m in models if m.custom_metadata["model_type"] == "llm").id
+----
+
+=== Verify
+
+* `rich.print(models)` returns a paginated list of model resources with `custom_metadata` fields.
+* `model_id` is assigned without raising `StopIteration`, meaning at least one LLM is registered.
+
+With the client connected, you can now sanity-check inference before layering on the agentic APIs.
+
+== Exercise 3: Sanity-check inference with Chat Completions
+
+Before using the agentic APIs, confirm the inference path works with a simple Chat Completions
+call.
+
+[source,python]
+----
+response = client.chat.completions.create(
+    model=model_id,
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "What is the capital of France?"},
+    ],
+    temperature=0,
+)
+# Optional verification check
+assert len(response.choices) > 0, "No response after basic inference on ogx server"
+content = response.choices[0].message.content
+rich.print(content)
+----
+
+=== Verify
+
+* The assert does not raise, meaning at least one choice was returned.
+* The printed content answers `Paris`.
+
+Inference is confirmed. Now you will use the Conversations API to build a multi-turn chat with
+server-side state.
+
+== Exercise 4: Drive a multi-turn chat with the Conversations API
+
+The Conversations API manages server-side conversation state: instead of manually passing
+`previous_response_id` between Responses API calls, you create a conversation that automatically
+accumulates message history across turns.
+
+[source,python]
+----
+# Step 1: Create a conversation
+conversation = client.conversations.create(
+    metadata={"topic": "pet-care", "user": "demo-user"}
+)
+conversation_id = conversation.id
+
+# Step 2: Send messages using the Responses API with conversation_id
+# Turn 1
+response1 = client.responses.create(
+    model=model_id,
+    input="I have a rabbit. What is its living quarters called?",
+    conversation=conversation_id,
+    store=True, # Persist each response as a conversation item
+    instructions="You are a helpful assistant. Keep responses brief.",
+)
+print(response1.output_text)
+
+# Turn 2: The response can use context from Turn 1
+response2 = client.responses.create(
+    model=model_id,
+    input="I also have a dog. What are its living quarters called?",
+    conversation=conversation_id,
+    store=True,
+)
+print(response2.output_text)
+
+# Turn 3: The response can use context from previous turns
+response3 = client.responses.create(
+    model=model_id,
+    input="List the living quarters I need for all my pets.",
+    conversation=conversation_id,
+    store=True,
+)
+print(response3.output_text)
+----
+
+The Responses API accepts the `conversation` parameter instead of `previous_response_id`, which
+is what attaches each turn to the server-side history.
+
+. List all messages stored in the conversation to confirm server-side state:
+
+[source,python]
+----
+# Step 3: List all messages in the conversation
+items = client.conversations.items.list(conversation_id, order="asc")
+for item in items.data:
+    print(f"{item.role}: {item.content}")
+----
+
+WARNING: Deleting a conversation removes the conversation and its full history. This cannot be
+undone.
+
+. Clean up the conversation when you are done:
+
+[source,python]
+----
+# Step 4: Clean up
+client.conversations.delete(conversation_id)
+----
+
+NOTE: You can also drive the conversation REST endpoints directly. The Conversations API exposes
+`POST /v1/conversations`, `GET /v1/conversations/{id}`, `POST /v1/conversations/{id}`, and
+`DELETE /v1/conversations/{id}`, plus `/items` subpaths for conversation items. For example:
+
+[source,bash,role="execute",subs="attributes"]
+----
+export OGX_URL="http://ogx-distribution-service.{guid}-{user}.svc.cluster.local:8321"
+curl -s -X POST "$OGX_URL/v1/conversations" \
+  -H "Content-Type: application/json" \
+  -d '{"metadata": {"topic": "pet-care"}}'
+----
+
+=== Verify
+
+* Turn 2 answers with a dog's living quarters (a kennel) without you repeating the rabbit context.
+* Turn 3 lists living quarters for *both* pets, proving the model referenced context from
+  previous turns.
+* `conversations.items.list` returns the accumulated messages in ascending order before you
+  delete the conversation.
+
+You now have a stateful, multi-turn chat working against OGX. In the next module you will ground
+responses in your own documents and explore the advanced APIs.
+
+== Module summary
+
+**What you accomplished:**
+
+* Deployed an OGXServer and verified it reached the Running phase
+* Connected an OpenAI SDK client to the OGX route and listed models
+* Built a multi-turn, stateful chat with the Conversations API and the Responses API
+
+**Key takeaways:**
+
+* The OGX `base_url` must include the `/v1` path suffix when using the OpenAI SDK
+* Passing `conversation` (instead of `previous_response_id`) to the Responses API attaches turns to server-side history
+* `store=True` persists each response as a conversation item that you can list and delete
+
+**Next steps:**
+
+Continue to Module 03, where you combine the Responses API with the `file_search` tool to ground
+answers in your own documents, and inspect citations and guardrails.

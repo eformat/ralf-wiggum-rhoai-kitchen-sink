@@ -1,0 +1,266 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will run a distributed PyTorch training job end to end: you
+will provide the training script through a ConfigMap, create a `TrainJob` that
+references the `torch-distributed` runtime, watch the pods run, and then
+suspend, resume, and delete the job.
+
+**Learning objectives:**
+
+* Create a `TrainJob` resource from the CLI with a ConfigMap-mounted training script
+* Monitor the training pods and read their logs
+* Suspend, resume, and delete a `TrainJob`
+
+IMPORTANT: The hands-on exercises need a cluster with worker nodes that have
+supported NVIDIA GPUs. If your workshop cluster has no GPUs available, treat the
+`oc apply` and monitoring steps as observe-only and focus on the console
+navigation.
+
+IMPORTANT: Apply the ConfigMap *before* the TrainJob. The TrainJob mounts the
+ConfigMap volume into the training pods, so the pods fail to start if the
+ConfigMap does not exist yet.
+
+== Exercise 1: Launch a distributed PyTorch TrainJob
+
+First, confirm the runtime you will reference exists:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get clustertrainingruntime
+----
+
+Create a file named `minimal-train-configmap.yaml` containing a small PyTorch
+script that initializes a distributed process group and runs an `all_reduce`:
+
+[source,bash,role="execute",subs="attributes"]
+----
+cat > minimal-train-configmap.yaml <<'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minimal-train-script
+  namespace: {guid}-{user}
+data:
+  train.py: |
+    import torch
+    import torch.distributed as dist
+
+    dist.init_process_group(backend="nccl")
+    rank = dist.get_rank()
+    world_size = dist.get_world_size()
+    print(f"Rank {rank}/{world_size}")
+    print(f"PyTorch: {torch.version}, CUDA: {torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
+
+    tensor = torch.ones(1).cuda() * rank
+    dist.all_reduce(tensor)
+    print(f"Rank {rank}: all_reduce result = {tensor.item()}")
+
+    dist.destroy_process_group()
+    print("Done.")
+EOF
+oc apply -f minimal-train-configmap.yaml
+----
+
+The ConfigMap name `minimal-train-script` is what the TrainJob references; the
+`train.py` key is mounted as a file named `train.py`.
+
+Apply the TrainJob (first, the TrainJob manifest):
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f minimal-train-configmap.yaml
+----
+
+Create a file named `trainjob.yaml`:
+
+[source,bash,role="execute"]
+----
+cat > trainjob.yaml <<'EOF'
+apiVersion: trainer.kubeflow.org/v1alpha1
+kind: TrainJob
+metadata:
+  name: pytorch-minimal-example
+  namespace: {guid}-{user}
+spec:
+  runtimeRef:
+    name: torch-distributed
+    kind: ClusterTrainingRuntime
+  trainer:
+    command: ["torchrun", "/workspace/train.py"]
+    numNodes: 2
+    resourcesPerNode:
+      requests:
+        nvidia.com/gpu: 1
+      limits:
+        nvidia.com/gpu: 1
+  podTemplateOverrides:
+  - targetJobs:
+    - name: node
+    spec:
+      volumes:
+      - name: script-volume
+        configMap:
+          name: minimal-train-script
+      containers:
+      - name: node
+        volumeMounts:
+        - name: script-volume
+          mountPath: /workspace
+EOF
+oc apply -f trainjob.yaml
+----
+
+`kind: ClusterTrainingRuntime` references the pre-built cluster-scoped
+runtime; a custom namespace-scoped runtime would use `kind: TrainingRuntime`.
+`numNodes: 2` — total distributed training nodes; this replaces the separate
+Master and Worker replicas of Training Operator v1. `resourcesPerNode` — the
+same GPU request and limit applied to every training node.
+`podTemplateOverrides` mounts the ConfigMap at `/workspace` in the trainer
+container; the target job and container name `node` match the default
+`torch-distributed` runtime.
+
+Apply the TrainJob:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f trainjob.yaml
+----
+
+=== Verify
+
+Confirm the job was created:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get trainjob -n {guid}-{user}
+----
+
+.Example output
+----
+NAME                      AGE
+pytorch-minimal-example   30s
+----
+
+The TrainJob appears in the list. With the job running, monitor the training
+pods and validate the distributed output.
+
+== Exercise 2: Monitor the training pods
+
+List the pods created by the job using the `job-name` label:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n {guid}-{user} -l job-name=pytorch-minimal-example
+----
+
+You should see one pod per training node in `Running` state. Read the logs of a
+training pod to see the distributed process group come up:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc logs <pod-name> -n {guid}-{user}
+----
+
+.Example output
+----
+Rank 0/2
+PyTorch: 2.8, CUDA: True
+GPU: NVIDIA A100-SXM4-80GB
+Rank 0: all_reduce result = 1.0
+Done.
+----
+
+Every node prints its rank out of `world_size` 2, and the `all_reduce result` of
+`1.0` on each pod proves the ranks exchanged tensors across nodes.
+
+Cross-check in the OpenShift console, Administrator perspective:
+
+* Click *Home → Search*, select your project, and find `pytorch-minimal-example` under `TrainJob`.
+* Click *Workloads → Pods* and confirm the requested training node pods are running.
+
+// TODO: capture screenshot
+image::02-trainjob-console-search.png[TrainJob resource listed on the console Search page,link=self,window=blank,width=700]
+
+TIP: To follow real-time progress metrics in the OpenShift AI dashboard (*Model
+training*), enable progress tracking on the job by adding the annotation
+`trainer.opendatahub.io/progression-tracking: "true"` to the TrainJob metadata.
+The minimal example above does not set it.
+
+=== Verify
+
+The pod logs on each node show `Rank 0/2` (and `Rank 1/2` on the other pod) with
+a matching `all_reduce result = 1.0`, and the console lists the TrainJob and its
+running pods.
+
+You have a healthy distributed job. Now exercise the lifecycle: suspend, resume,
+and clean up.
+
+== Exercise 3: Suspend, resume, and delete the TrainJob
+
+Suspend the job to pause training and free up cluster resources:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch trainjob pytorch-minimal-example -n {guid}-{user} --type=merge -p '{"spec":{"suspend":true}}'
+----
+
+NOTE: If JIT checkpointing is configured in the training script (Module 03
+covers it), the training state is automatically saved before the pods are
+terminated on suspend.
+
+Confirm the suspend took effect:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get trainjob pytorch-minimal-example -n {guid}-{user} -o jsonpath='{.spec.suspend}'
+----
+
+The output prints `true` and the training pods are terminated.
+
+Resume the job:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch trainjob pytorch-minimal-example -n {guid}-{user} --type=merge -p '{"spec":{"suspend":false}}'
+----
+
+When resumed, the job automatically reloads the latest checkpoint and continues
+from where it stopped, provided the training script detects and loads
+checkpoints from a PVC or S3 path on startup.
+
+WARNING: Deleting the TrainJob is destructive — in-flight training state is lost
+unless it was checkpointed to persistent storage. This is your last exercise,
+so release the resources:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc delete trainjob/pytorch-minimal-example -n {guid}-{user}
+----
+
+=== Verify
+
+Running `oc get trainjob -n {guid}-{user}` again shows the job is gone, and `oc
+get pods -n {guid}-{user}` shows no training pods remaining.
+
+== Module summary
+
+**What you accomplished:**
+
+* Launched a two-node distributed PyTorch TrainJob from the CLI with a ConfigMap-mounted script
+* Verified distributed training by reading pod logs showing ranks and an all_reduce result
+* Suspended, resumed, and deleted the TrainJob through `oc patch` and `oc delete`
+
+**Key takeaways:**
+
+* A TrainJob only needs a runtimeRef, a command, numNodes, and resourcesPerNode — the runtime provides the rest
+* ConfigMap-mounted scripts via `podTemplateOverrides` are the simplest way to run training code
+* `spec.suspend` is a live toggle for pausing and resuming training without deleting the job
+
+**Next steps:**
+
+For training environments the pre-built runtimes do not cover, create your own
+namespace-scoped TrainingRuntime, and explore the SDK and fine-tuning options in
+the advanced module.

@@ -1,0 +1,117 @@
+# RHOAI 3.5 workshop cluster configuration — feature → overlay mapping.
+# Consumed by the ralf-wiggum-loop skill and the home hub "Cluster setup" page.
+# Every feature maps to cluster/base plus the overlays listed below.
+rhoai_version: "3.5"
+base: cluster/base
+
+# Overlay inventory. apply_order is the canonical sequence for a full kitchen-sink
+# cluster; depends_on overlays must be applied before the overlay that depends on
+# them. two_step overlays have an activation/ subdirectory applied after their
+# operator CSVs reach Succeeded.
+overlays:
+  gpu-config:
+    description: NFD operator + sample NVIDIA AcceleratorProfile
+    two_step: true
+  cpu-config:
+    description: CPU-only cluster variant (vLLM CPU ServingRuntime enablement)
+    two_step: false
+  serving:
+    description: KServe model-serving platform (RawDeployment, no Service Mesh)
+    depends_on: []
+  llmd:
+    description: openshift-ai-inference Gateway + serving-path operators (JobSet, LWS)
+    depends_on: [serving]
+    two_step: true
+  gateway:
+    description: cert-manager + RHCL/Kuadrant (Gateway API control plane)
+    two_step: true
+  monitoring:
+    description: UWM + Cluster Observability Operator + OpenTelemetry
+    two_step: false
+  maas:
+    description: aigateway.modelsAsAService flip + PostgreSQL + maas-default-gateway
+    depends_on: [gateway, monitoring, serving]
+    requires_envsubst: CLUSTER_DOMAIN
+    two_step: false
+  trustyai: {description: TrustyAI guardrails component}
+  ogx: {description: OGX component (llamastackoperator Removed first)}
+  mcp: {description: MCP Lifecycle Operator component}
+  registry: {description: Model Registry component (rhoai-model-registries)}
+  mlflow: {description: MLflow operator component}
+  feature-store: {description: Feast operator component}
+  distributed:
+    description: Ray + Kueue (RHBoK <=1.3 pin) + Trainer + Training Operator
+    depends_on: [llmd]
+  oidc: {description: base-only no-op (OCP direct-OIDC is install-time config; GatewayConfig patch is a lab exercise)}
+
+# Canonical apply order for the full kitchen-sink cluster (base is included in
+# every overlay, so applying the overlays in this order is cumulative).
+apply_order: [gpu-config, cpu-config, serving, llmd, gateway, monitoring, maas, trustyai, ogx, mcp, registry, mlflow, feature-store, distributed, oidc]
+
+# Feature → overlays beyond base. Keys match feature-matrix.yml slugs.
+features:
+  # Agents & MCP
+  ai-available-assets: [serving, gpu-config]
+  automated-tool-calling-eval: [serving, trustyai]
+  opencode-coding-agent: [serving, mlflow]
+  validated-tool-calling-config: [serving, registry]
+  mcp-catalog-support-tier: [mcp]
+  mcp-lifecycle-operator: [mcp]
+  mcp-gateway-operator: [mcp, gateway]
+  ogx-agentic-api: [ogx]
+  agent-catalog-ai-hub: []
+  csv-export-model-catalog: [registry]
+  claude-code-starter-kit: []
+  genai-studio-saved-agent: [serving, mlflow]
+  kale-jupyterlab: []
+  midojo-adversarial-testing: []
+  openclaw-starter-kit: []
+  openshell-agent-sandboxing: []
+  text-mode-multimodal-training: [distributed, llmd, gpu-config]
+  view-agent-deployments: []
+  mcp-catalog-admin: [mcp]
+  ogx-file-processors: [ogx]
+  ogx-remote-providers: [ogx]
+  external-metering-maas: [gateway, maas, monitoring]
+  external-metering-per-user: [gateway, maas, monitoring]
+  llmd-kv-cache-tiering: [serving, llmd, monitoring]
+  llmd-latency-routing: [serving, llmd, monitoring]
+  llmd-lora-routing: [serving, llmd, monitoring]
+  # Distributed Training
+  kuberay: [distributed, gpu-config]
+  kueue: [distributed, monitoring]
+  kubeflow-trainer-v2: [distributed, llmd, gpu-config]
+  # Evaluation
+  automated-red-teaming-garak: [serving, trustyai, gpu-config]
+  evalhub: [serving, trustyai, distributed]
+  # Feature Store / AutoML / AutoRAG
+  feature-store-feast: [feature-store]
+  automl: [registry]
+  autorag: [serving, ogx, gpu-config]
+  # Guardrails
+  nemo-guardrails: [serving, trustyai]
+  nemo-guardrails-mcp-gateway: [trustyai, mcp, gateway]
+  # MLOps
+  mlflow-experiment-tracking: [mlflow]
+  # MaaS
+  maas-oidc-auth: [gateway, maas]
+  maas-core: [gateway, maas, monitoring]
+  maas-loki-showback: [gateway, maas, monitoring]
+  maas-llmd-deployment: [gateway, maas, serving, llmd, monitoring]
+  maas-multi-tenancy: [gateway, maas]
+  maas-multi-provider-passthrough: [gateway, maas]
+  maas-vllm-deployment: [gateway, maas, serving, gpu-config]
+  # Model Registry
+  model-registry-catalog: [registry]
+  # Model Serving
+  llmd-core: [serving, llmd, gpu-config]
+  llmd-priority-flow-control: [serving, llmd]
+  llminferenceservice-config: [serving, llmd, gpu-config]
+  rhai-fast-release-images: [serving, gpu-config]
+  vllm-cpu-ibm-z-power: [serving, cpu-config]
+  vllm-serving-runtime-kserve: [serving, gpu-config]
+  # OGX
+  llama-stack-ogx-core: [serving, ogx, gpu-config]
+  # Platform / Gateway API & Authentication
+  gateway-api-rhcl: [gateway]
+  platform-oidc-auth: [oidc]

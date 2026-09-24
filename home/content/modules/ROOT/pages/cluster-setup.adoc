@@ -1,0 +1,88 @@
+= Cluster Setup
+
+The workshop labs run on a base RHOAI configuration shipped in this repo at
+`cluster/` — plain kustomize overlays: `base` plus fine-grained overlays
+(serving, llmd, gpu-config, cpu-config, maas, monitoring, gateway, and the
+single-component toggles). OpenShift itself is a prerequisite; this configures
+**RHOAI only**.
+
+Every overlay includes `base`, so `oc apply -k cluster/overlays/<x>` applies
+base + that overlay in one shot and stacking overlays is cumulative and
+idempotent. `cluster/feature-overlays.yml` is the machine-readable
+feature → overlay map.
+
+== Quick start (full kitchen-sink cluster)
+
+[source,bash,role="execute"]
+----
+oc apply -k cluster/base && make -C cluster dashboard-flags
+oc apply -k cluster/overlays/gpu-config   # or cpu-config for a GPU-less cluster
+oc apply -k cluster/overlays/serving
+oc apply -k cluster/overlays/llmd && oc apply -k cluster/overlays/llmd/activation
+oc apply -k cluster/overlays/gateway && oc apply -k cluster/overlays/gateway/activation
+oc apply -k cluster/overlays/monitoring
+make -C cluster maas-secrets
+oc kustomize cluster/overlays/maas | envsubst '${CLUSTER_DOMAIN}' | oc apply -f -
+oc apply -k cluster/overlays/trustyai cluster/overlays/ogx cluster/overlays/mcp \
+         cluster/overlays/registry cluster/overlays/mlflow cluster/overlays/feature-store \
+         cluster/overlays/distributed
+make -C cluster cluster-verify
+----
+
+*Two-step overlays* — `gpu-config`, `llmd`, and `gateway` ship activation CRs
+that must be applied after their operator CSVs reach Succeeded (wait between the
+two applies). The full flow, ordering constraints, and prerequisites are
+documented in `cluster/README.md`.
+
+== Which overlays does each lab need?
+
+Every lab needs `cluster/base` plus the overlays listed below. Single-lab
+setup: apply only that lab's overlays, in the order shown in
+`cluster/feature-overlays.yml`.
+
+|===
+|Overlay |What it provides
+
+|base
+|rhods-operator install + core DSC (dashboard, workbenches, pipelines) + all dashboard flags
+
+|serving
+|KServe model-serving platform (RawDeployment, no Service Mesh)
+
+|llmd
+|openshift-ai-inference Gateway + JobSet/LWS serving-path operators
+
+|gpu-config / cpu-config
+|GPU variant (NFD + AcceleratorProfile) / CPU-only variant (vLLM CPU runtime)
+
+|gateway
+|cert-manager + RHCL/Kuadrant (Gateway API control plane)
+
+|monitoring
+|User Workload Monitoring + Cluster Observability + OpenTelemetry
+
+|maas
+|MaaS flip (aigateway.modelsAsAService) + PostgreSQL + maas-default-gateway
+
+|trustyai / ogx / mcp / registry / mlflow / feature-store
+|single DSC component toggles
+
+|distributed
+|Ray + Kueue (RHBoK ≤1.3) + Kubeflow Trainer + Training Operator
+
+|oidc
+|base-only no-op (OCP direct-OIDC is install-time config; the GatewayConfig patch is a lab exercise)
+|===
+
+include::partial$mapping-table.adoc[]
+
+== Verify
+
+[source,bash,role="execute"]
+----
+make -C cluster cluster-verify
+----
+
+Checks operator CSVs, DSC/DSCI Ready, dashboard flags, Gateways `PROGRAMMED`,
+the MaaS tenant `READY`, and every component state the labs assume. Checks
+auto-skip for overlays that were not applied.

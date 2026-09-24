@@ -1,0 +1,13 @@
+= Model registry and model catalog Workshop
+
+.Workshop
+* xref:index.adoc[Overview]
+* xref:getting-connected.adoc[Getting Connected]
+
+.Modules
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:module-03-advanced.adoc[Advanced Usage]
+
+.Wrap-up
+* xref:conclusion.adoc[Conclusion]

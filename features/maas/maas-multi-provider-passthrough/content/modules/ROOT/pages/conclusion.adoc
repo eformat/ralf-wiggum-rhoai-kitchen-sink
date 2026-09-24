@@ -1,0 +1,25 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the Multi-provider API passthrough for external models (MaaS) workshop.
+
+== What you covered
+
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/govern_llm_access_with_models-as-a-service/multi-provider-api-passthrough-for-external-models[Multi-provider API passthrough for external models] — the feature chapter: when to use passthrough, how to enable it with the `apiFormat` field, Vertex AI behavior differences, and the limitations
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/govern_llm_access_with_models-as-a-service/supported-api-formats-and-passthrough-behavior-for-external-models[Supported API formats and passthrough behavior for external models] — format detection, `apiFormat` values and passthrough eligibility, the decision matrix, and per-provider authentication headers
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/govern_llm_access_with_models-as-a-service/configure-routing-to-external-model-providers[Configure routing to external model providers] — the two-resource `ExternalProvider`/`ExternalModel` architecture, the API key secret, `MaaSModelRef`, and subscription governance this workshop follows
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/govern_llm_access_with_models-as-a-service/use-single-url-passthrough-with-ai-coding-tools[Use single-URL passthrough with AI coding tools] — Claude Code and OpenAI SDK configuration with `ANTHROPIC_BASE_URL`/`OPENAI_BASE_URL` and body-based model routing
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:maas-core::index.adoc[Models-as-a-Service (MaaS) core: access model and token mechanism]
+* xref:external-metering-maas::index.adoc[External metering integration for MaaS]

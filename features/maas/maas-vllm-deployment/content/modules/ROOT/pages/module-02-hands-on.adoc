@@ -1,0 +1,217 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will deploy a small LLM with a vLLM-based deployment resource
+through the RHOAI dashboard wizard, publish it to Models-as-a-Service (MaaS), grant
+your group access with a subscription and an authorization policy, and send a
+governed inference request through the MaaS gateway.
+
+**Learning objectives:**
+
+* Deploy a vLLM-based model and publish it to MaaS from the dashboard
+* Grant user groups access with MaaSSubscription and MaaSAuthPolicy resources
+* Call the OpenAI-compatible MaaS endpoint with a subscription-bound API key
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: The vLLM-based LLMInferenceServiceConfig deployment resources are
+*Technology Preview* and are not supported with Red Hat production service-level
+agreements (SLAs). The resource APIs and wizard options shown here may change
+between releases.
+endif::[]
+
+== Exercise 1: Deploy a vLLM model and publish it to MaaS
+
+Models deployed for MaaS use the `LLMInferenceService` architecture, which
+integrates with the MaaS gateway for subscription-based quota enforcement. The
+legacy deployment method uses traditional KServe `InferenceService` resources with
+serving runtimes and cannot be published to MaaS.
+
+// TODO: capture screenshot
+image::02-deploy-model-wizard.png[The model deployment wizard with the vLLM deployment resource selected,link=self,window=blank,width=700]
+
+. Log in to the OpenShift AI dashboard and click *Projects* in the left navigation menu.
+. Click the name of your workshop project (`{guid}-{user}`).
+. Click the *Deployments* tab, then click *Deploy model* to open the wizard.
+. In the *Model details* section, specify your storage connection and enter the
+model path `facebook/opt-125m`.
+. Select *Generative AI model (Example, LLM)* as the model type.
+. Make sure the *Use legacy deployment method* checkbox is unchecked, then click *Next*.
+. In the *Model deployment* section, enter a unique model deployment name using
+lowercase letters, numbers, and hyphens, for example `facebook-opt-125m`.
+. Select a hardware profile with at least one NVIDIA GPU.
+. In the *Deployment resource* list, select *vLLM NVIDIA CUDA GPU
+LLMInferenceServiceConfig* — this is the vLLM-based serving option.
+. In the *Number of replicas* field, keep the default `1` (for production
+workloads, Red Hat recommends at least 2 replicas for high availability).
+. Click *Next*. In the *Advanced* section, under *Model availability*, select
+*Publish as MaaS*.
+. Click *Next*, review your settings, and click *Deploy model*.
+
+IMPORTANT: *Publish as MaaS* creates a `MaaSModelRef` object that registers the
+model with MaaS for subscription assignment. Publishing alone does not give users
+access — an administrator must add the model to a subscription and an
+authorization policy first, which you do in Exercise 2.
+
+=== Verify
+
+Every step reports a successful result before you continue.
+
+. Confirm the model appears on the *Deployments* tab with a checkmark in the *Status* column.
+. Confirm that the `MaaSModelRef` was created in your project:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get maasmodelref -n {guid}-{user}
+----
+
+You should see a `MaaSModelRef` object named after your model deployment.
+
+. Confirm the underlying `LLMInferenceService` is ready:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llminferenceservice facebook-opt-125m -n {guid}-{user}
+----
+
+The `READY` column shows `True` once the vLLM pod is serving.
+
+With the model published to MaaS, grant your workshop group access through a
+subscription and an authorization policy.
+
+== Exercise 2: Grant access and test the MaaS endpoint
+
+Both a `MaaSSubscription` and a `MaaSAuthPolicy` are required for each model to
+be accessible through MaaS. A policy without a subscription yields `429 Too
+Many Requests` (no token quota); a subscription without a policy yields `403
+Forbidden` (no gateway access).
+
+. Create the workshop group and add yourself to it. This command requires cluster
+administrator access:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc adm groups new {guid}-model-users {user}
+----
+
+. If you have not completed the MaaS core workshop, create the governance
+resources directly (the manifests below match the annotated manifests in
+xref:maas-core:ROOT:module-03-advanced.adoc[Module 03: Apply governance by
+YAML] with these workshop values). On a CPU-only cluster the published model
+is `facebook-opt-125m` (the model deployed in module 02 Exercise 1):
++
+[source,bash,role="execute"]
+----
+cat > maas-subscription.yaml <<EOF
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSSubscription
+metadata:
+  name: workshop-model-subscription
+  namespace: models-as-a-service
+spec:
+  owner:
+    groups:
+      - name: {guid}-model-users
+  tokenMetadata:
+    costCenter: na
+    organizationId: na
+  modelRefs:
+    - name: facebook-opt-125m
+      namespace: {guid}-{user}
+      tokenRateLimits:
+        - limit: 100000
+          window: 1m
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSAuthPolicy
+metadata:
+  name: workshop-model-access
+  namespace: models-as-a-service
+spec:
+  subjects:
+    groups:
+      - name: {guid}-model-users
+  modelRefs:
+    - name: facebook-opt-125m
+      namespace: {guid}-{user}
+EOF
+oc apply -f maas-subscription.yaml
+----
+
+NOTE: When you apply the subscription, the MaaS controller automatically generates
+a per-model `AuthPolicy` and `TokenRateLimitPolicy` in the model's project
+namespace. If these policies are missing, check the MaaS controller logs for
+errors: `oc logs -n ${INFRA_NS} -l app=maas-controller --tail=50`.
+
+. Verify that the subscription and authorization policy exist, and that the
+controller generated the gateway policies for the model:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get maassubscription -n models-as-a-service
+oc get maasauthpolicy -n models-as-a-service
+oc get authpolicy -n {guid}-{user}
+oc get tokenratelimitpolicy -n {guid}-{user}
+----
+
+. Create a MaaS API key in the dashboard: click *Gen AI studio* → *API keys*, then
+create a key bound to the `workshop-model-subscription` subscription. Save the key
+value somewhere secure for the next step.
+
+. Test inference through the MaaS gateway with a subscription-bound API key. Run
+these commands in the same terminal session so that `HOST` stays available:
+
+[source,bash,role="execute",subs="attributes"]
+----
+HOST="maas.$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')"
+curl -H "Authorization: Bearer %api-key%" \
+  "https://${HOST}/llm/facebook-opt-125m/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"facebook-opt-125m","messages":[{"role":"user","content":"test"}],"max_tokens":10}'
+----
+
+In the command, replace `%api-key%` with the API key you created in the dashboard.
+
+=== Verify
+
+A successful response returns an HTTP 200 status code with a completion body in
+OpenAI-compatible format.
+
+. Confirm that unauthorized requests are rejected. Send a request with an invalid API key:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -o /dev/null -w "%{http_code}\n" \
+  -H "Authorization: Bearer invalid-key" \
+  "https://${HOST}/llm/facebook-opt-125m/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"facebook-opt-125m","messages":[{"role":"user","content":"test"}],"max_tokens":10}'
+----
+
+The command should return `401` or `403`.
+
+. Optional: test the endpoint from the dashboard playground. Click *Gen AI studio*
+→ *AI asset endpoints*, locate your MaaS model (displayed as
+`<endpoint-name>/<model-id>`, for example
+`maas-vllm-inference-1/facebook/opt-125m`), click the action menu (⋮), and select
+*Try in playground*. NOTE: playground testing consumes tokens from your
+subscription's token limit.
+
+== Module summary
+
+**What you accomplished:**
+
+* Deployed a vLLM-based model through the dashboard wizard and published it to MaaS
+* Granted group access with a MaaSSubscription and a MaaSAuthPolicy
+* Called the governed OpenAI-compatible endpoint with a subscription-bound API key
+
+**Key takeaways:**
+
+* Publishing to MaaS creates a `MaaSModelRef` but access requires both a subscription and an authorization policy
+* The MaaS controller generates per-model `AuthPolicy` and `TokenRateLimitPolicy` resources in the model namespace
+* MaaS exposes every published model through one OpenAI-compatible gateway URL with body-based model routing
+
+**Next steps:**
+
+When you are done experimenting, delete the model to free the GPU capacity with
+`oc delete llminferenceservice facebook-opt-125m -n {guid}-{user}`, then continue
+to the conclusion for the full documentation links.

@@ -1,0 +1,28 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the Evaluation Stack (EvalHub) workshop.
+
+== What you covered
+
+* xref:module-01-concepts.adoc[Core Concepts] — the EvalHub architecture, core concepts, and deployment verification
+* xref:module-02-hands-on.adoc[Hands-on Exercise] — the SDK/CLI, providers and benchmarks, submitting and tracking evaluation jobs
+* xref:module-03-advanced.adoc[Advanced Usage] — the dashboard, collections, MLflow tracking, and tenant RBAC
+* xref:eval-api.adoc[EvalHub REST API] — endpoints, authentication, job lifecycle, and results
+* xref:scoring.adoc[Scoring and Thresholds] — metrics, threshold levels, and run comparison
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/evaluating_ai_systems/evaluate-llms-with-evalhub[Evaluate LLMs with EvalHub] — the feature chapter: architecture, deploying EvalHub with the TrustyAI Operator, submitting and tracking evaluation jobs, collections, MLflow tracking, and multi-tenancy
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/evaluating_ai_systems/evaluate-your-system-by-using-the-openshift-ai-dashboard[Evaluate your system by using the OpenShift AI dashboard] — dashboard submission and side-by-side evaluation run comparison
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/evaluating_ai_systems/index[Evaluating AI systems] — the full book, including EvalHub local mode, OCI result export, and the API reference
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5[RHOAI 3.5 documentation]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:automated-red-teaming-garak::index.adoc[Automated Red Teaming (powered by Garak)]
+* xref:automated-tool-calling-eval::index.adoc[Automated tool-calling evaluation-data generation for custom MCP servers]

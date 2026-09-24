@@ -1,0 +1,20 @@
+---
+# Register Kuadrant AFTER the RHCL operator CSV reaches Succeeded — the
+# kuadrant.io CRD does not exist until then:
+#   oc apply -k cluster/overlays/gateway/activation
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kuadrant-system
+---
+apiVersion: kuadrant.io/v1beta1
+kind: Kuadrant
+metadata:
+  name: kuadrant
+  namespace: kuadrant-system
+spec:
+  # Enable observability so the operator creates the ServiceMonitor/PodMonitor
+  # set scraping the Kuadrant data-plane (Limitador, Authorino) — this is what
+  # surfaces per-subscription token usage in the RHOAI "Usage" dashboard.
+  observability:
+    enable: true

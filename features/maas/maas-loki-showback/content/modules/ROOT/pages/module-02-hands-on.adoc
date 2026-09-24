@@ -1,0 +1,277 @@
+= Module 02: Per-user usage dashboards and CSV showback export
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will enable per-user metrics collection, work through the MaaS
+observability dashboard end to end in the console, and export usage data as CSV
+for cost attribution and showback reporting to finance teams.
+
+**Learning objectives:**
+
+* Enable per-user usage metrics with `captureUser` and understand the Prometheus cardinality trade-off
+* Navigate the MaaS observability dashboard: filters, time ranges, and the Token Consumption by User table
+* Export usage data as CSV and interpret its columns
+* Locate the underlying Prometheus metrics and the Loki-based log pipeline behind the dashboard
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: The MaaS observability dashboard is a *Technology Preview* feature.
+APIs and manifests shown here may change between releases.
+endif::[]
+
+== Exercise 1: Enable per-user usage metrics
+
+The dashboard can break token consumption down per user, but the `user` label is
+disabled by default in MaaS metrics (`captureUser: false`) for privacy and
+cardinality considerations.
+
+WARNING: Enabling `captureUser` with a large number of users can significantly
+increase the Prometheus database size, because every user becomes a new label
+value on the usage metrics. For a workshop cluster with a handful of users this
+is fine; on a production cluster, weigh the cardinality cost first.
+
+. Patch the Tenant custom resource to turn on per-user metrics collection:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch tenants.maas.opendatahub.io default-tenant -n models-as-a-service \
+  --type merge \
+  -p '{
+    "spec": {
+      "telemetry": {
+        "enabled": true,
+        "metrics": {
+          "captureUser": true
+        }
+      }
+    }
+  }'
+----
+The `captureUser: true` setting adds the username from API key ownership or
+OIDC authentication to the collected usage metrics, which is what populates the
+*User* column of the dashboard's per-user table.
+
+. Generate some MaaS traffic if your cluster is idle — send a few inference
+requests through the MaaS gateway with any API key you created in the MaaS
+workshop, so the usage metrics have data to report.
+
+. Verify that per-user metrics are being collected. In the OpenShift console,
+navigate to *Observe* → *Metrics* and run:
++
+[source,bash,role="execute"]
+----
+curl -sSk -H "Authorization: Bearer $(oc whoami -t)" \
+  "https://$(oc get route -n openshift-monitoring prometheus-k8s -o jsonpath='{.spec.host}')/api/v1/query?query=authorized_hits_total" \
+  | python3 -m json.tool | head -30
+----
++
+The result should include the `authorized_hits_total` metric labeled by
+`subscription`, `model`, and `limitador_namespace` — and, with `captureUser`
+enabled, broken out per user.
+
+=== Verify
+
+* The Tenant resource accepts the patch and remains `Ready`/`Reconciled`.
+* `authorized_hits_total` appears in *Observe* → *Metrics* after MaaS traffic.
+
+With per-user metrics flowing into Prometheus, the console dashboard can now
+render them — the next exercise walks it end to end.
+
+== Exercise 2: View the MaaS observability dashboard
+
+The observability dashboard is embedded in the OpenShift AI console using
+Perses and queries its metrics from Prometheus. Access is restricted to cluster
+administrators. It is designed for showback reporting, not as a billing-grade
+metering system — for production chargeback workflows that require precise
+billing data, access the Limitador metrics endpoint directly rather than using
+Prometheus or the dashboard CSV export.
+
+// TODO: capture screenshot
+image::02-usage-dashboard.png[MaaS observability dashboard Usage tab,link=self,window=blank,width=700]
+
+. In the OpenShift AI dashboard, click *Observe & monitor* → *Dashboard* in the
+left navigation menu.
++
+The Observability dashboard page displays three tabs: *Cluster*, *Models*, and
+*Usage*.
+
+. Click the *Usage* tab to view Models-as-a-Service usage metrics.
+
+. Optional: To change the time range, select a value from the *Time period*
+dropdown. Options range from the last 5 minutes to the last 14 days, and you can
+also specify a custom date range.
+
+. Optional: Filter the metrics by user, subscription, or model by selecting
+values from the *User*, *Subscription*, or *Model* dropdowns. Select *All* in any
+dropdown to view metrics for all items in that category.
+
+. Review the *Overview* section, which displays summary metrics:
++
+[cols="1,2",options="header"]
+|===
+|Metric |Description
+
+|Total Tokens
+|The total number of tokens consumed across all requests during the selected time period, including both input tokens (from user prompts) and output tokens (from model responses).
+
+|Total Requests
+|The total number of API requests made to MaaS models during the selected time period. Each API call to a model endpoint counts as one request.
+
+|Total Errors
+|The total number of failed requests during the selected time period, including model errors, timeout errors, and other server-side issues.
+
+|Success Rate
+|The percentage of successful inference requests out of all requests. Calculated from vLLM success and latency counters; rate-limited requests (HTTP 429) are excluded.
+
+|Active Users
+|The number of unique users who made at least one request during the selected time period, identified by username from API key ownership or OIDC authentication.
+|===
+
+. Review the *Token Consumption by User* table, which shows detailed per-user
+usage data:
++
+[cols="1,2",options="header"]
+|===
+|Column |Description
+
+|User
+|The username of the user who made the requests — the API key owner, or the user's OIDC identity for OIDC-authenticated requests.
+
+|Subscription
+|The subscription used for the requests. If a user belongs to multiple subscriptions, separate rows appear for each.
+
+|Model
+|The model accessed, in the format `<endpoint-name>/<model-id>` for MaaS models.
+
+|Tokens
+|Total tokens consumed by this user for this subscription and model combination. Click the column header to sort by token consumption.
+
+|Requests
+|The number of API requests made by this user for this subscription and model combination.
+
+|Rate Limited
+|The number of requests rejected due to rate limiting (HTTP 429). Rate-limited requests count toward the request total without consuming tokens.
+|===
+
+. Optional: Sort by column headers and use the pagination controls at the bottom
+of the table to navigate multiple pages of results or adjust rows per page.
+
+. Optional: Compare the dashboard against the raw Prometheus metrics. In
+*Observe* → *Metrics*, the dashboard queries these metrics collected from the
+Kuadrant and MaaS components:
++
+[cols="1,2",options="header"]
+|===
+|Prometheus metric |What it measures
+
+|`authorized_hits_total`
+|Total tokens consumed, labeled by `subscription`, `model`, and `limitador_namespace`. Collected from Limitador; the actual token usage for successful requests.
+
+|`authorized_calls_total`
+|Total API requests made to models, labeled by `subscription` and `limitador_namespace`. Counts all successful requests that passed rate limiting and authentication.
+
+|`limited_calls_total`
+|Requests rejected due to rate limiting (HTTP 429), labeled by `limitador_namespace`. Indicates when users exceed their subscription token limits.
+
+|`istio_request_duration_milliseconds_bucket`
+|Request latency at the API gateway, tagged with the subscription dimension.
+
+|`auth_server_authconfig_duration_seconds`
+|Time spent in Authorino authentication and authorization, labeled by authorization policy.
+|===
++
+NOTE: The `model` label displays only on the `authorized_hits_total` metric due
+to Kuadrant wasm-shim limitations.
+
+=== Verify
+
+* The *Overview* section shows non-zero values for users with recent activity.
+* The *Token Consumption by User* table lists users with token consumption in the selected time period.
+* Changing the time period updates the metrics to reflect the new range.
+
+The dashboard answers "how much" on screen — the next exercise turns the same
+data into a file your finance team can consume.
+
+== Exercise 3: Export usage data as CSV for showback
+
+You can export MaaS usage data in CSV format for cost attribution and showback
+reporting to finance teams. The export requires the Cluster Observability
+Operator to be installed and configured on the cluster (checked in Module 01).
+
+. In the OpenShift AI dashboard, click *Observe & monitor* → *Dashboard*.
+
+. Click the *Usage* tab.
+
+. Optional: Configure filters to export specific usage data:
++
+* Select a time period from the *Time period* dropdown to export metrics for a
+specific timeframe.
+* Select filters for *User*, *Subscription*, or *Model* to export metrics for
+specific resources.
+
+. Hover over the *Token Consumption by User* table.
+
+. Click *Export as CSV* to download the usage data.
++
+The system generates a CSV file containing the filtered usage data.
+
+. Save the CSV file to your local system.
+
+NOTE: The exported CSV file contains subscription-level usage data for the
+selected time period and filters. This data is suitable for showback reporting
+but might not be billing-grade accurate. For production chargeback workflows,
+configure external metering and billing tools to consume this data.
+
+=== Verify
+
+The CSV file downloads to your local system and contains usage data matching
+your selected filters and time period — one row per user, subscription, and
+model combination with token and request totals.
+
+== Background: the Loki-based log pipeline and user-scoped dashboards
+
+The metrics-based dashboard you used above is one half of MaaS showback. In
+RHOAI {rhoai_version}, MaaS also includes a Loki-based structured log pipeline
+for showback data in addition to the metrics-based dashboard. The Loki-based
+pipeline provides 30-day retention on object storage, which better supports
+monthly billing cycles than short-lived in-cluster metric retention.
+
+This enhancement also introduces user-scoped, read-only dashboards with data
+isolation: users — including administrators using the scoped view — can see
+only their own MaaS usage data, while administrators continue to use the
+existing platform-wide dashboard (the one you exercised above) for broader
+usage monitoring.
+
+The underlying structured logs already carry the dimensions needed for this
+scoping: the `maas-api` structured JSON logs include `tenant_name`,
+`tenant_namespace`, `gateway_name`, and `gateway_namespace` fields in each log
+entry, and when OpenTelemetry tracing is enabled (set the
+`OTEL_EXPORTER_OTLP_ENDPOINT` environment variable on the `maas-api`
+deployment), traces include span attributes for `tenant.name`,
+`tenant.namespace`, `gateway.name`, and `gateway.namespace`.
+
+NOTE: The downloaded RHOAI 3.5 documentation describes the metrics-based
+dashboard workflow in detail (Govern LLM access with Models-as-a-Service,
+"Monitor Models-as-a-Service usage by using the observability dashboard"), but
+does not yet publish step-by-step configuration commands for the Loki-based log
+pipeline or for enabling the user-scoped dashboards — those are described in the
+3.5 release notes as Technology Preview enhancements. Expect the configuration
+surface to appear in a later release; consult the release notes and your Red Hat
+contact for the current state.
+
+== Module summary
+
+**What you accomplished:**
+
+* Enabled per-user usage metrics with `captureUser` and weighed its Prometheus cardinality cost
+* Navigated the MaaS observability dashboard: filters, time ranges, overview metrics, and the Token Consumption by User table
+* Exported usage data as CSV for showback reporting and reviewed the Loki-based log pipeline behind it
+
+**Key takeaways:**
+
+* The dashboard is showback-grade, not billing-grade — production chargeback needs the Limitador metrics endpoint or external metering
+* `captureUser` drives the *User* column of the per-user table and grows Prometheus storage with user count
+* The Loki-based pipeline adds 30-day object-storage retention and user-scoped read-only dashboards for monthly billing cycles
+
+**Next steps:**
+
+Continue to the conclusion for links to the source documentation and ideas for
+wiring the CSV export into your finance reporting flow.

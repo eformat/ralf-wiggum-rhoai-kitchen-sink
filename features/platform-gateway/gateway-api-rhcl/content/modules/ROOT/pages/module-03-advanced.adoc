@@ -1,0 +1,327 @@
+= Module 03: Advanced Usage
+:navtitle: Module 03: Advanced Usage
+
+In this module you will explore advanced Connectivity Link capabilities: rate-limit headers
+on API responses, token-based rate limiting for LLM inference APIs, OIDC/JWT authentication
+with a real identity provider, and observability for your gateways, policies, and requests.
+
+**Learning objectives:**
+
+* Add `x-ratelimit-*` headers to API responses so clients can self-throttle
+* Enforce token-based rate limits for LLM inference traffic with a TokenRateLimitPolicy CR
+* Authenticate API requests with JWT bearer tokens from an OIDC issuer using a route-level AuthPolicy
+* Enable Connectivity Link observability and explore the metrics, dashboards, logs, and tracing options
+
+Re-create the environment variables from Module 02 before you start:
+
+[source,bash,role="execute",subs="attributes"]
+----
+export KUADRANT_GATEWAY_NS={guid}-gateway
+export KUADRANT_GATEWAY_NAME=ingress-gateway
+export KUADRANT_DEVELOPER_NS={guid}-{user}
+export KUADRANT_ZONE_ROOT_DOMAIN=example.com
+export KUADRANT_SYSTEM_NS=$(oc get kuadrant -A -o jsonpath="{.items[0].metadata.namespace}")
+# --resolve needs an IP: on clusters where the gateway status address is a
+# hostname (no LoadBalancer provider), use the gateway Service ClusterIP
+export GATEWAY_ADDRESS=$(oc get svc ${KUADRANT_GATEWAY_NAME}-openshift-default -n ${KUADRANT_GATEWAY_NS} -o jsonpath='{.spec.clusterIP}')
+----
+
+== Exercise 1: Add rate-limit headers to an API response
+
+By adding `x-ratelimit-*` headers you turn your APIs into self-documenting systems that can
+proactively throttle their own request frequency and time their retries.
+
+. Find the name of the Limitador CR in your cluster:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get limitador -A
+----
+
+. Patch the Limitador CR to emit draft-version rate-limit headers:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch limitador limitador -n ${KUADRANT_SYSTEM_NS} --type=merge -p '{"spec": {"rateLimitHeaders": "DRAFT_VERSION_03"}}'
+----
+
+. Test for the presence of the headers:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -i -k --resolve "api.${KUADRANT_ZONE_ROOT_DOMAIN}:443:${GATEWAY_ADDRESS}" -H 'Authorization: APIKEY IAMALICE' "https://api.${KUADRANT_ZONE_ROOT_DOMAIN}/cars"
+----
+
+=== Verify
+
+.Example output
+----
+HTTP/1.1 200 OK
+x-ratelimit-limit: 5, 5;w=60
+x-ratelimit-remaining: 4
+x-ratelimit-reset: 58
+----
+
+The response now includes `x-ratelimit-limit`, `x-ratelimit-remaining`, and
+`x-ratelimit-reset` headers, so clients can time their retries without guessing.
+
+== Exercise 2: Token-based rate limiting for LLM inference APIs
+
+A TokenRateLimitPolicy CR enforces rate limits based on token consumption rather than the
+number of requests. It extends the Envoy Rate Limit Service protocol with automatic token
+usage extraction: after the upstream responds, the gateway extracts the `usage.total_tokens`
+field from the OpenAI-style JSON response body and sends the actual token count to Limitador
+as a `hits_addend`. This is particularly useful for protecting LLM APIs — such as
+OpenAI-compatible endpoints exposed by RHOAI model serving — where cost and resource usage
+correlate with tokens processed, not request counts.
+
+Prerequisites for full enforcement: an AuthPolicy that authenticates the request (Module 02
+Exercise 5) and an upstream that returns an OpenAI-compatible JSON body containing
+`usage.total_tokens`. In this workshop the Toystore app does not return token usage, so you
+verify policy acceptance and enforcement rather than a 429 on token exhaustion.
+
+. Create the TokenRateLimitPolicy CR:
+
+[source,bash,role="execute"]
+----
+cat <<EOF | oc apply -f - -n ${KUADRANT_GATEWAY_NS}
+apiVersion: kuadrant.io/v1alpha1
+kind: TokenRateLimitPolicy
+metadata:
+  name: llm-protection
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: ${KUADRANT_GATEWAY_NAME}
+  limits:
+    "llm-users":
+      rates:
+        - limit: 10000
+          window: 24h
+      when:
+        - predicate: request.path == "/v1/chat/completions"
+      counters:
+        - expression: auth.identity.userid
+EOF
+----
+<1> *targetRef* — attaches the policy to the Gateway so it applies to inference traffic routed through it.
+<2> *limit: 10000* — ten thousand tokens per 24-hour window per counter bucket.
+<3> *predicate* — matches inference traffic only, the OpenAI-compatible chat completions path.
+<4> *counters* — one token counter per authenticated user; the userid comes from the API-key identity injected in Module 02.
+
+. Check the policy status for `Accepted` and `Enforced` conditions:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get tokenratelimitpolicy llm-protection -n ${KUADRANT_GATEWAY_NS} -o jsonpath='{.status.conditions}'
+----
+
+=== Verify
+
+The status conditions include `type: Accepted` and `type: Enforced` with `status: "True"` on
+the target Gateway. In a real deployment, requests within the token limit return 200 OK and
+update the client's counter; requests beyond the limit return 429 Too Many Requests.
+
+For tiered offerings you can combine TokenRateLimitPolicy with a JWT-validated AuthPolicy
+and apply different token limits per user group — for example, 10,000 tokens per day for a
+`free` group and 100,000 for a `pro` group, selected by `auth.identity.groups` predicates.
+You configure the JWT-validated AuthPolicy half of that combination in Exercise 3.
+TokenRateLimitPolicy also inherits multi-cluster shared counters from a Redis-based
+datastore, configured in the Limitador CR.
+
+== Exercise 3 (optional): Authenticate API requests with OIDC/JWT validation
+
+Module 02 authenticated the Toystore API with API keys. The deploy guide's OpenID Connect
+path connects the gateway to a real identity provider instead: a route-level AuthPolicy
+validates JWT bearer tokens issued by an OIDC provider, for example Red Hat build of
+Keycloak. The same API deployed to multiple clusters can authenticate with the same
+identity provider.
+
+IMPORTANT: This exercise requires a trusted OIDC provider configured to issue tokens for
+your API clients. The deploy guide assumes a Red Hat build of Keycloak instance running in
+a `keycloak` namespace, listening on port 8080, with a `kuadrant` realm, an OAuth2 client
+named `demo` that has the Direct Access grant enabled, and a user `john` with the password
+`p`. If your workshop environment does not include an OIDC issuer, ask your facilitator or
+read along — the AuthPolicy cannot be enforced and tokens cannot be issued without one. If
+your OIDC server uses a self-signed or internal cluster certificate, you must also inject
+the trusted CA bundle into your Connectivity Link installation.
+
+. Only one AuthPolicy can target the same HTTPRoute, so if the API-key AuthPolicy from
+Module 02 Exercise 5 is still attached, remove it first. You can re-create it from Module
+02 afterwards:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc delete authpolicy toystore-auth -n ${KUADRANT_DEVELOPER_NS}
+----
+
+. Create an AuthPolicy CR that targets the Toystore HTTPRoute and configures OIDC
+authentication:
+
+[source,bash,role="execute",subs="attributes"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: kuadrant.io/v1
+kind: AuthPolicy
+metadata:
+  name: toystore-oidc-auth
+  namespace: ${KUADRANT_DEVELOPER_NS}
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: toystore
+  rules:
+    authentication:
+      "oidc-idp-auth":
+        jwt:
+          issuerUrl: "http://keycloak.keycloak.svc.cluster.local:8080/realms/kuadrant"
+EOF
+----
+<1> *toystore-oidc-auth* — the AuthPolicy must exist in the same namespace where the HTTPRoute object is applied.
+<2> *targetRef* — must match the name of your HTTPRoute object; this route-level policy takes precedence over the gateway-level deny-all defaults from Module 02.
+<3> *oidc-idp-auth* — the authentication rule that validates JWT bearer tokens.
+<4> *issuerUrl* — the base URL of your OIDC issuer, for example, Red Hat build of Keycloak. The hostname set in the OIDC issuer endpoint must match the one used to get the token and be reachable from within the cluster.
+
+. Check that the AuthPolicy is Accepted and Enforced:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get authpolicy toystore-oidc-auth -n ${KUADRANT_DEVELOPER_NS} -o=jsonpath='{.status.conditions[?(@.type=="Accepted")].message}{"\n"}{.status.conditions[?(@.type=="Enforced")].message}{"\n"}'
+----
+
+. Request an access token from within the cluster for the user `john`, who is assigned to
+the `member` role, using the Keycloak Direct Access grant (requires `jq` on your local
+host):
+
+[source,bash,role="execute",subs="attributes"]
+----
+ACCESS_TOKEN=$(oc run token --attach --rm --restart=Never -q --image=curlimages/curl -- http://keycloak.keycloak.svc.cluster.local:8080/realms/kuadrant/protocol/openid-connect/token -s -d 'grant_type=password' -d 'client_id=demo' -d 'username=john' -d 'password=p' -d 'scope=openid' | jq -r .access_token)
+----
+
+NOTE: If your Red Hat build of Keycloak server is reachable from outside the cluster, you
+can get the token directly. Make sure that the hostname set in the OIDC issuer endpoint
+configured in the AuthPolicy CR matches the one used to get the token and is reachable
+from within the cluster.
+
+. Send an unauthenticated request to your route and verify that it is blocked:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k --resolve "api.${KUADRANT_ZONE_ROOT_DOMAIN}:443:${GATEWAY_ADDRESS}" -s -o /dev/null -w "%{http_code}\n" "https://api.${KUADRANT_ZONE_ROOT_DOMAIN}/cars"
+----
+
+. Send an authenticated request containing a valid OIDC access token to verify that access
+is granted:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k --resolve "api.${KUADRANT_ZONE_ROOT_DOMAIN}:443:${GATEWAY_ADDRESS}" -H "Authorization: Bearer $ACCESS_TOKEN" -s -o /dev/null -w "%{http_code}\n" "https://api.${KUADRANT_ZONE_ROOT_DOMAIN}/cars"
+----
+
+=== Verify
+
+The AuthPolicy reports `AuthPolicy has been accepted` and `AuthPolicy has been
+successfully enforced`. The unauthenticated request returns `401`; the request with
+`Authorization: Bearer $ACCESS_TOKEN` returns `200`.
+
+.Example output
+----
+401
+200
+----
+
+TIP: The deploy guide extends this policy with role-based access control: `patterns`
+entries that select `auth.identity.realm_access.roles` with the `incl` operator (for
+example, requiring the `member` or `admin` role) and `authorization` rules keyed on CEL
+path matches, so requests to different paths require different roles.
+
+== Exercise 4: Observe gateways, policies, and requests
+
+Connectivity Link combines state metrics, component metrics, and standard Envoy metrics to
+provide template dashboards and alerts. It supports Prometheus metrics, distributed tracing
+with Red Hat build of OpenTelemetry, Envoy access logs, and pre-built Grafana dashboards.
+
+. Enable observability monitoring in your Kuadrant CR. This creates ServiceMonitor and
+PodMonitor resources for the Connectivity Link components and a set of monitors in each
+gateway namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch kuadrant kuadrant -n ${KUADRANT_SYSTEM_NS} --type=merge -p '{"spec": {"observability": {"enable": true}}}'
+----
+
+. Check the created monitors:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get servicemonitor,podmonitor -A -l kuadrant.io/observability=true
+----
+
+. If you have Grafana installed, import the example dashboards with *Dashboards > New > Import* using these IDs from the Grafana dashboards website: *21538* (App Developer), *20982* (Platform Engineer), *20981* (Business User), and *22695* (DNS Operator). The platform engineer dashboard covers policy compliance, resource consumption, error rates, latency and throughput, and multicluster split.
+
+The example dashboard panels rely on the `service` and `deployment` labels you added to the
+Toystore HTTPRoute in Module 02 — keep them on every HTTPRoute you publish.
+
+=== Verify
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get servicemonitor,podmonitor -A -l kuadrant.io/observability=true
+----
+
+The command lists ServiceMonitor and PodMonitor resources labeled
+`kuadrant.io/observability=true` in the Connectivity Link and gateway namespaces.
+
+You can also enable Envoy access logs through the Istio Telemetry API — for example, log
+only errors for request correlation:
+
+[source,yaml]
+----
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: access-logs-errors-only
+  namespace: istio-system
+spec:
+  accessLogging:
+    - providers:
+        - name: envoy
+          filter:
+            expression: "response.code >= 400"
+----
+<1> *filter* — a CEL expression that keeps the log volume low by logging only failed requests.
+
+Access logs expose `x-request-id`, which Envoy generates per request; traces include the
+same ID as a span attribute, so you can jump between logs and traces in a dashboard. For
+full data-plane tracing, configure the Distributed Tracing Platform and set
+`spec.observability.dataPlane` and `spec.observability.tracing.defaultEndpoint` in your
+Kuadrant CR to point at your OTLP collector.
+
+WARNING: GRPCRoute policy attachment is a Technology Preview feature in Connectivity Link
+1.4. AuthPolicy and RateLimitPolicy CRs can target GRPCRoute resources, with
+`request.grpc.service` and `request.grpc.method` available for predicate expressions, but
+TokenRateLimitPolicy does not support GRPCRoute targets. The API might change between
+releases.
+
+== Module summary
+
+**What you accomplished:**
+
+* Added `x-ratelimit-*` headers to API responses by patching the Limitador CR
+* Enforced token-based rate limiting for OpenAI-compatible inference traffic with a TokenRateLimitPolicy CR
+* Swapped route-level authentication from API keys to OIDC/JWT validation and tested an unauthenticated 401 against an authenticated 200 with a Bearer token
+* Enabled Connectivity Link observability, verified the created monitors, and imported the example Grafana dashboards
+
+**Key takeaways:**
+
+* TokenRateLimitPolicy counts tokens extracted from `usage.total_tokens` in the response body, which matches how LLM APIs actually cost resources
+* OIDC/JWT validation connects the gateway to a real identity provider such as Red Hat build of Keycloak, and the same issuer URL authenticates the same API across multiple clusters
+* Observability is a single flag on the Kuadrant CR (`spec.observability.enable`) that wires ServiceMonitors and PodMonitors for all components
+* Access logs, traces, and metrics share `x-request-id`, so a single request can be followed across Envoy, Authorino, and Limitador
+
+**Next steps:**
+
+Continue to the conclusion for the full documentation set covering install, deploy, and
+observability topics.

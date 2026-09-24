@@ -1,0 +1,158 @@
+= Module 01: Remote providers in OGX
+:navtitle: Module 01: Remote providers in OGX
+
+In this module you will learn what OGX remote providers are, where the
+`remote::anthropic` and `remote::gemini` inference providers fit in the OGX
+provider support matrix, and how provider enablement flows through environment
+variables and the OGX `config.yaml` file.
+
+**Learning objectives:**
+
+* Explain what remote providers are and how `remote::anthropic` and `remote::gemini` fit into the OGX Inference API
+* Read the OGX API provider support table and identify the enablement variable for each remote provider
+* Verify that the OGX operator and an OGXServer are running in your project
+
+ifeval::["{feature_maturity}" == "DP"]
+NOTE: This feature is a *Developer Preview*. Developer Preview features are not
+supported by Red Hat in any way and are not functionally complete or
+production-ready. The exact provider configuration options might change between
+releases.
+endif::[]
+
+== Exercise 1: Understand remote providers
+
+OGX acts as a proxy between its APIs and backend model servers. Providers come
+in two flavors:
+
+* *Inline providers* run inside the OGX server container, for example
+  `inline::builtin`, which serves the built-in Responses and Messages APIs.
+* *Remote providers* proxy requests to an external service — a self-hosted
+  vLLM endpoint, a SaaS API, or another vendor's inference API.
+
+The `remote::anthropic` and `remote::gemini` providers are *remote inference
+providers*: they forward OpenAI-compatible requests from OGX to the Anthropic
+and Google Gemini APIs. This lets you reuse your existing OpenAI SDK client
+code while the provider handles vendor-specific authentication.
+
+Both providers belong to the Inference API in the OGX API provider support
+table:
+
+[options="header"]
+|===
+|Provider |API |Enablement variable |Support status (RHOAI 3.5 EA2)
+
+|`remote::anthropic`
+|Inference
+|`ANTHROPIC_API_KEY` environment variable
+|Developer Preview
+
+|`remote::gemini`
+|Inference
+|`ENABLE_GEMINI` environment variable
+|Developer Preview
+|===
+
+WARNING: The support status of the OGX API providers has shifted between
+Technology Preview and Developer Preview across OpenShift AI versions. Always
+check the provider support table for the release you are running.
+
+NOTE: Some listed providers are not included in the default OGX runtime
+`config.yaml` file. To use them, you pass a custom `config.yaml` file that
+includes the provider definitions.
+
+Remote providers differ in one more way that matters for operations: `remote::anthropic`
+is enabled by an *API key* environment variable, while `remote::gemini` is
+enabled by a *feature flag* environment variable (`ENABLE_GEMINI`). You will
+see how these variables reach the OGX server in the next exercises.
+
+== Exercise 2: Verify your cluster
+
+The OGX operator manages the deployment lifecycle of OGX servers. Before
+touching provider configuration, confirm the operator is installed and an
+OGXServer exists in your working project.
+
+. Confirm the OGXServer custom resource definition is registered:
+
+[source,bash,role="execute"]
+----
+oc get crd ogxservers.ogx.io
+----
+
+. List the OGXServer resources in your project:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get ogxserver -n {guid}-{user}
+----
+
+. Check the server phase and the conditions that report adoption status:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get ogxserver <name> -n {guid}-{user} -o jsonpath='{.status.phase}'
+----
+
+Replace `<name>` with the OGXServer name from the previous step.
+
+=== Verify
+
+* The CRD query returns `ogxservers.ogx.io`, proving the OGX operator is installed.
+* `oc get ogxserver` lists at least one server in your project.
+* The phase prints `Running` (or `Ready`), meaning the OGX server pods are up.
+
+With the platform confirmed, you can now look at how provider enablement
+reaches the running server.
+
+== Exercise 3: Trace the enablement path
+
+No command to run here — this is a guided walkthrough of the three documented
+ways provider configuration reaches an OGX server:
+
+* *CRD fields*. Structured provider endpoints live in the OGXServer spec, for
+  example `spec.providers.inference.remote.vllm[].endpoint`. Each provider
+  category (inference, vectorIo, toolRuntime, files, batches, responses,
+  fileProcessors, and storage) has its own section.
+* *Environment variables*. The default OGX distribution `config.yaml` uses
+  `${env.*}` substitution strings such as `${env.VLLM_URL}` and
+  `${env.OPENAI_BASE_URL}`. You supply the values through Kubernetes Secrets or
+  ConfigMaps, and the OGX server resolves them at startup. This is the path
+  `ANTHROPIC_API_KEY` and `ENABLE_GEMINI` use.
+* *Custom config override*. A full `config.yaml` supplied via
+  `spec.overrideConfig`, where provider configuration — including credentials —
+  is specified directly with `${env.*}` references.
+
+The credential flow is protected by the operator's secret collection mechanism:
+
+* At reconciliation time the operator walks the OGXServer spec, collects every
+  secret reference, and injects them as environment variables named
+  `OGX_<PROVIDER_ID>_<FIELD>` — for example, provider ID `remote-openai` with
+  field `API_KEY` becomes `OGX_REMOTE_OPENAI_API_KEY`.
+* Referenced Secrets carry the `ogx.io/watch: "true"` label so the operator
+  detects rotations and rolls the pods with updated values.
+* Secrets are never stored in the OGXServer CR spec itself; the operator only
+  passes references to the kubelet for injection.
+
+IMPORTANT: Because OGX pods initiate all connections to remote providers, no
+egress to `api.anthropic.com` or Google endpoints occurs unless a provider is
+actually configured. This makes provider enablement observable: after you
+configure `remote::anthropic`, the OGX deployment rolls pods that egress to the
+Anthropic API.
+
+== Module summary
+
+**What you accomplished:**
+
+* Identified `remote::anthropic` and `remote::gemini` as Developer Preview Inference API providers in the OGX provider support table
+* Verified the OGX operator and an OGXServer are running in your project
+* Traced how enablement variables and credentials flow from Secrets into the OGX server
+
+**Key takeaways:**
+
+* `remote::anthropic` is enabled by `ANTHROPIC_API_KEY` and `remote::gemini` by `ENABLE_GEMINI`, both documented for RHOAI 3.5 EA2
+* Providers missing from the default runtime `config.yaml` require a custom `config.yaml` with provider definitions
+* Provider support status shifts between Technology Preview and Developer Preview across releases, so always re-check the support table
+
+**Next steps:**
+
+Continue to Module 02, where you store an API key in a Secret and walk through
+the enablement path for a remote provider end to end.

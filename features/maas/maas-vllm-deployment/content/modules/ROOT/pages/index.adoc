@@ -1,0 +1,40 @@
+= Welcome to the vLLM model deployment directly through MaaS Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *vLLM model deployment directly through MaaS*.
+
+**What you will learn:**
+
+* How vLLM-served models reach the MaaS gateway in RHOAI 3.5 and what Technology Preview means for this feature
+* Enable the vLLM deployment on MaaS flag and verify the MaaS platform components
+* Deploy a vLLM model with the dashboard wizard and publish it to MaaS
+* Grant group access with MaaSSubscription and MaaSAuthPolicy resources and call the OpenAI-compatible MaaS endpoint
+
+== Prerequisites
+
+* RHOAI operator installed
+* MaaS enabled
+* Cluster administrator access for the dashboard flag patch and group creation
+* An OpenShift cluster with RHOAI 3.5 installed
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

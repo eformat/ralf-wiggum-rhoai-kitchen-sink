@@ -1,0 +1,160 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will learn what a saved agent is, enable the
+`agentConfigManagement` dashboard feature flag on your cluster, and locate the
+two places where saved agents live in the Gen AI Studio UI.
+
+When you are iterating on model configurations, tuning inference parameters, or
+comparing RAG strategies, rebuilding a complex playground setup from scratch is
+time-consuming. A saved agent captures a complete Gen AI Studio playground
+configuration — model selection, inference parameters, the MLflow prompt
+reference, retrieval augmented generation (RAG) knowledge sources, and Model
+Context Protocol (MCP) server connections — as a single named object scoped to
+your project namespace. Agents are stored as Kubernetes resources, so every
+project member can browse and load agents for that namespace. Chat history,
+playground guardrail settings, and credential values are deliberately *not*
+included.
+
+**Learning objectives:**
+
+* Explain what a saved agent captures — and what it does not
+* Enable the `agentConfigManagement` dashboard feature flag
+* Locate saved agents in the playground header menu and on the Agents tab
+
+ifeval::["{feature_maturity}" == "DP"]
+NOTE: Saved agents is a *Developer Preview* feature. Developer Preview features
+are not supported by Red Hat in any way, might not have any documentation, are
+subject to change or removal at any time, and have received limited testing.
+The feature is gated behind the `agentConfigManagement` dashboard configuration
+option.
+endif::[]
+
+== Exercise 1: Check the current dashboard configuration
+
+The saved-agent UI is gated behind a dashboard configuration option. Before
+changing anything, observe the current state of the `OdhDashboardConfig`
+custom resource.
+
+. Check whether the `agentConfigManagement` flag is already set:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get odhdashboardconfig odh-dashboard-config -n redhat-ods-applications -o jsonpath='{.spec.dashboardConfig.agentConfigManagement}'
+----
+
+If the output is empty, the flag is not set yet and the *Save agent* and
+*Load agent* actions are hidden. If it prints `true`, the feature is already
+enabled and you can skip ahead to Exercise 3.
+
+NOTE: The `OdhDashboardConfig` custom resource lives in the
+`redhat-ods-applications` namespace and is created by the OpenShift AI
+operator. It controls the visibility of dashboard features such as Gen AI
+Studio itself, the model catalog, and the saved-agent management UI. This is
+the same mechanism used by other Developer Preview features such as the Agent
+Catalog flag.
+
+. While you are looking at the CR, also confirm that Gen AI Studio is enabled:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get odhdashboardconfig odh-dashboard-config -n redhat-ods-applications -o jsonpath='{.spec.dashboardConfig.genAiStudio}'
+----
+
+The expected output is `true`. Saved agents are a Gen AI Studio capability; if
+`genAiStudio` is not enabled, enable it first or ask your cluster
+administrator.
+
+=== Verify
+
+You know the current state of both the `agentConfigManagement` and
+`genAiStudio` dashboard flags and whether the Gen AI Studio menu should already
+be visible in the dashboard.
+
+With the current state observed, the next step is to enable the feature flag.
+
+== Exercise 2: Enable the agentConfigManagement feature flag
+
+To enable this Developer Preview feature, set the `agentConfigManagement`
+dashboard configuration option to `true` in the `OdhDashboardConfig` custom
+resource.
+
+IMPORTANT: You need cluster administrator privileges to patch the
+`OdhDashboardConfig` custom resource.
+
+. Patch the `OdhDashboardConfig` custom resource:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch odhdashboardconfig odh-dashboard-config -n redhat-ods-applications --type=merge -p '{"spec":{"dashboardConfig":{"agentConfigManagement":true}}}'
+----
+
+Expect the message `odhdashboardconfig.opendatahub.io/odh-dashboard-config
+patched`.
+
+. Clear your browser cache and hard refresh the OpenShift AI dashboard
+(Ctrl+Shift+R or Cmd+Shift+R) so the new configuration applies.
+
+TIP: If the Gen AI Studio menu items still do not appear, check the dashboard
+pod logs for errors:
+`oc logs -n redhat-ods-applications $(oc get pods -n redhat-ods-applications -o name | grep dashboard | head -1) --tail=50`.
+
+=== Verify
+
+. Confirm the flag was updated correctly:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get odhdashboardconfig odh-dashboard-config -n redhat-ods-applications -o jsonpath='{.spec.dashboardConfig.agentConfigManagement}'
+----
+
+The expected output is `true`.
+
+The flag is set. Next, you locate the saved-agent UI in the dashboard.
+
+== Exercise 3: Locate the saved-agent UI
+
+With the feature flag enabled, saved agents are reachable from two places in
+the OpenShift AI dashboard. In this exercise you only observe; in Module 02 you
+will use both entry points end to end.
+
+. From the OpenShift AI dashboard, click *Gen AI studio → Playground*.
+
+. In the playground header, click the menu. With the flag enabled it now
+offers *Save agent*, *Load agent*, *Save as new agent*, and *Clear agent*.
+These are the entry points for working with agents from inside a playground
+session.
+
+. Go back to the dashboard navigation and click *Gen AI studio → AI asset
+endpoints*, then click the *Agents* tab. This is the standalone management
+view: every saved agent in the current project is listed here with its action
+menu (⋮), even when no playground session is open.
+
+. Observe the list of saved agents. If your project is new, the list is empty
+— that is expected. The tab will fill in as agents are saved in Module 02.
+
+=== Verify
+
+The playground header menu shows the agent actions, and the *Agents* tab under
+*Gen AI studio → AI asset endpoints* opens without error. If the actions are
+still missing, confirm the flag is set (Exercise 2) and hard refresh the
+dashboard.
+
+== Module summary
+
+**What you accomplished:**
+
+* Checked the current state of the `agentConfigManagement` and `genAiStudio` dashboard flags on your cluster
+* Enabled the saved-agent feature flag in the `OdhDashboardConfig` custom resource
+* Located the playground header menu and the Agents tab under *Gen AI studio → AI asset endpoints*
+
+**Key takeaways:**
+
+* A saved agent captures model selection, inference parameters, the MLflow prompt reference, RAG knowledge sources, and MCP server connections — but not chat history, guardrail settings, or credentials
+* Saved agents are stored as Kubernetes resources in the project namespace, so all project members can view and load agents for that namespace
+* The saved-agent UI is gated by the `agentConfigManagement` dashboard configuration option, not by a component in the `DataScienceCluster` object
+
+**Next steps:**
+
+Continue to Module 02, where you configure a playground, save it as a named
+agent, and then load, copy, rename, and delete agents.

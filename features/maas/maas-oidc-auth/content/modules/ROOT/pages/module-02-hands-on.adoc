@@ -1,0 +1,166 @@
+= Module 02: Govern access and verify OIDC authentication
+:navtitle: Module 02: Govern access and verify OIDC authentication
+
+In this module you will create MaaS subscriptions and authorization policies
+that reference your external OIDC groups, then verify the authentication flow
+end to end by listing models through the MaaS management API with a real OIDC
+token.
+
+**Learning objectives:**
+
+* Create a MaaS subscription whose groups match your external OIDC provider's group claims
+* Understand how MaaS authorizes users from OIDC token group claims
+* Verify external OIDC authentication through the MaaS management API
+* Revoke access when group membership changes
+
+== Exercise 1: Create a subscription for your OIDC groups
+
+MaaS subscriptions define which groups have access to specific models, with
+token rate limits per model. For external OIDC users, the groups come from the
+`groups` claim in the OIDC token rather than OpenShift Group objects.
+
+[IMPORTANT]
+====
+Group names in MaaS subscriptions and authorization policies must match the
+group names in the OIDC token claims *exactly*. MaaS validates groups directly
+from the token without requiring OpenShift group creation or synchronization.
+====
+
+. In the OpenShift AI dashboard, click *Settings → MaaS governance*.
+. Click *Create subscription*.
+. In the *Create subscription* form, configure the subscription:
+.. *Name*: enter a descriptive name, for example `oidc-data-scientists`.
+.. *Priority*: set a numeric priority level. Higher numbers indicate higher
+   priority when a user belongs to multiple groups with different
+   subscriptions.
+.. *Groups*: enter the group names *exactly as they appear in your OIDC
+   provider's group claims*. For example, if your OIDC token includes
+   `groups: ["data-scientists"]`, enter `data-scientists`. You can select
+   OpenShift groups or enter custom group names from your external OIDC
+   provider.
+. Configure models and token limits:
+.. Click *Add models* and add at least one published model.
+.. Click *Add token limit* for each model and enter the allowed tokens with
+   the time period and unit (hour, minute, or second). At least one token
+   limit is required per model.
+. Select *Create a matching authorization policy* to automatically create an
+   authorization policy with the same groups and models as the subscription.
+. Click *Create subscription*.
+
+[IMPORTANT]
+====
+Both a subscription and an authorization policy are required for users to
+access models: the subscription defines quota, the authorization policy
+authorizes groups to access model endpoints through the API gateway. Without
+an authorization policy, users receive `403 Forbidden` errors even if they
+have a valid subscription. Changes made to the subscription later — such as
+adding or removing groups or models — require manual updates to the
+authorization policy to keep them synchronized.
+====
+
+=== Verify
+
+In the OpenShift AI dashboard, navigate to *Settings → MaaS governance* and
+confirm the new subscription appears with a status of *Active*. Click the
+subscription name to review its groups, models, token limits, and priority
+level.
+
+Confirm the groups are stored on the `MaaSSubscription` custom resource:
+
+[source,bash,role="execute"]
+----
+oc get maassubscription -n models-as-a-service -o yaml
+----
+
+The output includes the subscription with your OIDC group names under
+`spec.owner.groups`.
+
+With the subscription in place, verify that an OIDC user can authenticate.
+
+== Exercise 2: Verify external OIDC authentication
+
+To verify external OIDC authentication, obtain a user access token from your
+identity provider by using an interactive flow such as the authorization code
+flow or device grant. Export the token and use it to list the models available
+through the MaaS management API:
+
+[source,bash,role="execute",subs="attributes"]
+----
+export OIDC_TOKEN=<user-access-token-from-your-oidc-provider>
+export MAAS_GATEWAY_URL=https://$(oc get route -n openshift-ingress \
+  -l gateway.networking.k8s.io/gateway-name=maas-default-gateway \
+  -o jsonpath='{.items[0].spec.host}')
+curl -k -H "Authorization: Bearer $OIDC_TOKEN" \
+  "$MAAS_GATEWAY_URL/maas-api/v1/models" | jq .
+----
+
+The gateway hostname is the `$MAAS_GATEWAY_URL` value you captured in module 1
+(derived from the gateway Route — on clusters where the listener hostname is
+empty, the Route carries the external hostname).
+
+If authentication is successful, the API returns a list of models available to
+the groups in your token. An empty list means the token is valid but the user
+has no matching subscription groups — check that the token's `groups` claim
+matches a subscription group exactly.
+
+Next, confirm that unauthorized requests are rejected. Send the same request
+without a valid token:
+
+[source,bash,role="execute"]
+----
+curl -sSk -o /dev/null -w "%{http_code}\n" \
+  "$MAAS_GATEWAY_URL/maas-api/v1/models"
+----
+
+----
+401
+----
+
+[NOTE]
+====
+When using external OIDC authentication, users create API keys through the
+MaaS API by using `curl` or other HTTP clients — the dashboard does not
+support API key creation for external OIDC users. MaaS generates the API key
+with the expiration requested in the API call, up to the maximum limit
+configured in the tenant configuration. See the
+xref:conclusion.adoc#_resources[Manage API keys using the MaaS API] guide for
+the endpoint reference.
+====
+
+[WARNING]
+====
+API keys capture the user's group memberships at the time of creation. If a
+user is removed from a group in the external OIDC provider, their existing API
+keys retain the original group associations and continue to work until revoked
+or expired. To immediately revoke access, revoke the user's API keys: in the
+OpenShift AI dashboard, click *Gen AI studio → API keys*, click the action
+menu (⋮) next to the key, and select *Revoke*.
+====
+
+=== Verify
+
+* The `curl` request with the OIDC token returns HTTP 200 and lists the models
+  available to the token's groups.
+* An empty model list indicates the token is valid but no subscription matches
+  the token's group claims.
+* The request without a token returns `401 Unauthorized`, confirming the
+  gateway enforces authentication.
+
+== Module summary
+
+**What you accomplished:**
+
+* Created a MaaS subscription and matching authorization policy whose groups match your external OIDC provider's group claims
+* Verified external OIDC authentication by listing models through the MaaS management API with a real OIDC token
+* Confirmed the gateway rejects unauthenticated requests with `401 Unauthorized`
+
+**Key takeaways:**
+
+* Subscription group names must match the OIDC token `groups` claim exactly — MaaS validates groups directly from the token
+* An empty model list means the token is valid but no subscription group matches, which distinguishes authentication failures from authorization gaps
+* API keys snapshot group memberships at creation, so revoke keys manually to immediately revoke access after a group change
+
+**Next steps:**
+
+Continue to the conclusion for the full external OIDC authentication chapter
+and related MaaS governance documentation.

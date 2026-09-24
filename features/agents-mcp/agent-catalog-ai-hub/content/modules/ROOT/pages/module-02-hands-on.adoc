@@ -1,0 +1,113 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will explore the Agent Catalog end to end: browse the
+pre-loaded agent starter kits, filter by framework, use text search to find
+agents for a specific use case, and open a catalog entry to read its
+description, framework, and README. This is a guided tour of a Developer
+Preview feature — the goal is to learn what the catalog offers and how you
+would use it, not to deploy anything.
+
+**Learning objectives:**
+
+* Browse and filter the agent starter kits in the catalog
+* Use text search to find agents for a specific use case
+* Interpret a catalog entry's description, framework, and README
+
+ifeval::["{feature_maturity}" == "DP"]
+NOTE: This feature is a *Developer Preview*. The catalog contents, filter
+options, and entry layout shown in this guided tour may change between
+releases, and the catalog may change or be removed at any time.
+endif::[]
+
+== Exercise 1: Browse and filter the agent starter kits
+
+The catalog ships pre-loaded with agent starter kits built on LangGraph,
+CrewAI, LlamaIndex, and other agentic frameworks. Browsing and filtering is how
+you survey what is available before committing to a starter kit.
+
+. From the OpenShift AI dashboard, click *AI hub → Agents*.
+
+. Scroll through the full list of agents and read the descriptions shown on
+each card. Note which frameworks the pre-loaded starter kits are built on.
+
+. Use the framework filter to narrow the list to a single agentic framework,
+for example LangGraph. Observe how the list changes to show only agents built
+on that framework.
+
+. Clear the framework filter to restore the full list.
+
+=== Verify
+
+The framework filter reduces the catalog list to only the agents built on the
+selected framework, and clearing it restores the full pre-loaded list.
+
+== Exercise 2: Search for agents for a specific use case
+
+When you know what you want an agent to do but not which starter kit to use,
+text search is the fastest path.
+
+. In the catalog search bar, enter text describing your use case, for example
+`code` or `research`.
+
+. Observe how the list narrows to the agents whose names and descriptions
+match the search text.
+
+. Repeat with a second search term related to a different use case and compare
+the results.
+
+=== Verify
+
+The catalog list narrows to matching agents as you type, and each match is an
+agent starter kit relevant to the search term.
+
+== Exercise 3: Explore a catalog entry
+
+Each catalog entry displays the agent's description, framework, and a README
+file with additional information about the agent. The README is where you
+learn what the starter kit contains and how it is meant to be used.
+
+. Open one catalog entry from the list.
+
+. Read the agent's description and confirm the framework it is built on is
+displayed on the entry.
+
+. Open and read the README file on the entry. Note the additional information
+it provides about the agent — what the starter kit includes, how it is
+deployed, and any configuration it expects.
+
+. Return to the catalog list and open a second entry built on a different
+framework. Compare the two READMEs and note the differences in scope and
+deployment between the starter kits.
+
+=== Verify
+
+Every catalog entry you opened displays the agent's description and framework,
+and includes a README file with additional information about the agent.
+
+NOTE: Discovering a starter kit in the catalog is the first step of the
+journey. The RHOAI 3.5 release notes also describe dedicated Developer Preview
+agent starter kits — such as OpenClaw and Claude Code — that ship their own
+deployment guides with validated manifests. Use the catalog to survey what is
+available, then follow the appropriate starter kit guide to deploy the agent
+you chose.
+
+== Module summary
+
+**What you accomplished:**
+
+* Browsed the pre-loaded agent starter kits and surveyed the frameworks they are built on
+* Filtered the catalog by framework and searched it by use case
+* Explored catalog entries and read their descriptions, frameworks, and README files
+
+**Key takeaways:**
+
+* The Agent Catalog centralizes discovery of agent starter kits so you evaluate descriptions, frameworks, and READMEs before adopting one
+* Framework filtering and text search narrow a pre-loaded catalog to the agents relevant to your use case
+* A catalog entry's README is the authoritative source for what a starter kit includes and how it deploys
+
+**Next steps:**
+
+With the catalog explored, pick the starter kit that fits your use case and
+follow its README or the corresponding agent starter kit guide to deploy it.
+Continue to the conclusion for the documentation references.

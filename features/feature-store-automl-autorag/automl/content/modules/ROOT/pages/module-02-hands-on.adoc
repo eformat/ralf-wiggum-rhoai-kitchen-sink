@@ -1,0 +1,186 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will work through the full AutoML lifecycle end to end:
+create an optimization run, evaluate the leaderboard, run predictions in a
+workbench, and deploy the model for inference.
+
+**Learning objectives:**
+
+* Create an AutoML optimization run for your training data
+* Evaluate leaderboard rankings and model detail views
+* Register a model to a model registry or save a notebook
+* Run predictions with the saved notebook in a workbench
+* Deploy the AutoML model with the AutoGluon serving runtime
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: This feature is a *Technology Preview*. The dashboard flow and serving
+runtime names shown here may change between releases. Re-check the RHOAI
+documentation for your version.
+endif::[]
+
+== Exercise 1: Create an AutoML optimization run
+
+IMPORTANT: Upload the updated AutoML pipeline definitions before you create your
+first run. Without them, AutoML and AutoRAG pipeline runs fail with image pull
+errors (RHOAIENG-64768 in the RHOAI 3.5 release notes).
+
+Your cluster also needs at least 4 CPUs and 16 GiB memory available for
+scheduling the training job.
+
+. In the RHOAI dashboard, click *Develop and train > AutoML*.
+. Select project `{guid}-{user}` and click *Create AutoML optimization run*.
+. Enter a name and optionally a description for the optimization run, and click *Next*.
+. Configure the data source:
+   .. From the *S3 connection* list, select an existing data connection.
+   .. Click *Browse bucket* and select your CSV data file.
+. Select the prediction task type and configure the prediction settings:
+   .. *Binary classification*, *multiclass classification*, or *regression*:
+      select the *Label column* from your data set.
+   .. *Time series forecasting*: select the *Target column*, the *Timestamp
+      column*, the *ID column* that identifies each time series, optionally
+      *Known covariates*, and the *Prediction length* in time steps.
+. Optional: adjust *Top models to consider* (default 3; range 1-10 for tabular,
+  1-7 for time series).
+. Optional: in the *Optimization Metric* card, click *Edit*, select a metric,
+  and click *Save*.
+. Optional: in the *Preset* card, select the training quality tier, which
+  determines resource allocation for the training job. The documented values are
+  `speed` (default) or `balanced`. The `balanced` preset allocates more CPU and
+  memory, but training can take more than twice as long.
+. Click *Create run*.
+
+NOTE: Optimization runs cannot be edited after creation. To stop, archive, or
+delete the underlying pipeline run, manage it as a pipeline run.
+
+The run starts immediately; AutoML trains and evaluates each candidate model
+against a held-out test split.
+
+=== Verify
+
+On the AutoML page, verify that your optimization run appears in the list with a
+status of *Running* or *Completed*. You can also watch the underlying pipeline
+run from the CLI:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pipelineruns -n {guid}-{user}
+----
+
+A pipeline run appears for your optimization run. Wait for the run status to
+show *Completed* on the AutoML page before continuing.
+
+A completed run gives you a leaderboard; the next exercise turns those rankings
+into a decision.
+
+== Exercise 2: Evaluate AutoML results
+
+. In the RHOAI dashboard, click *Develop and train > AutoML*.
+. Click the name of your completed run to view the results.
+. Review the leaderboard, which ranks trained models by the optimized metric for
+  your task type. The top-ranked model is highlighted. Click a column header to
+  sort by a different metric.
+
+Default optimization metrics by task type:
+
+|===
+|Task type |Optimized metric
+
+|Binary classification
+|Accuracy
+
+|Multiclass classification
+|Accuracy
+
+|Regression
+|R2 (R-squared)
+
+|Time series forecasting
+|MASE (Mean Absolute Scaled Error, negated so higher is better)
+|===
+
+// TODO: capture screenshot
+image::02-leaderboard.png[AutoML leaderboard ranking trained models,link=self,window=blank,width=700]
+
+[start=5]
+. Click *View details* from the actions menu of a model to inspect its metrics,
+  feature importance scores, confusion matrix, ROC curves, and precision recall
+  curves. Feature importance is available for tabular tasks only, confusion
+  matrix and ROC/precision recall curves for classification tasks only, and
+  backtesting charts for time series tasks only. Runs created before RHOAI 3.5
+  do not include ROC curve, precision recall curve, or backtesting data.
+. Review the feature importance and confusion matrix to confirm the best-scoring
+  model produces predictions you can explain.
+. To register the selected model, select *Register model* from the actions menu
+  and choose a model registry.
+. To save a notebook for evaluation and exploration, select *Save notebook* from
+  the actions menu.
+
+=== Verify
+
+If you registered a model, navigate to the model registry and confirm the model
+is listed. If you saved a notebook, confirm the notebook file downloaded to your
+local system.
+
+With a registered model and a saved notebook, you have two paths forward: run
+predictions locally in a workbench, or deploy the model for inference.
+
+== Exercise 3: Run predictions with the saved notebook
+
+. In the RHOAI dashboard, open your running workbench in project `{guid}-{user}`.
+. Add the S3-compatible object storage connection configured for the AI
+  Pipelines server to the workbench:
+   .. On the workbench edit page, scroll to the *Connections* section.
+   .. Click *Attach existing connections*.
+   .. Select the connection and click *Attach*.
+   .. Click *Update workbench*.
+
+NOTE: The workbench restarts when you update it; running kernels are
+interrupted.
+
+. Upload the saved notebook to the workbench.
+. Open the notebook and run all cells. The notebook loads the trained model from
+  S3 and runs predictions on sample data.
+
+=== Verify
+
+All cells in the notebook completed without errors, and the final cells display
+sample predictions from test inputs.
+
+The notebook path validates the model on sample data; the next exercise serves
+it as a REST endpoint.
+
+== Exercise 4: Deploy an AutoML model for inference
+
+. From the model registry, deploy the registered model version:
+   .. For *Model framework*, select `autogluon - 1`.
+   .. For *Serving runtime*, select *AutoGluon ServingRuntime for KServe*.
+
+NOTE: An administrator controls serving runtime availability per project by
+managing ServingRuntime template resources. If the AutoGluon runtime was
+disabled for your project, it does not appear in the deployment UI.
+
+=== Verify
+
+On the *Deployments* page, verify that the model deployment shows a status of
+*Ready*. Once ready, the deployment exposes a REST API endpoint you can use to
+send prediction requests.
+
+== Module summary
+
+**What you accomplished:**
+
+* Created an AutoML optimization run and monitored it to completion
+* Evaluated the leaderboard and model detail views, then registered a model or saved a notebook
+* Ran predictions in a workbench and deployed the model with the AutoGluon serving runtime
+
+**Key takeaways:**
+
+* The leaderboard ranks models by the task's optimized metric; sort by other metrics to compare
+* Model detail views (feature importance, confusion matrix, ROC curves) tell you whether to trust the best model
+* Registered AutoML models deploy like any other model, using the AutoGluon serving runtime for KServe
+
+**Next steps:**
+
+Register your best-performing model in a project you own and try a second
+optimization run with a different task type to compare metrics.

@@ -1,0 +1,139 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will explore where per-user usage data surfaces in the
+MaaS observability dashboard, connect it to the external metering model you
+walked in Module 01, and understand the boundary between the showback data
+that exists today and the chargeback workflows external metering targets.
+
+**Learning objectives:**
+
+* Locate per-user token usage data in the MaaS observability dashboard
+* Interpret the Token Consumption by User table and the metrics behind it
+* Distinguish the MaaS showback CSV export from the external metering chargeback path
+
+== Exercise 1: Explore per-user usage data in the MaaS observability dashboard
+
+The MaaS observability dashboard is the surface where per-user token usage is
+visible today. This is an explore exercise — observe the data and map each
+column back to the token dimensions from Module 01.
+
+. In the OpenShift AI dashboard, click *Observe & monitor → Dashboard*.
+. Click the *Usage* tab.
+. Configure filters to scope the view:
+
+* Select a time period from the *Time period* dropdown.
+* Select filters for *User*, *Subscription*, or *Model*.
+
+. Review the *Token Consumption by User* table, which shows detailed
+  per-user usage data:
+
+[cols="1,2",options="header"]
+|===
+|Column |Description
+
+|User
+|The username of the user who made the requests. For API key-based requests, this is the user who created the API key; for OIDC-authenticated requests, this is the user's OIDC identity.
+
+|Subscription
+|The subscription used for the requests. If a user belongs to multiple subscriptions, separate rows appear for each subscription.
+
+|Model
+|The model accessed, in the format `<endpoint-name>/<model-id>` for MaaS models.
+
+|Tokens
+|Total tokens consumed by this user for this subscription and model combination.
+
+|Requests
+|The number of API requests made by this user for this subscription and model combination.
+
+|Rate Limited
+|Requests rejected due to rate limiting (HTTP 429). These count toward the request total without consuming tokens.
+|===
+
+. Interpret how the table is computed. The dashboard aggregates the following
+  Prometheus metrics collected from Kuadrant and MaaS components:
+
+* `authorized_hits_total` — total tokens consumed, labeled by subscription, model, and `limitador_namespace`
+* `authorized_calls_total` — total successful API requests, labeled by subscription
+* `limited_calls_total` — requests rejected due to rate limiting, labeled by `limitador_namespace`
+
+NOTE: The user label is disabled by default in MaaS metrics
+(`captureUser: false`). To enable per-user metrics collection, configure the
+`captureUser` setting in your `MaasTenantConfig`. Without it, usage
+aggregates at the subscription level rather than per user — which is exactly
+the gap external metering closes.
+
+=== Verify
+
+The Usage tab renders the Token Consumption by User table filtered to your
+selected time period, and you can name which columns identify the user, the
+subscription, and the token totals.
+
+With the per-user surface explored, the next step is to understand how this
+data relates to cost attribution and chargeback.
+
+== Exercise 2: Connect showback data to the external metering chargeback path
+
+This is a guided walkthrough — no commands. Compare the two data paths you
+now know and note where each fits.
+
+. *Showback today: the CSV export.* From the Usage tab, hovering over the
+  Token Consumption by User table offers *Export as CSV*. The exported file
+  contains subscription-level usage data for the selected time period and
+  filters, and is suitable for showback reporting to finance teams — but it
+  is not billed-grade accurate. The product documentation explicitly points
+  to external metering and billing tools for production chargeback workflows.
+
+. *User-scoped dashboards.* In addition to the metrics-based dashboard, MaaS
+  in RHOAI 3.5 includes a Loki-based structured log pipeline for showback data
+  with 30-day retention on object storage, sized for monthly billing cycles.
+  User-scoped, read-only dashboards give each user visibility into their own
+  usage, while administrators keep the platform-wide view.
+
+. *Chargeback path: external metering.* The external-metering IPP plugin and
+  the standalone metering service close the chargeback gap: per-user and
+  per-model token consumption, cost attribution, quota enforcement through
+  balance checks, and cache-aware pricing — all for inference requests passing
+  through the AI Inference Gateway.
+
+. *Know the boundary.* In RHOAI 3.5, external metering for per-user token
+  usage and cost tracking is a Developer Preview feature. The release notes
+  describe its architecture and capabilities, but installation and
+  configuration procedures are not yet in the product documentation, and the
+  API may change between releases. Do not build production billing pipelines
+  on a Developer Preview integration.
+
+NOTE: External metering comes in two flavors in RHOAI 3.5. This workshop
+covers the per-user IPP plugin and metering service. The BBR-plugin
+integration that connects MaaS inference traffic to an external metering or
+billing system is a separate feature — see the
+xref:external-metering-maas::index.adoc[External metering integration for Models-as-a-Service]
+workshop for that path.
+
+=== Verify
+
+You can articulate the difference: the dashboard and CSV export give
+showback-grade visibility into per-user usage today, while external metering
+is the Developer Preview path to balance-enforced quotas and chargeback-grade
+reporting through the AI Inference Gateway.
+
+== Module summary
+
+**What you accomplished:**
+
+* Explored the Token Consumption by User table in the MaaS observability dashboard Usage tab
+* Mapped the dashboard columns and Prometheus metrics to the token dimensions external metering extracts
+* Distinguished the showback CSV export and user-scoped dashboards from the external metering chargeback path
+
+**Key takeaways:**
+
+* Per-user usage data is visible in the Usage tab, but the user label is disabled by default and requires `captureUser: true` in the `MaasTenantConfig`
+* The CSV export is showback-grade; production chargeback is the target use case of the external-metering plugin and metering service
+* Developer Preview means the metering architecture can change between releases and is not covered by production SLAs
+
+**Next steps:**
+
+Continue to the conclusion for resources, including the release-notes
+section that describes this feature and the MaaS observability chapters that
+document the dashboard you explored.

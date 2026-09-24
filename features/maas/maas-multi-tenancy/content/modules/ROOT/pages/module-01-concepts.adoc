@@ -1,0 +1,198 @@
+= Module 01: Core Concepts
+:navtitle: Module 01: Core Concepts
+
+In this module you will understand what MaaS multi-tenancy is, how tenants are
+isolated, which resources are shared, and how the `AITenant` controller
+bootstraps tenant infrastructure.
+
+**Learning objectives:**
+
+* Explain the tenant isolation model: dedicated Gateway, identity realm, namespace, and API infrastructure per tenant
+* Distinguish isolated resources from shared resources in a multitenant MaaS deployment
+* Describe the three layers of access control: Kubernetes RBAC, gateway-scoped Kuadrant AuthPolicies, and MaaS subscriptions
+* Inspect the `AITenant`, `MaasTenantConfig`, and Gateway resources in your cluster
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: MaaS multi-tenancy is a *Technology Preview* feature only. Technology
+Preview features are not supported with Red Hat production service-level
+agreements (SLAs) and might not be functionally complete, and Red Hat does not
+recommend using them in production. APIs and manifests shown here may change
+between releases.
+endif::[]
+
+== Exercise 1: The multitenant architecture
+
+In a multitenant MaaS deployment, you create an `AITenant` custom resource for
+each organizational team. The controller automatically bootstraps the tenant
+infrastructure: a dedicated namespace, a per-tenant `maas-api` instance,
+gateway-scoped authentication and rate-limit policies, and tenant-admin RBAC
+Roles. Each tenant operates as an independent MaaS environment from the user's
+perspective — users within a tenant create API keys, manage subscriptions, and
+access models through the tenant's dedicated gateway endpoint.
+
+Two tenant flavors exist:
+
+* *Default tenant*: created automatically when you deploy MaaS, named
+  `models-as-a-service`. It uses the namespace `models-as-a-service` and
+  references the `maas-default-gateway` Gateway. The controller migrates the
+  previous `Tenant` resource to a `MaasTenantConfig` resource, preserving
+  existing API keys, subscriptions, and models.
+* *Additional tenants*: provisioned by creating `AITenant` custom resources in
+  the management namespace, which is `ai-tenants` by default. For each
+  additional tenant, the controller creates a namespace named
+  `ai-tenant-<aitenant_name>`, deploys a per-tenant `maas-api` instance, and
+  configures gateway-scoped authentication policies.
+
+=== Tenant isolation boundaries
+
+Each tenant has isolated access to the following resources:
+
+* *Identity realm*: each tenant can use a separate OIDC identity provider or
+  the OpenShift TokenReview identity. API keys are scoped to the tenant where
+  they were created and cannot authenticate against other tenants.
+* *Gateway*: each tenant requires a dedicated Gateway API `Gateway`. The
+  gateway enforces tenant-specific authentication and authorization rules.
+* *Namespace*: tenant-scoped MaaS resources such as subscriptions,
+  authorization policies, and model references are created in the tenant
+  namespace.
+* *API keys and JWT tokens*: tokens minted for one tenant are rejected by
+  other tenants' gateways.
+* *Subscriptions and authorization policies*: each tenant manages its own
+  subscriptions and authorization policies independently.
+* *Usage data*: Prometheus metrics, OpenTelemetry (OTEL) traces, and structured
+  logs include the tenant name, enabling per-tenant observability filtering.
+
+The following resources are shared across all tenants:
+
+* *GPU compute and model weights*: model serving infrastructure is shared
+  across tenants.
+* *PostgreSQL database*: all tenants share the same database instance for API
+  key storage.
+* *Cluster infrastructure*: OpenShift control plane, networking, and storage.
+* *Authorino and Limitador*: platform-level authentication and rate-limiting
+  components.
+* *Observability stack*: Prometheus, Grafana, and OpenTelemetry collectors.
+
+=== Layered access control
+
+Multi-tenancy uses three layers of access control to enforce tenant boundaries:
+
+. *Namespace-scoped Kubernetes RBAC*: controls which users can create and
+   manage MaaS custom resources within a tenant namespace. The controller
+   creates `tenant-admin` and `object-admin` Roles, but platform
+   administrators must create RoleBindings to grant access.
+. *Gateway-scoped Kuadrant AuthPolicies*: a single gateway auth AuthPolicy per
+   tenant gateway aggregates authentication and authorization rules for all
+   models served through that tenant. The AuthPolicy enforces API key
+   validation, OIDC token verification, subscription checks, and
+   tenant-gateway isolation through Common Expression Language (CEL)
+   expressions.
+. *MaaS subscription-based access control*: within each tenant, subscriptions
+   define which groups have quota for which models with configurable token
+   rate limits. Both a subscription and an authorization policy are required
+   for users to access models.
+
+=== Verify
+
+You can answer the following questions from the material above:
+
+* Which resources are isolated per tenant and which are shared?
+* Why do tokens minted for one tenant fail against another tenant's gateway?
+* Which of the three access-control layers requires RoleBindings that you create manually?
+
+With the architecture in mind, inspect the live cluster to see the default
+tenant and its resources.
+
+== Exercise 2: Inspect the cluster
+
+Prerequisites for this exercise:
+
+* Models-as-a-Service is deployed on the cluster.
+* You have cluster administrator privileges or equivalent access to the
+  `ai-tenants` management namespace.
+
+Verify that the base MaaS installation is deployed and the default tenant is in
+Ready state. The default tenant is named `models-as-a-service` and lives in the
+`ai-tenants` management namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get aitenant models-as-a-service -n ai-tenants
+----
+
+----
+NAME                  READY   AGE
+models-as-a-service   True    5d
+----
+
+The `READY` column shows `True`. Missing prerequisites cause `AITenant`
+creation to fail or remain in `Pending` status, so confirm this state before
+provisioning additional tenants.
+
+Check that the Gateway API CRDs and the `openshift-default` GatewayClass are
+available. The `openshift-default` GatewayClass is required for every tenant
+Gateway:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get gatewayclass openshift-default
+----
+
+----
+NAME               CONTROLLER                                     AGE
+openshift-default  openshift.io/gateway-controller/v1             30d
+----
+
+List all `AITenant` resources to see the tenants provisioned so far. Every
+additional tenant you provision in module 2 appears here:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get aitenant -n ai-tenants
+----
+
+Confirm the default tenant's `MaasTenantConfig` singleton exists. The
+`MaasTenantConfig` stores per-tenant runtime configuration for API keys and
+telemetry; the controller creates one per tenant namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get maastenantconfig default-tenant -n models-as-a-service
+----
+
+[NOTE]
+====
+The `AITenant` resource is namespace-scoped with short name `ait`, in API group
+`maas.opendatahub.io`, version `v1alpha1`. The admission webhook rejects
+`AITenant` creation in any namespace other than the management namespace
+(`ai-tenants` by default).
+====
+
+=== Verify
+
+* `oc get aitenant models-as-a-service -n ai-tenants` shows `READY: True`.
+* `oc get gatewayclass openshift-default` returns the GatewayClass.
+* `oc get maastenantconfig default-tenant -n models-as-a-service` returns the
+  singleton without error.
+
+The cluster is ready for a new tenant. Now provision one end to end.
+
+== Module summary
+
+**What you accomplished:**
+
+* Mapped the multitenant architecture: isolated identity realm, Gateway, namespace, and API infrastructure per tenant, with shared GPU compute and database
+* Described the three access-control layers: Kubernetes RBAC, gateway-scoped Kuadrant AuthPolicies, and subscription-based access control
+* Verified the default tenant, `MaasTenantConfig`, and `openshift-default` GatewayClass in your cluster
+
+**Key takeaways:**
+
+* Each `AITenant` you create bootstraps a fully isolated MaaS environment — API keys and tokens minted in one tenant never authenticate against another
+* The controller creates tenant-admin and object-admin Roles but never RoleBindings; platform administrators grant access manually
+* Isolation is enforced with three cooperating layers, so a missing RoleBinding or subscription blocks access even with a valid API key
+
+**Next steps:**
+
+Continue to the hands-on exercise to provision a new tenant with a dedicated
+Gateway and `AITenant` custom resource, and to verify isolation with real API
+calls.

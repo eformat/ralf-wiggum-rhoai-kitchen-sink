@@ -1,0 +1,201 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will work through the LoRA-aware routing tour end to end:
+you will inspect the routing layer that makes adapter-aware placement
+possible, walk the advanced routing workflow of the model deployment wizard,
+and observe the request metrics that reveal adapter-targeted routing.
+
+**Learning objectives:**
+
+* Recognize the routing-layer components and metrics that carry adapter identity
+* Walk the advanced routing section of the model deployment wizard and verify the result
+* Observe request routing metrics for adapter-targeted requests and fallback behavior
+
+== Exercise 1: Explore the routing layer behind LoRA-aware routing
+
+LoRA-aware placement happens inside the llm-d Endpoint Picker (EPP), the
+inference scheduler that processes every request for an
+`LLMInferenceService` deployment. The EPP exposes Prometheus metrics at the
+`/metrics` endpoint on the metrics service port, with the `llm_d_epp_` prefix.
+The request metrics carry the labels you need to see adapter-aware routing:
+
+[cols="2,2,3",options="header"]
+|===
+|Metric |Labels |What to observe
+
+|`llm_d_epp_request_total`
+|`model_name`, `target_model_name`, `fairness_id`, `priority`
+|Total requests processed by the scheduler; per-target counts show how traffic splits across adapters
+
+|`llm_d_epp_request_ttft_seconds`
+|`model_name`, `target_model_name`, `fairness_id`, `priority`
+|Time-to-first-token distribution; requests served by adapter-loaded pods should show lower TTFT
+
+|`llm_d_epp_request_duration_seconds`
+|`model_name`, `target_model_name`, `fairness_id`, `priority`
+|End-to-end request duration distribution
+
+|`llm_d_epp_request_error_total`
+|`model_name`, `target_model_name`, `fairness_id`, `priority`, `error_code`
+|Request errors by code; LoRA-aware fallback means requests still succeed when the adapter is not loaded
+|===
+
+When your deployment routes adapter-targeted traffic, the
+`target_model_name` label distinguishes requests for each adapter from
+requests for the base model. If a request targets an adapter that no pod has
+loaded, LoRA-aware routing falls back to standard routing — the request
+completes through an ordinary pod instead of failing, and shows up in
+`llm_d_epp_request_total` without an adapter-warm placement.
+
+The routing-group layer carries the same awareness: the controller partitions
+routing groups by model *and* LoRA adapter set, reporting
+`GroupDegraded` with reason `MemberDivergence` when members of a group serve
+different adapter sets. Members in different partitions continue to serve
+their own model at their own publisher path — readiness is not blocked.
+
+=== Verify
+
+You can name the label pair that distinguishes adapter-targeted requests, the
+metric that should drop for adapter-loaded pods, and the condition the
+controller sets when group members serve different adapter sets.
+
+== Exercise 2: Walk the advanced routing deployment workflow
+
+Router configurations are the operator-facing surface for advanced routing in
+the deployment wizard. You apply them while deploying a model; LoRA-aware
+placement extends the same routing layer these configurations shape.
+
+. In the dashboard, navigate to *Data Science Projects*, select your project,
+and click *Deploy model*. Select *Generative AI* or *Distributed inference
+with llm-d* as the model framework.
+. Select a deployment topology appropriate for your model size and hardware
+constraints, then configure model storage.
+. Click *Advanced routing* to expand the routing options. By default,
+*Default optimized routing* is pre-selected, which means the LLM-D controller
+uses built-in defaults.
+. Review the list of available router configurations. The dashboard displays
+only router configurations where the `opendatahub.io/supported-topologies`
+annotation includes your selected topology type — this prevents incompatible
+router configurations from appearing in the wizard.
+. Keep the default *Default optimized routing* selection unless your
+workshop facilitator points you at a router configuration, then click
+*Create* and wait for the deployment to reach *Ready* status on the *Models*
+tab of your project.
+. Verify the routing configuration attached to the deployment. On the model
+details page, check the YAML representation of the generated
+`LLMInferenceService` resource:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llmisvc -n {guid}-{user} -o yaml | grep -A 6 baseRefs
+----
++
+Expected output shows the routing configuration references — the topology
+preset first, then any selected router configuration:
++
+----
+spec:
+  baseRefs:
+  - name: config-llm-template
+    namespace: kserve-system
+  - name: kv-cache-router-config
+----
+
+[NOTE]
+====
+`kv-cache-router-config` is the documentation's example name. Router
+configurations are provisioned by the administrator as
+`LLMInferenceServiceConfig` resources — the actual names in `spec.baseRefs`
+depend on the router configs your administrator created for your topology.
+====
+
+[TIP]
+====
+If no router configuration appears in the advanced routing section, your
+administrator has not created router `LLMInferenceServiceConfig` resources
+compatible with your topology — ask your facilitator rather than editing
+cluster configuration on your own.
+====
+
+=== Verify
+
+Your deployed model reached *Ready* status, and its `LLMInferenceService`
+resource lists the routing configuration references in `spec.baseRefs`.
+
+== Exercise 3: Observe request routing metrics
+
+With a deployed model serving requests, the EPP request metrics let you see
+LoRA-aware routing behavior — even in a workshop without multiple adapters,
+the same metrics show how the scheduler places requests and how warm pods
+answer faster.
+
+. Send the same conversational request several times so the base model warms
+up on a pod. Copy the *Inference endpoint* URL from your model details page,
+then send the request — with an Authorization header if your deployment has
+authentication enabled, as described in the *Make authenticated inference
+requests* chapter of the llm-d documentation:
++
+[source,bash,role="execute",subs="attributes"]
+----
+INFER_URL=<inference-endpoint-url>
+curl -k $INFER_URL/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "<model-name>", "messages": [{"role": "user", "content": "What is Red Hat OpenShift AI?"}]}'
+----
++
+Replace `<inference-endpoint-url>` with the endpoint from your model details
+page and `<model-name>` with the model you deployed in Exercise 2. Repeat the
+request three or four times without changing the message.
+
+. Observe the request metrics while the requests are processed. Query the EPP
+metrics endpoint, or view the metrics through your cluster's monitoring stack,
+and look for `llm_d_epp_request_ttft_seconds` and `llm_d_epp_request_total`.
+
+. Interpret what you see: the first requests after a cold start pay warm-up
+latency — the same effect adapter swaps cause in multi-adapter deployments —
+and repeated requests should settle into a lower TTFT as the serving pod warms
+up. Requests that cannot find an adapter-matched pod fall back to standard
+routing and still complete, so no requests fail purely because of routing.
+
+[TIP]
+====
+vLLM parameters on the `LLMInferenceService` shape warm-up behavior the same
+way they shape adapter cold-load latency: `--gpu-memory-utilization` controls
+GPU memory available for caches (0.6-0.7 for latency-sensitive workloads,
+0.85-0.9 for throughput-optimized workloads). Adjust these only if you need to
+tune the behavior.
+====
+
+[NOTE]
+====
+Which metrics are scraped into your cluster's monitoring stack depends on your
+workshop configuration. If the metrics are not visible in the console's
+*Observe* section, ask your facilitator how to reach the EPP metrics service in
+your environment.
+====
+
+=== Verify
+
+You sent repeated requests and observed at least one of the `llm_d_epp_`
+request metrics — total request counts and the TTFT distribution are the two
+that respond immediately.
+
+== Module summary
+
+**What you accomplished:**
+
+* Inspected the EPP request metrics that carry `model_name` and `target_model_name` adapter identity
+* Walked the advanced routing workflow of the deployment wizard and verified the routing references in `baseRefs`
+* Observed request routing metrics during inference and interpreted warm-up and fallback behavior
+
+**Key takeaways:**
+
+* `target_model_name` is the label that exposes adapter-targeted routing in the request metrics
+* LoRA-aware routing changes placement, not availability — fallback keeps requests completing
+* TTFT is the clearest end-user signal of adapter cold-load latency avoided
+
+**Next steps:**
+
+Head to the conclusion for the resources that go deeper, including the
+advanced routing and EPP metrics chapters of the llm-d documentation.

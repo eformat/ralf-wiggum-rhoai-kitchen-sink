@@ -1,0 +1,144 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you take a guided tour of *text-mode training for multimodal models in Training Hub*: what the capability does, how it fits into the Training Hub fine-tuning stack that ships with Red Hat OpenShift AI, and how to find the infrastructure that backs it on your workshop cluster. You finish by observing the training surface from the CLI, the console, and — if your project has a workbench — the Kubeflow SDK.
+
+**Learning objectives:**
+
+* Explain what text-mode training for multimodal models does and its Developer Preview scope
+* Locate the `training-hub` `ClusterTrainingRuntime` in your cluster and read how a `TrainJob` connects to it
+* Recognize the OSFT and SFT fine-tuning algorithms that the Training Hub runtime exposes
+
+== Exercise 1: Tour the Training Hub runtime in your cluster
+
+Training Hub fine-tuning runs on top of Kubeflow Trainer v2. Instead of
+framework-specific resources such as `PyTorchJob`, Kubeflow Trainer v2 exposes a
+unified `TrainJob` API backed by pre-built `ClusterTrainingRuntime`
+infrastructure templates. RHOAI ships a `training-hub` runtime that includes
+built-in fine-tuning algorithms — *Orthogonal Subspace Fine-Tuning (OSFT)* and
+*Supervised Fine-Tuning (SFT)* — and a CUDA-specific variant
+(`training-hub-th05-cuda128-torch29-py312`, PyTorch 2.9 with CUDA 12.8 and
+Python 3.12).
+
+The text-mode enhancement means Training Hub can fine-tune *multimodal model
+architectures* — vision-language models such as the Qwen, Gemma, Nemotron, and
+Mistral VLM families — by using text datasets. In this release,
+multimodal-capable models can be fine-tuned in text mode only: the training
+data must be text, and tuning with image, audio, or video datasets is not
+available.
+
+List the runtimes available in your cluster:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get clustertrainingruntime
+----
+
+.Example output
+----
+NAME                                          AGE
+torch-distributed                             5m
+torch-distributed-rocm                        5m
+torch-distributed-cuda128-torch29-py312       5m
+training-hub                                  5m
+training-hub-th05-cuda128-torch29-py312       5m
+----
+
+The runtime names and variants vary by RHOAI release; the important rows for
+this workshop are the `training-hub` entries. If `training-hub` does not
+appear, the Kubeflow Trainer component is not enabled in the
+`DataScienceCluster` — ask your cluster administrator to enable it.
+
+Inspect the runtime details:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get clustertrainingruntime training-hub -o yaml
+----
+
+Observe how the runtime encapsulates the distributed training infrastructure:
+PyTorch distributed configuration, environment variables such as
+`MASTER_ADDR` and `MASTER_PORT`, and container image defaults. As a data
+scientist you never edit this resource — the platform administrator creates
+and modifies `ClusterTrainingRuntimes`; your `TrainJob` simply references one
+through the `runtimeRef` field:
+
+[source,yaml,subs="attributes,callouts"]
+----
+spec:
+  runtimeRef: <1>
+    name: training-hub <2>
+    kind: ClusterTrainingRuntime <3>
+----
+<1> **`runtimeRef`** — connects your `TrainJob` to the pre-built infrastructure template.
+<2> **`name`** — the `training-hub` runtime with the built-in OSFT and SFT fine-tuning algorithms.
+<3> **`kind`** — cluster-scoped runtime available to all projects; a namespace-scoped `TrainingRuntime` you create yourself would be referenced instead.
+
+=== Verify
+
+The `oc get clustertrainingruntime` output includes at least one `training-hub`
+row, and the `-o yaml` output shows the `trainer.kubeflow.org` API group. Note
+the runtime names your cluster reports — you will select `training-hub` again
+in the hands-on module.
+
+With the runtime identified, look at how the same training surface appears
+from the console and the SDK.
+
+== Exercise 2: Observe the training surface from the console and the SDK
+
+The Kubeflow Trainer v2 training surface is reachable three ways:
+
+* **CLI** — `oc get trainjob` lists training jobs in your project.
+* **Console** — in the Administrator perspective, click *Home → Search*, select
+  your project from the Project list, and search the Resources list for `Job`:
+  `TrainJob` appears as a creatable resource type.
+* **SDK** — the Kubeflow Python SDK, installed in a workbench, lists the same
+  runtimes programmatically. If your project already has a workbench, this is
+  what you would run in a notebook cell:
+
+[source,python]
+----
+from kubeflow.trainer import TrainerClient
+
+for runtime in client.list_runtimes():
+    print("Found runtime: " + str(runtime))
+    if runtime.name == "training-hub":
+        th_runtime = runtime
+        print("Selected runtime: " + str(th_runtime))
+----
+
+TIP: You do not need to run the SDK cell yet — module 02 walks through the
+client setup from the start. What matters here is that the SDK sees the same
+`training-hub` runtime that `oc get clustertrainingruntime` reported, because
+both are views over the same infrastructure.
+
+NOTE: Text-mode training is a *Developer Preview* feature in RHOAI 3.5 and is
+only available through the CLI and SDK workflow described in this workshop;
+model coverage and behavior may change between releases.
+
+=== Verify
+
+In the console, *Home → Search* with the `TrainJob` resource type selected
+shows an empty list — that is expected before module 02. From the CLI,
+`oc get trainjob` in your project returns `No resources found` until you
+submit a fine-tuning job.
+
+== Module summary
+
+**What you accomplished:**
+
+* Explored what text-mode training for multimodal models does and its text-only scope in this release
+* Located the `training-hub` `ClusterTrainingRuntime` on your cluster and read its structure and `runtimeRef` connection
+* Observed the training surface from the CLI, the console, and the Kubeflow SDK
+
+**Key takeaways:**
+
+* Text-mode training fine-tunes multimodal-capable VLM architectures with text datasets only in this release
+* `TrainJob` resources stay simple because the `training-hub` runtime encapsulates the distributed training infrastructure
+* OSFT and SFT are the two fine-tuning algorithms the Training Hub runtime exposes
+
+**Next steps:**
+
+Continue to the hands-on module, where you walk the text-mode fine-tuning
+workflow end to end — from prerequisites and configuration to running,
+observing, and cleaning up a job.

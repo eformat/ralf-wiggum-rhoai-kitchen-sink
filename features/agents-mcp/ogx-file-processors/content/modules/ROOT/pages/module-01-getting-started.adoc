@@ -1,0 +1,163 @@
+= Module 01: Tour the File Processors API
+:navtitle: Module 01: Tour the File Processors API
+
+In this module you will take a guided tour of the OGX File Processors API: what
+it does, which providers power it, and how to verify the OGX environment it
+runs in.
+
+**Learning objectives:**
+
+* Explain the role of the File Processors API in RHOAI and OGX
+* Identify the extraction-backend providers and how each is enabled
+* Verify the OGX Operator, OGXServer CRD, and OGX servers in your cluster
+
+NOTE: The File Processors API is a *Developer Preview* feature. The endpoint,
+providers, and support levels shown in this module are subject to change
+between releases.
+
+== Exercise 1: What the File Processors API does
+
+OGX is a unified AI runtime that integrates model inference, embedding
+generation, vector storage, and retrieval services into a single stack that is
+optimized for RAG and agent-based AI workflows. Within that stack, the File
+Processors API converts various document types into vector-ready chunks using
+configurable extraction backends, including Docling, PyPDF, and others.
+
+The API surface is compact:
+
+[cols="1,3"]
+|===
+|Property |Value
+
+|Endpoint
+|`/v1alpha/file-processors`
+
+|Providers
+|All file processor backends deployed through OpenShift AI
+
+|Support level
+|*Developer Preview*
+|===
+
+The basic interaction: you upload a document to your file storage and the API
+returns structured chunks that are ready for embedding and retrieval. This
+keeps document preparation (parsing and chunking) separate from indexing,
+which is handled by the Vector Stores API.
+
+The API is powered by the following extraction backends:
+
+[cols="1,2,1,1"]
+|===
+|Provider |How to enable |Disconnected support |Support status
+
+|`inline::auto`
+|Enabled by default
+|No
+|Developer Preview
+
+|`inline::docling`
+|Dependency only. Requires a custom config.yaml file
+|No
+|Developer Preview
+
+|`inline::markitdown`
+|Dependency only. Requires a custom config.yaml file
+|No
+|Developer Preview
+
+|`inline::pypdf`
+|Dependency only. Requires a custom config.yaml file
+|No
+|Developer Preview
+
+|`remote::docling-serve`
+|Dependency only. Requires a custom config.yaml file
+|No
+|Developer Preview
+|===
+
+IMPORTANT: Providers labeled *Dependency only* are not included in the default
+runtime config.yaml file, but their dependencies are pre-installed in the
+container image. To use those providers, pass a custom config.yaml at runtime
+that includes the provider definitions. `inline::auto` is the only file
+processor enabled out of the box.
+
+. Log in to the OpenShift console at `{openshift_console_url}`.
+. Open the *Red Hat OpenShift AI* dashboard from the application launcher grid
+  and browse the enabled components.
+
+=== Verify
+
+You can name the File Processors API endpoint (`/v1alpha/file-processors`), its
+Developer Preview support level, and at least two of its extraction backends.
+
+With the API surface mapped out, you are ready to verify the OGX environment it
+runs on.
+
+== Exercise 2: Verify your OGX environment
+
+The File Processors API is exposed by OGX server instances managed by the OGX
+Operator. Verify that the operator component is enabled, the CRD is
+registered, and any servers exist in your project.
+
+. Confirm the OGX component is enabled on the cluster. Run `oc get
+  datasciencecluster` and note the name of your DataScienceCluster resource,
+  then inspect the `ogx` component:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get datasciencecluster
+oc get datasciencecluster <dsc-name> -o jsonpath='{.spec.components.ogx.managementState}'
+----
+
+The second command prints `Managed`, which is the value that enables the OGX
+Operator.
+
+. Check that the OGXServer CRD is registered:
+
+[source,bash,role="execute"]
+----
+oc get crd ogxservers.ogx.io
+----
+
+. List any OGXServer resources in your project and their status:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get ogxserver -n {guid}-{user}
+----
+
+Expected output:
+
+----
+NAME         PHASE      AGE
+----
+
+=== Verify
+
+* `oc get datasciencecluster <dsc-name> -o jsonpath='{.spec.components.ogx.managementState}'` prints `Managed`.
+* `oc get crd ogxservers.ogx.io` returns the registered CRD.
+* `oc get ogxserver -n {guid}-{user}` lists the OGX servers in your project (an
+  empty list means no server has been created in this project yet).
+
+You have confirmed the OGX environment. In the next module you walk the
+document-processing path that the File Processors API powers, end to end.
+
+== Module summary
+
+**What you accomplished:**
+
+* Toured the File Processors API surface: the `/v1alpha/file-processors` endpoint and its Developer Preview status
+* Identified the five extraction-backend providers and which require a custom config.yaml
+* Verified the OGX Operator component, OGXServer CRD, and OGX servers in your project
+
+**Key takeaways:**
+
+* The File Processors API turns uploaded documents into vector-ready chunks using configurable extraction backends
+* Only `inline::auto` is enabled by default; the Docling, MarkItDown, PyPDF, and remote Docling Serve providers need a custom config.yaml
+* OGX server instances are declared through OGXServer custom resources managed by the OGX Operator
+
+**Next steps:**
+
+Continue to Module 02, where you walk the document-to-chunks path through the
+documented OGX workflows.

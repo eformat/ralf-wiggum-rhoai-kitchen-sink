@@ -1,0 +1,163 @@
+= Module 01: Core Concepts
+:navtitle: Module 01: Core Concepts
+
+In this module you will learn what NeMo Guardrails is, how it is deployed in
+Red Hat OpenShift AI, which API endpoints the service exposes, and how to
+confirm that your cluster is ready for it.
+
+**Learning objectives:**
+
+* Explain how NeMo Guardrails adds rails to LLM input and output in RHOAI
+* Identify the three API endpoints and the custom resources that back the service
+* Verify that the TrustyAI Operator is ready to manage NeMo Guardrails in your cluster
+
+== Exercise 1: Where NeMo Guardrails fits
+
+NeMo Guardrails adds guardrails and safety controls to your deployed models in
+Red Hat OpenShift AI. With the NeMo Guardrails framework, you control the input
+and output of large language models by defining *rails* for sensitive data
+detection, content filtering, and custom validation rules.
+
+The feature is underpinned by the open-source NVIDIA NeMo Guardrails project
+and ships as part of RHOAI — no external NVIDIA subscription is required. The
+TrustyAI Operator manages the deployment: you create a `NemoGuardrails` custom
+resource (CR) that points at one or more ConfigMaps holding your rails
+configuration, and the operator deploys the NeMo Guardrails server, service,
+and route into your project.
+
+=== The API endpoints
+
+The NeMo Guardrails service exposes three endpoints for different use cases:
+
+[cols="2,3",options="header"]
+|===
+|Endpoint |Use it for
+
+|`/v1/chat/completions`
+|Generate LLM responses with guardrails applied to both input and output. The
+message passes through input rails, the LLM responds, and the response is
+validated by output rails before it is returned.
+
+|`/v1/guardrail/checks`
+|Validate messages against configured guardrails *without* generating an LLM
+response. Use it to test configurations, validate content before sending it to
+an LLM, or audit multi-turn message histories. `user` messages are evaluated by
+input rails, `assistant` messages by output rails, and `tool` messages by
+tool_input rails.
+
+|`/v1/checks`
+|Run standalone single-turn content checks and apply transformations, such as
+masking or redacting sensitive data, instead of just blocking requests.
+|===
+
+=== Rail types
+
+Rails are grouped by where they act:
+
+* *Input rails* validate user input before the LLM processes it
+* *Output rails* validate model responses before they are returned to the user
+* *Retrieval rails* validate retrieved chunks in RAG workflows
+* *Tool input rails* validate tool payloads in agentic workflows
+
+In this workshop you will use built-in detectors that run entirely inside the
+NeMo Guardrails pod: *Presidio* sensitive data detection and *regex* pattern
+matching. They need no LLM calls and no external services, which makes them
+ideal for a quickstart. Later modules add LLM-based self-check rails and custom
+Python actions.
+
+=== Inspect the DataScienceCluster
+
+NeMo Guardrails requires the TrustyAI component in your DataScienceCluster
+(DSC) to be set to `Managed`:
+
+. Check the DSC state:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get dsc
+----
++
+Expected output shows a DataScienceCluster resource, for example
+`default-dsc`, with `PHASE` `Ready`.
+
+. Check that the TrustyAI component is managed:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get dsc -o custom-columns=NAME:.metadata.name,TRUSTYAI:.spec.components.trustyai.managementState
+----
++
+Expected output shows `Managed` for the TrustyAI component:
++
+----
+NAME          TRUSTYAI
+default-dsc   Managed
+----
++
+If it shows `Removed`, ask your cluster administrator to set
+`spec.components.trustyai.managementState` to `Managed` in the DSC.
+
+=== Verify
+
+The `oc get dsc` command lists a DataScienceCluster whose TrustyAI component
+reports `Managed`. You can also confirm the feature in the console: from the
+*Administrator* perspective, go to *Operators* → *Installed Operators* and
+locate the TrustyAI Operator — the *Provided APIs* column lists
+`Nemo Guardrails`.
+
+With the platform confirmed, you are ready to deploy and test guardrails in the
+next module.
+
+== Exercise 2: Inspect the cluster resources
+
+Review the operator and CRD that back the feature before deploying anything.
+
+. Confirm the TrustyAI Operator is installed:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n redhat-ods-applications | grep trustyai
+----
++
+Expected output shows the `trustyai-service-operator-controller-manager` pod
+`Running`. On 3.5 the TrustyAI operator is deployed by the RHOAI operator's
+component controller (not via OLM), so there is no ClusterServiceVersion to
+check.
+
+. Confirm the `NemoGuardrails` CRD is served:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc api-resources --api-group=trustyai.opendatahub.io
+----
++
+----
+NAME              SHORTNAMES   APIVERSION                         NAMESPACED   KIND
+nemoguardrails                 trustyai.opendatahub.io/v1alpha1   true         NemoGuardrails
+----
+
+=== Verify
+
+`oc api-resources --api-group=trustyai.opendatahub.io` lists
+`nemoguardrails` served by `trustyai.opendatahub.io/v1alpha1` as a namespaced
+`NemoGuardrails` kind. If the CRD is missing, the TrustyAI component is not
+installed or not managed — revisit Exercise 1 before continuing.
+
+== Module summary
+
+**What you accomplished:**
+
+* Mapped the NeMo Guardrails architecture: a single server pod managed by the TrustyAI Operator via a `NemoGuardrails` CR
+* Identified the three API endpoints and the four rail types
+* Confirmed the TrustyAI component is `Managed` in your DataScienceCluster
+
+**Key takeaways:**
+
+* NeMo Guardrails ships in RHOAI — no external NVIDIA subscription is required
+* `/v1/chat/completions` guardrails a live LLM, `/v1/guardrail/checks` validates messages without one
+* ConfigMaps mounted through `spec.nemoConfigs` hold the rails configuration
+
+**Next steps:**
+
+Deploy your first guardrails service with built-in detectors only and test it
+end to end in the hands-on module.

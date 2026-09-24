@@ -1,0 +1,282 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will work through the core Feature Store workflow end to end: create a Feature
+Store instance in your project, initialize it with feature definitions using `feast apply`,
+materialize features into the online store, and retrieve features from a connected workbench.
+
+**Learning objectives:**
+
+* Create a Feature Store instance with the `FeatureStore` custom resource
+* Initialize the instance with `feast apply` and inspect the registry with the `feast` CLI
+* Materialize features into the online store
+* Connect a workbench and retrieve features with the Python SDK and the REST API
+
+== Exercise 1: Create a Feature Store instance
+
+You add a Feature Store instance to a project by creating a `FeatureStore` custom resource (CR).
+The following example deploys the Feature Store credit scoring tutorial, including its feature
+repository from Git. When you create the CR, Feature Store starts a remote online feature server
+and configures a default registry and offline store with the local provider (SQL or file registry,
+Parquet offline store, SQLite online store).
+
+. Save the following manifest to `feature-store-cr.yaml`:
+
+[source,bash,role="execute"]
+----
+cat > feature-store-cr.yaml <<'EOF'
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: sample-git
+  labels:
+    feature-store-ui: enabled
+spec:
+  feastProject: credit_scoring_local
+  feastProjectDir:
+    git:
+      url: https://github.com/feast-dev/feast-credit-score-local-tutorial
+      ref: 598a270
+  services:
+    registry:
+      local:
+        server:
+          restAPI: true
+EOF
+oc apply -f feature-store-cr.yaml -n {guid}-{user}
+----
+
+**apiVersion: feast.dev/v1** — the CRD provided by the Feast operator you enabled in Module 01.
+**feature-store-ui: enabled** — label that turns on the Feature Store UI in the dashboard.
+  Only one Feature Store instance may carry this label.
+**feastProject** — the namespace for organizing your Feature Store instance. This is *not*
+  the OpenShift project.
+**feastProjectDir** — points to a feature repository in Git, cloned at deploy time so the
+  instance starts with feature definitions.
+**restAPI: true** — exposes the registry server REST API in the OpenShift cluster.
+
+. Apply it in your working project:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f feature-store-cr.yaml
+----
+
+[NOTE]
+====
+The Git URL in this example is the repository referenced by the RHOAI 3.5 documentation for the
+Feature Store credit scoring tutorial. If your facilitator provides a different feature
+repository, substitute it in `feastProjectDir.git.url`.
+====
+
+=== Verify
+
+Verify that the FeatureStore resource is ready and that its pod is running:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get feast
+----
+
+You should see output similar to the following:
+
+----
+NAME         STATUS   AGE
+sample-git   Ready    3h1m
+----
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods
+----
+
+Find the pod with the `feast-` prefix followed by the CR name (for example, `feast-sample-git`)
+and confirm its status is `Running`. In the console you can click the pod, open *Terminal*, and
+run `feast --help` to confirm the Feast CLI is installed inside the online container. The pod's
+feature repository contains `feature_store.yaml`, `example_repo.py`, and a `data` directory.
+
+With the instance ready, you now initialize the feature registry so the instance can serve
+features.
+
+== Exercise 2: Initialize the instance with feature definitions
+
+The `feast apply` command scans the Python files in the feature repository, finds all Feature
+Store object definitions (feature views, entities, data sources), validates them, syncs the
+metadata to the feature registry, and creates or updates the required infrastructure.
+
+. Open a terminal on the feast pod (console: *Workloads* → *Pods* → pod name → *Terminal*), or
+  exec into the online container:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc exec -it deployments/sample-git -c online -- /bin/bash
+----
+
+. In the pod, run:
+
+[source,bash,role="execute"]
+----
+feast apply
+----
+
+You should see output similar to the following, indicating that the feature definitions were
+added to the registry:
+
+----
+Created project credit_scoring_local
+Created entity zipcode
+Created entity dob_ssn
+Created feature view zipcode_features
+Created feature view credit_history
+Created on demand feature view total_debt_calc
+Created sqlite table credit_scoring_local_credit_history
+Created sqlite table credit_scoring_local_zipcode_features
+----
+
+[IMPORTANT]
+====
+`feast apply` registers or updates only objects found in your Python files. It does *not* delete
+objects you remove from your code — use `feast delete <object_name>` to remove an object from the
+registry permanently.
+====
+
+=== Verify
+
+List the registered entities and feature views with the Feast CLI:
+
+[source,bash,role="execute"]
+----
+feast entities list
+feast feature-views list
+----
+
+The first command lists entities such as `zipcode` and `dob_ssn` with their types; the second
+lists feature views such as `zipcode_features` and `credit_history`. You can also display the
+active configuration with `feast configuration`, which shows the project, provider (`local`),
+SQLite online store, and file registry.
+
+Now that the features are registered, you materialize them into the online store for serving.
+
+== Exercise 3: Materialize features into the online store
+
+Materialization loads feature data from feature views into the online store for a specific time
+range. The online store is what serves features at low latency during inference.
+
+. Materialize data between two ISO 8601 timestamps:
+
+[source,bash,role="execute"]
+----
+feast materialize 2020-01-01T00:00:00 2022-01-01T00:00:00
+----
+
+You should see output similar to the following:
+
+----
+Materializing 1 feature views from 2020-01-01 to 2022-01-01
+credit_history:
+100%|██████████████████████████| 5/5 [00:00<00:00, 5949.37it/s]
+----
+
+. Subsequent runs should be incremental, processing only data since the end of the previous
+  materialization interval:
+
+[source,bash,role="execute"]
+----
+feast materialize-incremental 2024-01-01T00:00:00
+----
+
+[TIP]
+====
+Use `feast materialize --disable-event-timestamp` when your source data lacks event timestamp
+columns, and `-v <feature_view_name>` to limit materialization to one feature view.
+====
+
+=== Verify
+
+The materialize command reports the feature views it processed with a completion progress bar,
+and `feast materialize-incremental` finishes without errors. If the online store were empty at
+inference time, this step is usually the culprit — check the materialization job status on the
+Feature Store UI page in the dashboard.
+
+With the online store populated, you can now retrieve features from a workbench.
+
+== Exercise 4: Retrieve features for training and inference
+
+ML engineers and data scientists consume features from a workbench. RHOAI mounts the Feature
+Store client configuration into connected workbenches automatically — you do not need tokens or
+manual authentication, because the workbench authenticates with the access granted to your data
+science project.
+
+. From the RHOAI dashboard, click *Data Science Projects* and open your project.
+. Create a workbench (or edit an existing one): in the *Workbenches* section, click
+  *Create workbench*, then scroll to the *Connected feature stores* section.
+. Select your Feature Store instance from the *Select Feature Store* list. The dropdown shows the
+  instance name, namespace, and your permission level. Follow the example code in the dialog,
+  then click *Create workbench*.
+. Open the workbench IDE and confirm the mounted configuration:
+
+[source,bash,role="execute"]
+----
+ls feast-configs/
+----
+
+. In a notebook cell, verify the connection and retrieve features:
+
+[source,python]
+----
+from feast import FeatureStore
+
+fs = FeatureStore(fs_yaml_file='feast-configs/credit_scoring_local')
+fs.list_feature_views()
+
+features = fs.get_online_features(
+    features=["credit_history:credit_card_due"],
+    entity_rows=[{"dob_ssn": "19501020_1234"}],
+).to_dict()
+print(features)
+----
+
+[NOTE]
+====
+The Feast SDK is available in all workbench images except minimal. The mounted configuration
+path is `feast-configs/<my_project>`, where the file name corresponds to the Feast project name
+configured in the `FeatureStore` CR — run `ls feast-configs/` to discover it.
+====
+
+Non-Python clients can call the online feature server REST API directly — the lowest-overhead
+access pattern for inference services written in Java, Go, or C++:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -X POST "https://feature-store-server:6566/get-online-features" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "features": ["credit_history:credit_card_due"],
+    "entities": {"dob_ssn": ["19501020_1234"]}
+  }'
+----
+
+=== Verify
+
+`fs.list_feature_views()` returns the feature views you registered in Exercise 2 (for example,
+`credit_history` and `zipcode_features`), and `get_online_features` returns the feature values
+materialized in Exercise 3. The REST call returns a JSON response containing the same values.
+
+== Module summary
+
+**What you accomplished:**
+
+* Created a Feature Store instance from a `FeatureStore` CR with a Git feature repository
+* Initialized the registry with `feast apply` and listed entities and feature views
+* Materialized features into the online store and retrieved them from a connected workbench
+
+**Key takeaways:**
+
+* The `FeatureStore` CR is the unit of deployment; `feast apply` is the unit of change
+* Materialization moves features from the offline store into the online store for serving
+* Connected workbenches get `feast-configs/` mounted automatically, with project-based auth
+
+**Next steps:**
+
+In the next module you will tune the online store and feature server, scale the instance for
+high availability, and explore compute engines for large feature pipelines.

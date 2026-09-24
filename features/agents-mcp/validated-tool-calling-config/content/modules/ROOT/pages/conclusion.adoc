@@ -1,0 +1,25 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the Validated tool-calling configuration in Model Catalog workshop.
+
+== What you covered
+
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/release_notes/features-technology-preview[Validated tool-calling configuration for models in the model catalog (RHOAI 3.5 release notes, Technology Preview features)]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/working_with_the_model_catalog[Working with the model catalog (RHOAI 3.5)]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/customize_models_for_gen_ai_and_agentic_ai_applications[Customize Models for Gen AI and Agentic AI Applications (RHOAI 3.5) — see "Generate evaluation data for tool calling"]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5[RHOAI 3.5 documentation]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:automated-tool-calling-eval::index.adoc[Automated tool-calling evaluation-data generation for custom MCP servers]
+* xref:ai-available-assets::index.adoc[AI Available Assets page]

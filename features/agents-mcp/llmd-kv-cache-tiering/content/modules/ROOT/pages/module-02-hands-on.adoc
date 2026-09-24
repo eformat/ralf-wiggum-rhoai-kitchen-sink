@@ -1,0 +1,225 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will work through the cache-aware routing workflow end to end:
+you will inspect a KV-cache-aware router configuration, apply it to a model
+deployment from the RHOAI dashboard, and observe the metrics that show KV cache
+behavior during inference.
+
+**Learning objectives:**
+
+* Recognize the labels and annotations that make a router configuration KV-cache-aware
+* Select a router configuration in the model deployment wizard and verify it on the deployed model
+* Observe KV cache utilization and prefix cache hit metrics for your inference pool
+
+== Exercise 1: Explore a KV-cache-aware router configuration
+
+Router configurations are `LLMInferenceServiceConfig` resources that provide
+advanced routing capabilities for LLM deployments, including KV cache-aware
+scheduling and intelligent request gateway routing. Unlike topology
+configurations, which define the fundamental deployment structure, router
+configurations are optional enhancements. The dashboard only offers router
+configurations whose `opendatahub.io/supported-topologies` annotation includes
+the deployment topology you selected.
+
+A router configuration that is KV-cache-aware carries the following structure:
+
+[source,yaml]
+----
+apiVersion: serving.kserve.io/v1alpha2
+kind: LLMInferenceServiceConfig
+metadata:
+  name: kv-cache-router-single-node
+  labels:
+    opendatahub.io/config-type: router <1>
+  annotations:
+    opendatahub.io/supported-topologies: '["workload-single-node"]' <2>
+spec:
+  router:
+    scheduler:
+      replicas: 1 <3>
+      config:
+        inline: |
+          plugins:
+          - name: prefix-cache-scorer
+            weight: 100 <4>
+          - name: queue-scorer
+            weight: 50
+    route: {}
+    gateway: {}
+----
+
+<1> **`opendatahub.io/config-type: router`** — marks this as a router
+configuration; the dashboard queries all resources with this label.
+<2> **`opendatahub.io/supported-topologies`** — a JSON array of topology types;
+users only see this router when deploying models for one of the listed
+topologies.
+<3> **`spec.scheduler.replicas`** — the scheduler component is required for
+KV cache-aware request routing.
+<4> **Scorer weights** — the scheduler combines plugin scores; a heavy
+`prefix-cache-scorer` weight prioritizes cache reuse over even load balancing.
+
+. In the RHOAI dashboard, click *Settings* and then *llm-d routing
+configurations*. This page is visible to administrators only.
++
+Expected output is a table with the columns *Name*, *Topology type*, *Enabled*,
+and *Actions*. Any KV-cache-aware router your administrator created appears here.
+
+. If a KV-cache-aware router config exists, open the action menu (⋮) next to it
+and click *Edit* to inspect the YAML. Compare the scorer weights you see with
+the example above.
+
+[NOTE]
+====
+Creating router configurations requires the `llmdTemplates` feature flag to be
+enabled in the `OdhDashboardConfig` resource. If the page is empty, ask your
+workshop facilitator — do not edit cluster configuration on your own.
+====
+
+=== Verify
+
+You can name the label that marks a router configuration, the annotation that
+filters it by topology, and the scorer that gets the heaviest weight in a
+cache-reuse-focused profile.
+
+== Exercise 2: Apply KV-cache-aware routing to a deployment
+
+With a compatible router configuration available, the advanced routing section
+of the model deployment wizard attaches it to new model deployments.
+
+. In the dashboard, navigate to *Data Science Projects*, select your project,
+and click *Deploy model*.
+. Select a topology that matches one of the router's supported topology types,
+then configure model storage.
+. Click *Advanced routing* to expand the routing options. By default,
+*Default optimized routing* is pre-selected, which means the LLM-D controller
+uses built-in defaults.
+. From the *Router configuration* list, select a router config with
+KV cache-aware scheduling. The list shows only configurations compatible with
+your selected topology.
+. Click *Create* and wait for the deployment to reach *Ready* status on the
+*Models* tab of your project.
+. Verify that the router configuration was attached. On the model details page,
+check the YAML representation of the generated `LLMInferenceService` resource:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llmisvc -n {guid}-{user} -o yaml | grep -A 6 baseRefs
+----
++
+Expected output shows the topology preset first, then your selected router
+configuration:
++
+----
+spec:
+  baseRefs:
+  - name: config-llm-template
+    namespace: kserve-system
+  - name: kv-cache-router-single-node
+----
+
+If no router configuration is available in your workshop environment, stay with
+the default *Default optimized routing* — it already includes the
+KV-cache-utilization and prefix-cache scorers you read about in module 01.
+
+=== Verify
+
+Your deployed model's `LLMInferenceService` resource lists the selected router
+configuration in `spec.baseRefs` after the topology preset config.
+
+== Exercise 3: Observe KV cache behavior with metrics
+
+The Endpoint Picker (EPP), or inference scheduler, exposes Prometheus metrics at
+the `/metrics` endpoint on the metrics service port. Metrics use the
+`llm_d_epp_` prefix. The most useful ones for cache tiering behavior are:
+
+[cols="2,3",options="header"]
+|===
+|Metric |What to observe
+
+|`llm_d_epp_average_kv_cache_utilization`
+|Average KV cache utilization across all endpoints in the inference pool
+
+|`llm_d_epp_prefix_indexer_hit_ratio`
+|Prefix cache hit ratio; a higher ratio means requests frequently match cached prefixes
+
+|`llm_d_epp_prefix_indexer_size`
+|Current size of the prefix cache index maintained by the scheduler
+
+|`llm_d_epp_prefix_indexer_hit_bytes`
+|Prefix cache hit size in bytes; larger hits mean more effective prefix reuse
+
+|`llm_d_epp_request_ttft_seconds`
+|Time-to-first-token distribution; cache hits typically lower TTFT
+|===
+
+. Send the same conversational request several times so a prompt prefix becomes
+cached. Copy the *Inference endpoint* URL from your model details page, then
+send the request — with an Authorization header if your deployment has
+authentication enabled, as described in the
+*Make authenticated inference requests* chapter of the llm-d documentation:
++
+[source,bash,role="execute",subs="attributes"]
+----
+INFER_URL=<inference-endpoint-url>
+curl -k $INFER_URL/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "<model-name>", "messages": [{"role": "user", "content": "What is Red Hat OpenShift AI?"}]}'
+----
++
+Replace `<inference-endpoint-url>` with the endpoint from your model details
+page and `<model-name>` with the model you deployed in Exercise 2. Repeat the
+request three or four times without changing the message.
+
+. Observe the cache metrics while the requests are being processed. Query the
+EPP metrics endpoint, or view the metrics through your cluster's monitoring
+stack, and look for `llm_d_epp_prefix_indexer_hit_ratio` and
+`llm_d_epp_average_kv_cache_utilization`.
+
+. Interpret what you see: repeated identical prompts should push the prefix
+indexer hit ratio upward, while sustained traffic raises average KV cache
+utilization. If utilization climbs toward saturation, flow control queues new
+requests — the saturation check combines queue depth and KV cache utilization
+against configured thresholds.
+
+[TIP]
+====
+vLLM parameters on the `LLMInferenceService` shape how quickly the KV cache
+saturates: `--gpu-memory-utilization` controls GPU memory allocated for KV
+cache (0.6-0.7 for latency-sensitive workloads, 0.85-0.9 for
+throughput-optimized workloads), and `--max-model-len` controls KV cache memory
+per request. Adjust these only if you need to tune saturation behavior.
+====
+
+[NOTE]
+====
+Which metrics are scraped into your cluster's monitoring stack depends on your
+workshop configuration. If the metrics are not visible in the console's
+*Observe* section, ask your facilitator how to reach the EPP metrics service in
+your environment.
+====
+
+=== Verify
+
+You sent repeated requests and observed at least one of the `llm_d_epp_` cache
+metrics moving in the direction the docs describe: hit ratio up for repeated
+prefixes, utilization up under sustained load.
+
+== Module summary
+
+**What you accomplished:**
+
+* Inspected a KV-cache-aware router configuration and its scorer weights
+* Applied a router configuration through the deployment wizard and verified it in `baseRefs`
+* Observed KV cache utilization and prefix cache hit metrics during inference
+
+**Key takeaways:**
+
+* Router configurations are optional, topology-filtered enhancements over default routing
+* The prefix cache hit ratio is the clearest signal that cache reuse is working
+* vLLM memory parameters determine how fast the KV cache saturates under load
+
+**Next steps:**
+
+Head to the conclusion for the resources that go deeper, including the
+KV Cache Offloading documentation for the tier configuration itself.

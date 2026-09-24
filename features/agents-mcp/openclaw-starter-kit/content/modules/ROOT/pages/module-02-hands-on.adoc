@@ -1,0 +1,118 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will take a guided tour of how the OpenClaw agent starter kit
+operates once deployed: how agent behavior is captured in MLflow through OpenTelemetry
+tracing, how browser-based access control is enforced through the OAuth proxy and
+OpenShift RBAC, and how persistence, security, and environment validation work.
+
+**Learning objectives:**
+
+* Describe what the diagnostics-otel plugin captures in MLflow about agent behavior
+* Explain how browser-based access control is backed by OpenShift RBAC through the OAuth proxy
+* Summarize the persistence, security, and validation guarantees of the kit
+
+== Exercise 1: Observability through MLflow and OpenTelemetry tracing
+
+A defining characteristic of the starter kit is that *agent behavior is captured
+rather than opaque*. According to the RHOAI 3.5 release notes, the kit captures model
+calls, tool executions, and context assembly spans in MLflow by using native
+OpenTelemetry tracing through the diagnostics-otel plugin.
+
+The three kinds of spans the plugin records give you three different views of what the
+agent did:
+
+* **Model calls** — every request the agent made to the LLM, visible in MLflow
+* **Tool executions** — which tools the agent invoked and when
+* **Context assembly spans** — how the agent assembled the context it sent to the
+  model, including what was retrieved and included
+
+Explore what this gives you as an operator:
+
+. Walk through a hypothetical debugging scenario: an agent answers a question but
+  behaves unexpectedly. With the diagnostics-otel plugin in place, the MLflow traces
+  show which tool executions ran and how the context was assembled before the model
+  call, so you can pinpoint where the behavior went wrong.
+. Compare this to an untraced agent, where you would only see the final input and
+  output, and everything in between would be guesswork.
+
+TIP: The tracing is *native OpenTelemetry* through the diagnostics-otel plugin, so you
+do not need to instrument the agent yourself — capturing spans is part of what the
+starter kit sets up.
+
+== Exercise 2: Access control through the OAuth proxy and OpenShift RBAC
+
+The next stop on the tour is how the kit controls who can reach the agent through a
+browser. Per the release notes, the kit enforces *browser-based access control backed
+by OpenShift role-based access control (RBAC) through OAuth proxy integration*.
+
+Notice how the pieces fit together:
+
+. A user points a browser at the OpenClaw instance exposed through a route.
+. The OAuth proxy fronts the workload and authenticates the browser session.
+. Authorization is delegated to OpenShift RBAC, so access decisions follow the roles
+  and bindings already defined in your cluster rather than a separate policy store.
+
+This means the agent does not introduce a new identity model: *OpenShift RBAC is the
+single source of truth* for who can use the agent. If a user can reach the OpenClaw
+UI, it is because their OpenShift role allows it.
+
+IMPORTANT: Do not bypass or remove the OAuth proxy layer to make the agent reachable
+without authentication. Doing so discards the RBAC-backed access control the kit is
+validated to provide.
+
+== Exercise 3: Persistence, security, and environment validation
+
+The final stop on the tour covers how the kit keeps state, stays secure, and helps you
+validate the environment:
+
+* **Workspace persistence**: workspace storage is maintained across pod restarts, so a
+  rescheduled OpenClaw pod does not lose session or workspace state.
+* **restricted-v2 SCC**: workloads run securely under the OpenShift restricted-v2
+  security context constraint. This is the same constrained profile your own project
+  uses, so the agent cannot escalate privileges or modify the host, and deploying the
+  kit does not require cluster-admin or custom SCCs.
+* **Environment validation**: the kit includes a model compatibility matrix and a
+  troubleshooting guide, so you can check which models work with the agent and
+  diagnose problems before assuming a deployment defect.
+
+If your facilitator has deployed the starter kit into a shared namespace, take a look
+at the running workloads in that namespace to see the agent pod that the Kustomize
+manifests produce:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n {guid}-{user}
+----
+
+Expect a pod for the OpenClaw agent alongside any supporting components, such as the
+OAuth proxy; the exact names depend on which deployment option was used, so treat this
+as an observation rather than a fixed output.
+
+IMPORTANT: Because the security posture comes from running under restricted-v2, do not
+modify the manifests to grant additional security contexts — doing so undermines the
+security posture that the kit is validated against.
+
+== Module summary
+
+**What you accomplished:**
+
+* Toured how the diagnostics-otel plugin captures model calls, tool executions, and
+  context assembly spans in MLflow
+* Reviewed how browser-based access control is enforced through the OAuth proxy backed
+  by OpenShift RBAC
+* Summarized the workspace persistence, restricted-v2 SCC security posture, and the
+  included model compatibility matrix and troubleshooting guide
+
+**Key takeaways:**
+
+* MLflow tracing through the diagnostics-otel plugin makes agent behavior observable
+  out of the box, including how context is assembled
+* OpenShift RBAC remains the single source of truth for agent access, with the OAuth
+  proxy bridging browser sessions to it
+* The kit is designed to run safely under restricted-v2 with persistent workspace
+  storage and ships with its own validation tooling
+
+**Next steps:**
+
+Continue to the conclusion for resources and pointers to the source documentation.

@@ -1,0 +1,93 @@
+= Scoring and Thresholds
+:navtitle: Scoring and Thresholds
+
+A benchmark score is only useful when you know which metric matters and what
+"good enough" means. This page covers how EvalHub reports metrics and decides
+pass or fail.
+
+== Metrics
+
+Each benchmark declares one or more metrics and flags a *primary score metric* —
+the single value that represents the benchmark result. Common examples:
+
+|===
+|Benchmark |Primary metric |Direction
+
+|`mmlu`
+|`acc_norm`
+|higher is better
+
+|`hellaswag`
+|`acc_norm`
+|higher is better
+
+|`gsm8k`
+|`exact_match`
+|higher is better
+
+|`truthfulqa_mc2`
+|`mc2`
+|higher is better
+
+|`owasp_llm_top_10` (garak)
+|`asr` — Attack Success Rate
+|*lower is better*
+|===
+
+Benchmarks may set the optional `lower_is_better` flag. Safety scans use it —
+an Attack Success Rate of `0.0` is the goal, so ASR is a metric where lower is
+better. Always check the direction before interpreting a change between runs:
+a rising ASR is a regression even though the number went up.
+
+== Thresholds
+
+A *threshold* is the minimum score a benchmark or job must reach to pass.
+Thresholds apply at three levels, from most to least specific:
+
+. *Benchmark level* — set on an individual benchmark; overrides everything.
+. *Collection level* — set on a collection; applies to every benchmark in it
+   that has no benchmark-level threshold.
+. *Provider level* — the default when neither of the above is set.
+
+The most specific threshold wins. When a job completes, each benchmark is
+compared against its effective threshold and the job reports pass or fail.
+
+In the REST API, thresholds are `0.0`–`1.0` values. In the RHOAI dashboard the
+*threshold* slider uses a `0`–`100` scale; the two are equivalent.
+
+== Reading results
+
+`evalhub eval results <job_id> --format table` shows one row per benchmark
+metric:
+
+----
+BENCHMARK   PROVIDER               METRIC     VALUE
+mmlu        lm_evaluation_harness  acc        0.65
+mmlu        lm_evaluation_harness  acc_norm   0.68
+hellaswag   lm_evaluation_harness  acc        0.72
+hellaswag   lm_evaluation_harness  acc_norm   0.75
+----
+
+The `--format` flag supports `table`, `json`, `yaml`, and `csv` for piping into
+reports or CI checks.
+
+== Comparing runs
+
+The dashboard's comparison view plots metrics and parameters for completed
+runs side by side. Comparison is artifact-agnostic — models, RAG
+configurations, agentic systems, or prompt templates all compare.
+
+[IMPORTANT]
+====
+The comparison view shows raw metric values only. It does not indicate score
+direction (`lower_is_better`), does not display pass or fail thresholds, does
+not group suite metrics by benchmark, and offers no export. Interpret metric
+changes based on your knowledge of each benchmark — especially for
+lower-is-better metrics such as ASR.
+====
+
+== Related
+
+* xref:module-01-concepts.adoc[Module 01: Core Concepts] — threshold levels and job states
+* xref:module-03-advanced.adoc[Module 03: Advanced Usage] — dashboard thresholds and run comparison
+* xref:home::index.adoc[Back to the catalog]

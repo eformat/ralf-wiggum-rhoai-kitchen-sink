@@ -1,0 +1,350 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will install the MCP gateway Operator with Operator Lifecycle
+Manager (OLM), deploy a gateway with an MCP listener, and connect it with an
+`MCPGatewayExtension` custom resource (CR). By the end of the module, an MCP
+endpoint is reachable through your gateway.
+
+The MCP gateway is a *Red Hat Connectivity Link* feature that centralizes and
+manages connectivity for agentic AI applications that access Model Context
+Protocol (MCP) servers. It extends the Envoy proxy — a conformance-tested
+implementation of the Kubernetes Gateway API — with three components:
+
+* The *MCP router* parses the JSON-RPC request object and sets key request
+  headers (`:authority`, `:path`, `x-mcp-method`, `x-mcp-servername`,
+  `x-mcp-toolname`, `mcp-session-id`) to route each request to the correct
+  backend MCP server.
+* The *MCP broker* aggregates backend MCP servers and presents them as a
+  unified MCP server to your clients at the `/mcp` endpoint, so applications do
+  not manage a large set of servers and per-server configurations.
+* The *MCP discovery controller* watches `MCPServerRegistration` and
+  `HTTPRoute` CRs and turns them into configuration that the gateway consumes
+  for routing and tool presentation.
+
+**Learning objectives:**
+
+* Install the MCP gateway Operator with OLM
+* Create a Gateway object with an MCP listener
+* Deploy an `MCPGatewayExtension` CR and verify the auto-created HTTPRoute and EnvoyFilter
+* Verify that an MCP endpoint is accessible through the gateway
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: This feature is a *Technology Preview*. APIs and manifests shown
+here may change between releases.
+endif::[]
+
+== Exercise 1: Install the MCP gateway Operator with OLM
+
+The MCP gateway deployment Operator is installed from the `redhat-operators`
+catalog. After the Operator is running, you complete the setup in the following
+exercises by applying the custom resources it expects.
+
+. Set the environment variables used throughout this module:
+
+[source,bash,role="execute",subs="attributes,callouts"]
+----
+export MCP_SYSTEM={guid}-mcp-system
+export GATEWAY_NS={guid}-gateway
+export GATEWAY_NAME=mcp-gateway
+export MCP_LISTENER_HOST=mcp.example.com
+----
+<1> *MCP_SYSTEM* — namespace for the MCP gateway Operator, the broker, and the `MCPServerRegistration` CRs you create in Module 02.
+<2> *GATEWAY_NS* — namespace for the Gateway object. Keeping it separate from the MCP system namespace exercises the cross-namespace flow in Exercise 3.
+<3> *MCP_LISTENER_HOST* — hostname for the MCP listener; choose a hostname your DNS can resolve to the gateway.
+
+. Create the namespace where you want to install MCP gateway:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc new-project ${MCP_SYSTEM}
+----
+
+. Create the MCP gateway Subscription and OperatorGroup custom resources:
+
+[source,bash,role="execute",subs="attributes,callouts"]
+----
+cat <<EOF | oc apply -n ${MCP_SYSTEM} -f -
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: mcp-gateway
+spec:
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  name: mcp-gateway
+  channel: preview
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: mcp-gateway
+spec:
+  targetNamespaces:
+  - ${MCP_SYSTEM}
+EOF
+----
+<1> *source: redhat-operators* — installs from the Red Hat Operator catalog.
+<2> *channel: preview* — the MCP gateway Operator ships in the `preview` channel while the feature is Technology Preview.
+<3> *targetNamespaces* — scopes the OperatorGroup to your MCP system namespace.
+
+. Wait for the Operator to be installed:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc wait --for=jsonpath={.status.installPlanRef.name} subscription mcp-gateway -n ${MCP_SYSTEM} --timeout=10s
+plan=$(oc get subscription mcp-gateway -n ${MCP_SYSTEM} -o=jsonpath={.status.installPlanRef.name})
+oc wait --for=condition=Installed installplan -n ${MCP_SYSTEM} ${plan} --timeout=60s
+----
+
+NOTE: The name of the install plan has a random suffix, for example, `install-4rql7`.
+
+WARNING: Use Red Hat Connectivity Link 1.4.1 or later. Connectivity Link 1.4.0
+is deprecated, and clusters running it can experience authentication failures,
+API key management errors, gateway instability, or gateway pod memory pressure.
+
+=== Verify
+
+Wait for the controller to be ready:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc wait csv -n ${MCP_SYSTEM} -l operators.coreos.com/mcp-gateway.${MCP_SYSTEM}="" --for=jsonpath='{.status.phase}'=Succeeded --timeout=5m
+----
+
+.Example output
+----
+clusterextension.olm.operatorframework.io/mcp-gateway condition met
+----
+
+When the condition is met, the ClusterServiceVersion (CSV) for the MCP gateway
+Operator reports a `Succeeded` phase. With the Operator running, you can now
+create the gateway itself.
+
+== Exercise 2: Create a Gateway object with an MCP listener
+
+The Gateway object creates the pods that handle your traffic, assigns IP
+addresses, and gives HTTPRoutes a place to attach. The MCP listener handles the
+transport protocol and opens an MCP session on its port; it is also the
+security perimeter that Connectivity Link policies attach to.
+
+. Create the gateway namespace and the Gateway object:
+
+[source,bash,role="execute",subs="attributes,callouts"]
+----
+oc new-project ${GATEWAY_NS}
+cat <<EOF | oc apply -f -
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: ${GATEWAY_NAME}
+  namespace: ${GATEWAY_NS}
+spec:
+  gatewayClassName: openshift-default
+  listeners:
+  - name: http
+    port: 80
+    protocol: HTTP
+    allowedRoutes:
+      namespaces:
+        from: All
+  - name: mcp
+    hostname: ${MCP_LISTENER_HOST}
+    port: 8080
+    protocol: HTTP
+    allowedRoutes:
+      namespaces:
+        from: All
+EOF
+----
+`gatewayClassName: openshift-default` selects the OpenShift Ingress
+controller as the Gateway API implementation. The `http` listener is a
+standard web traffic listener on port 80 for unencrypted requests; `from:
+All` lets HTTPRoutes from any namespace, including your MCP system namespace,
+attach to this listener. The `mcp` listener is the MCP listener — you must
+reference this exact name in the `MCPGatewayExtension` CR
+`spec.targetRef.sectionName` field. The `hostname` is the host the MCP
+listener serves; set a hostname so the correct certificate can be presented
+when you add TLS.
+
+. Verify that your listener is working:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get gateway ${GATEWAY_NAME} -n ${GATEWAY_NS} -o jsonpath='{.status.conditions[?(@.type=="Accepted")].status}{" "}{.status.conditions[?(@.type=="Programmed")].status}{"\n"}'
+----
+
+.Example output
+----
+True True
+----
+
+The conditions `Accepted: True` and `Programmed: True` are expected in the
+status of the output. If they are not, run `oc describe gateway
+${GATEWAY_NAME} -n ${GATEWAY_NS}` — the Events section can show port conflicts,
+problems with the `gatewayClassName` value, missing routes, or a lack of
+permissions to read secrets.
+
+=== Verify
+
+The Gateway reports `Accepted: True` and `Programmed: True`, and the Events
+section of `oc describe gateway` shows `Synced` and `IPAllocated` events.
+
+A gateway with a listener is only half of the setup. Next, you tell the MCP
+gateway Operator which Gateway object to extend with MCP protocol support.
+
+== Exercise 3: Connect the gateway with an MCPGatewayExtension CR
+
+The `MCPGatewayExtension` CR defines which Gateway object the MCP gateway
+instance is responsible for and where configuration secrets are created. Each
+namespace and each Gateway object can have only one `MCPGatewayExtension` CR.
+After the extension is ready, an HTTPRoute object and an Envoy filter are
+automatically created.
+
+Because your `MCPGatewayExtension` CR lives in a different namespace than the
+Gateway object, you must first create a ReferenceGrant in the gateway
+namespace to allow the cross-namespace reference.
+
+. Create the ReferenceGrant in the Gateway namespace:
+
+[source,bash,role="execute",subs="attributes,callouts"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-mcp-extension
+  namespace: ${GATEWAY_NS}
+spec:
+  from:
+  - group: mcp.kuadrant.io
+    kind: MCPGatewayExtension
+    namespace: ${MCP_SYSTEM}
+  to:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+  # the extension also reads the gateway config Secret cross-namespace
+  - group: ""
+    kind: Secret
+EOF
+----
+<1> *namespace* — the ReferenceGrant must be created in the namespace of the Gateway object.
+<2> *group: mcp.kuadrant.io* — the API group of the resource asking for access.
+<3> *kind: MCPGatewayExtension* — the kind allowed to reference the Gateway.
+<4> *namespace* — the namespace where you apply the `MCPGatewayExtension` CR.
+<5> *kind: Gateway* — the resource being granted access to.
+
+. Create the `MCPGatewayExtension` CR:
+
+[source,bash,role="execute",subs="attributes,callouts"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPGatewayExtension
+metadata:
+  name: mcp-gateway-one
+  namespace: ${MCP_SYSTEM}
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: ${GATEWAY_NAME}
+    namespace: ${GATEWAY_NS}
+    sectionName: mcp
+  httpRouteManagement: Enabled
+EOF
+----
+<1> *apiVersion: mcp.kuadrant.io/v1alpha1* — the MCP gateway API group; Technology Preview APIs can change between releases.
+<2> *kind: Gateway* — the extension targets a Gateway API object, not a Service or Deployment.
+<3> *name* — the name of the Gateway object from Exercise 2.
+<4> *namespace* — the namespace of the Gateway object; cross-namespace references require the ReferenceGrant you created.
+<5> *sectionName: mcp* — must match the listener name on the Gateway object exactly.
+
+. Wait for the MCPGatewayExtension controller to be ready:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc wait --for=condition=Ready mcpgatewayextension/mcp-gateway-one -n ${MCP_SYSTEM}
+----
+
+.Example successful output
+----
+mcpgatewayextension.mcp.kuadrant.io/mcp-gateway-one condition met
+----
+
+.Example failure output
+----
+error: timed out waiting for the condition on mcpgatewayextensions/mcp-gateway-one
+----
+
+A timeout usually means the ReferenceGrant is missing, the `sectionName` does
+not match a listener, or the broker-router deployment is not ready. Check the
+CR status reasons with `oc describe mcpgatewayextension mcp-gateway-one -n
+${MCP_SYSTEM}` — common reasons include `ReferenceGrantRequired`,
+`DeploymentNotReady`, and `SecretNotFound`.
+
+=== Verify
+
+. Verify that the automatic HTTPRoute object is created:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get httproute mcp-gateway-route -n ${MCP_SYSTEM}
+----
+
+.Example output
+----
+NAME                HOSTNAMES              AGE
+mcp-gateway-route   ["mcp.example.com"]    5m
+----
+
+. Verify that the Envoy filter exists in the same namespace as the Gateway object:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get envoyfilter -n ${GATEWAY_NS} -l app.kubernetes.io/managed-by=mcpgateway-controller
+----
+
+. Verify that an MCP endpoint is accessible through your MCP gateway:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -X POST http://${MCP_LISTENER_HOST}:8080/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "initialize"}'
+----
+
+.Example output
+----
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{"listChanged":true}},"serverInfo":{"name":"Kuadrant MCP Gateway","version":"0.6.0"}}}
+----
+
+TIP: If the listener hostname does not resolve in your workshop environment,
+add it to `/etc/hosts` with the Gateway address from
+`oc get gateway ${GATEWAY_NAME} -n ${GATEWAY_NS} -o
+jsonpath='{.status.addresses[0].value}'`.
+
+The `Kuadrant MCP Gateway` serverInfo response confirms that traffic reaches
+the MCP broker through the gateway. No backend tools are listed yet — you
+register MCP servers in Module 02.
+
+== Module summary
+
+**What you accomplished:**
+
+* Installed the MCP gateway Operator from the `redhat-operators` catalog with OLM
+* Created a Gateway object with an MCP listener and confirmed it was accepted and programmed
+* Applied an `MCPGatewayExtension` CR with a ReferenceGrant and verified the auto-created HTTPRoute, EnvoyFilter, and broker endpoint
+
+**Key takeaways:**
+
+* The MCP gateway extends Envoy with a router, broker, and discovery controller so MCP servers behave like secured REST APIs
+* The `MCPGatewayExtension` `spec.targetRef.sectionName` must match a listener name on the Gateway object, and cross-namespace references require a ReferenceGrant
+* Applying the extension is what wires the `/mcp` route and Envoy filter into the Gateway automatically
+
+**Next steps:**
+
+Register a backend MCP server so its tools appear through the gateway, then
+curate those tools into a virtual MCP server for focused agent use — continue
+to Module 02.

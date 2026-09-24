@@ -1,0 +1,23 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# CPU-only cluster variant: makes the whole workshop runnable without GPU nodes
+# (kueue's train.py picks the gloo backend on CPU; vLLM CPU ServingRuntimes
+# serve without accelerators; IBM Z (s390x) / IBM Power (ppc64le) clusters are
+# CPU-only by architecture).
+#
+# RHOAI ships the vLLM CPU ServingRuntime pre-installed but possibly disabled.
+# Enable it after the operator is up:
+#   make enable-cpu-runtime
+# ...which patches the pre-installed runtime:
+#   oc patch servingruntime vllm-cpu-x86 -n redhat-ods-applications \
+#     --type merge -p '{"spec":{"enabled":true}}'
+#
+# On IBM Z / Power the pre-installed CPU runtime has a different name — list
+# with: oc get servingruntimes -n redhat-ods-applications
+#
+# CPU labs mapped here: vllm-cpu-ibm-z-power (needs the CPU ServingRuntime),
+# kueue (runs CPU-only by design — gloo backend, 8 CPU / 32Gi quota).
+resources:
+  - ../../base

@@ -1,0 +1,24 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the MCP gateway Operator workshop.
+
+== What you covered
+
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_connectivity_link/1.4/html/mcp_gateway[MCP gateway (Red Hat Connectivity Link 1.4)]
+* link:https://docs.redhat.com/en/documentation/red_hat_connectivity_link/1.4/html/install_the_mcp_gateway[Install the MCP gateway (Red Hat Connectivity Link 1.4)]
+* link:https://docs.redhat.com/en/documentation/red_hat_connectivity_link/1.4/html/register_mcp_servers_and_create_policies[Register MCP servers and create policies (Red Hat Connectivity Link 1.4)]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:nemo-guardrails-mcp-gateway::index.adoc[NeMo Guardrails integration with MCP Gateway]
+* xref:mcp-lifecycle-operator::index.adoc[MCP Lifecycle Operator]

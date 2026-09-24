@@ -1,0 +1,25 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the MaaS multi-tenancy with per-tenant gateway and identity isolation workshop.
+
+== What you covered
+
+* xref:module-01-concepts.adoc[Core Concepts]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:module-03-advanced.adoc[Advanced Usage]
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/govern_llm_access_with_models-as-a-service/manage-maas-multi-tenancy[Manage MaaS multi-tenancy] — the feature chapter: the tenant isolation model, provisioning and verifying tenants, granting RBAC access, the `AITenant` custom resource reference, and deletion cleanup behavior
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/govern_llm_access_with_models-as-a_service/manage-maas-multi-tenancy#multi-tenancy-prerequisites-for-models-as-a-service[MaaS multi-tenancy prerequisites] — the platform and per-tenant infrastructure prerequisites, including the Kuadrant v1.4.2 requirement
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/govern_llm_access_with_models-as-a-service/index[Govern LLM access with Models-as-a-Service] — the full guide, including subscriptions, authorization policies, API keys, and the MaaS API reference
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:maas-vllm-deployment::index.adoc[vLLM model deployment directly through MaaS]
+* xref:maas-multi-provider-passthrough::index.adoc[Multi-provider API passthrough for external models (MaaS)]

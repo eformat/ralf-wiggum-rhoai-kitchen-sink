@@ -1,0 +1,22 @@
+---
+# NOTE: the NFD OperatorGroup is intentionally NOT applied on clusters where
+# NFD ships pre-installed with its own OperatorGroup (`nfd-og`) — a namespace
+# may hold only ONE OperatorGroup, and a second one makes OLM fail the CSV with:
+#   "csv created in namespace with multiple operatorgroups, can't pick one
+#    automatically" (TooManyOperatorGroups)
+#
+# If `oc get operatorgroup -n openshift-nfd` returns nothing, create it:
+#   oc apply -f - <<EOF
+#   apiVersion: operators.coreos.com/v1
+#   kind: OperatorGroup
+#   metadata:
+#     name: openshift-nfd
+#     namespace: openshift-nfd
+#   spec:
+#     targetNamespaces:
+#       - openshift-nfd
+#   EOF
+#
+# Ground truth (cluster-prelude2, 2026-09-23): the cluster image ships `nfd-og`;
+# applying this OG made the nfd CSV go Failed (TooManyOperatorGroups) even
+# though the pods ran. Deleted the overlay OG; CSV re-resolved to Succeeded.

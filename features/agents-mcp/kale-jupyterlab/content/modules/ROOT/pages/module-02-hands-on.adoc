@@ -1,0 +1,175 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will run the notebook-to-pipeline workflow end to end:
+turn Kale on for a notebook, annotate it in the Kale metadata editor, convert
+and run the pipeline, and observe the run — its status, graph, and step logs —
+in the OpenShift AI dashboard.
+
+**Learning objectives:**
+
+* Turn on Kale for a notebook, annotate it in the Kale metadata editor, and run its cells
+* Convert the annotated notebook and execute the pipeline run from the workbench
+* Observe the run status, run graph, and step logs in the dashboard, and confirm the pipeline on the pipeline server
+
+== Exercise 1: Turn on Kale and annotate a notebook
+
+The Kale controls are per-notebook: opening a notebook activates them. The
+notebook you annotate here is what Kale converts into an AI Pipeline.
+
+. Before annotating, confirm the pipeline backend is still in place — Kale
+needs the Data Science Pipelines Application in the same namespace as the
+workbench:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get dspa -n {guid}-{user}
+----
++
+Expect a `NAME` entry with an `AGE` value, and the Kale connection status in
+JupyterLab to be green (Module 01). A yellow status means KFP is disconnected
+— go back to Module 01 before continuing.
+
+. In JupyterLab, open the *File Browser* in the left sidebar and create a blank
+notebook or open an existing one.
+
+. Add one or two simple Python cells to the notebook — for example a cell that
+prints a message — and run them with *Run → Run All Cells*. Kale converts the
+notebook as it was executed, so the cells should run cleanly before you
+annotate.
+
+. With the notebook open, locate the *Enable* toggle that Kale activates for
+that notebook and switch it on.
+
+. Observe that switching the toggle on opens the *Kale metadata editor* for
+the notebook.
+
+// TODO: capture screenshot
+image::02-kale-enable-toggle.png[The Kale Enable toggle and metadata editor in JupyterLab,link=self,window=blank,width=700]
+
+. In the metadata editor, review the annotation fields that Kale attaches to
+the notebook. Kale uses these annotations and metadata to convert the notebook
+into an AI Pipeline without writing any Kubeflow Pipelines SDK code. Complete
+the notebook annotation following the upstream Kale documentation flow.
+
+The field-level editor options are not documented in the RHOAI 3.5 product
+docs — the release notes defer to the upstream Kale documentation for that
+detail.
+
+NOTE: Because Kale is a Developer Preview feature, the editor layout and
+conversion behavior may change between releases.
+
+=== Verify
+
+The *Enable* toggle is switched on for your notebook, the Kale metadata editor
+is open, and the notebook cells executed without errors.
+
+With the notebook annotated, the next step is to convert it and run the
+resulting pipeline.
+
+== Exercise 2: Convert, run, and observe the pipeline
+
+The pipeline server attached to your project hosts your AI pipeline, stores
+its definition, and records its runs. You convert the annotated notebook and
+run the pipeline from the workbench, then observe the run in the dashboard.
+
+. In the Kale metadata editor, convert the annotated notebook and submit the
+converted pipeline to the pipeline server connected in Module 01. The exact
+panel controls for the submit action are part of the field-level editor that
+the RHOAI 3.5 docs leave to the upstream Kale documentation — follow that
+flow. The documented contract is the destination: the converted pipeline goes
+to the pipeline server attached to your project.
+
+. Once the converted pipeline run is created, it executes once immediately by
+default — no extra dashboard steps are needed to start it.
+
+. Observe the run status. From the OpenShift AI dashboard, click *Develop &
+train → Experiments*, select your project from the *Project* drop-down list,
+and click the experiment that contains the run. The *Runs* tab shows the run,
+and its *Status* column indicates whether it succeeded or failed once the run
+completes.
+
+. Open the run details. Click *Develop & train → Pipelines → Runs*, select
+your project from the *Project* drop-down list, and click the name of the run.
+The details page shows the run graph, execution details, input parameters,
+step logs, and run output. On the *Graph* tab, click a pipeline step, then
+click the *Logs* tab to read that step's log in the log viewer.
+
+. Confirm the converted pipeline is registered on the pipeline server. From
+the workbench terminal, set the environment variables from the documented KFP
+SDK authentication flow:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export NAMESPACE={guid}-{user}
+export DSPA_NAME=$(oc -n "$NAMESPACE" get dspa -o jsonpath='{.items[0].metadata.name}')
+export API_URL="https://$(oc -n "$NAMESPACE" get route "ds-pipeline-${DSPA_NAME}" -o jsonpath='{.spec.host}')"
+export OCP_TOKEN=$(oc whoami --show-token)
+----
++
+Then list the pipelines on the server with the KFP Python client:
++
+[source,python,role="execute",subs="attributes"]
+----
+import os
+from kfp.client import Client
+
+client = Client(
+    host=os.environ["API_URL"],
+    existing_token=os.environ["OCP_TOKEN"],
+    namespace=os.environ["NAMESPACE"],
+)
+print(client.list_experiments())
+print(client.list_pipelines())
+----
++
+The output lists the experiments and pipelines defined on the pipeline server
+for your project — including the pipeline converted from your notebook.
+
+IMPORTANT: The pipeline server route is protected by OpenShift OAuth, so the
+KFP client must use a valid access token. Store the token in an environment
+variable (`oc whoami --show-token`) rather than pasting it directly into
+commands or scripts — a literal token can appear in your shell history or in
+process listings.
+
+. View the pipeline server details. From *Develop & train → Pipelines →
+Pipeline definitions*, select your project from the *Project* drop-down list
+and select *Manage pipeline server configuration* from the *Pipeline server
+actions* list. The pipeline server details are displayed, including its
+connection and where its data is stored.
+
+NOTE: Pipeline definitions are stored as a YAML file in the `/pipelines`
+folder of the pipeline server's S3-compatible object storage bucket, and run
+artifacts are stored in the `/pipeline-name` folder in the bucket root.
+
+IMPORTANT: Kale is a Developer Preview feature, so the exact handoff between
+the extension and the pipeline server may change between releases. Use the
+dashboard navigation above to confirm where the pipeline and its runs landed
+in your cluster.
+
+=== Verify
+
+The pipeline run appears on the *Runs* tab under *Develop & train →
+Experiments* with a status of *Succeeded* (or *Running* while it executes),
+the run details page opens from *Develop & train → Pipelines → Runs* with the
+run graph and step logs, the `client.list_pipelines()` output lists the
+pipeline converted from your notebook, and the pipeline server details open
+from *Pipeline server actions → Manage pipeline server configuration*.
+
+== Module summary
+
+**What you accomplished:**
+
+* Turned on the Kale *Enable* toggle for a notebook, opened the Kale metadata editor, and annotated it for conversion
+* Converted the annotated notebook and executed the pipeline run from the workbench
+* Observed the run status, run graph, and step logs in the dashboard, and confirmed the pipeline on the pipeline server with the KFP SDK
+
+**Key takeaways:**
+
+* Kale's controls are per-notebook: the *Enable* toggle and metadata editor appear when a notebook is open, and the annotations drive the conversion — no Kubeflow Pipelines SDK code
+* A pipeline run executes once immediately after it is created by default, is visible under *Develop & train → Experiments* and *Develop & train → Pipelines → Runs*, and its step logs are on the run details page
+* Pipeline definitions live in the `/pipelines` folder of the S3-compatible bucket, and run artifacts in the `/pipeline-name` folder; the KFP SDK lists what the pipeline server holds
+
+**Next steps:**
+
+Continue to the conclusion for the resources behind this workshop.

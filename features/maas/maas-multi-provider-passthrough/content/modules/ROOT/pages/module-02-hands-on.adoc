@@ -1,0 +1,368 @@
+= Module 02: Hands-on — Route native provider formats through the MaaS gateway
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will map a client-facing model name to the external
+provider with an `ExternalModel` custom resource using a passthrough-eligible
+`apiFormat`, publish the model to a MaaS subscription, and verify end-to-end
+passthrough with a native Anthropic Messages request. You will finish by
+configuring single-URL passthrough for AI coding tools such as Claude Code.
+
+**Learning objectives:**
+
+* Create an `ExternalModel` with `apiFormat: messages` and publish it with a `MaaSModelRef`
+* Add the external model to a MaaS subscription and verify it in the RHOAI dashboard
+* Test end-to-end passthrough with `curl` and configure single-URL passthrough for AI coding tools
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: Multi-provider API passthrough is a *Technology Preview* feature.
+Technology Preview features are not supported with Red Hat production
+service-level agreements (SLAs) and might not be functionally complete. The
+APIs, manifests, and passthrough behavior shown here may change between
+releases.
+endif::[]
+
+== Exercise 1: Create the ExternalModel with a passthrough-eligible apiFormat
+
+The `ExternalModel` custom resource maps a client-facing model name to one or
+more providers. The `apiFormat` field on the provider reference determines
+whether the gateway translates requests or passes them through. To preserve
+Anthropic-specific features, set `apiFormat: messages` so clients that send
+Anthropic Messages requests to `/v1/messages` get true passthrough.
+
+. Create the `ExternalModel` resource:
++
+[source,bash,role="execute",subs="attributes"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: inference.opendatahub.io/v1alpha1
+kind: ExternalModel
+metadata:
+  name: claude-sonnet
+  namespace: {guid}-llm
+spec:
+  externalProviderRefs:
+  - ref:
+      name: anthropic-provider
+    targetModel: claude-sonnet-4-20250514
+    apiFormat: messages
+    path: /v1/messages
+    weight: 100
+EOF
+----
+
+The manifest you applied has the following structure:
++
+[source,yaml,subs="attributes,callouts"]
+----
+apiVersion: inference.opendatahub.io/v1alpha1  # <1>
+kind: ExternalModel
+metadata:
+  name: claude-sonnet                          # <2>
+  namespace: {guid}-llm
+spec:
+  externalProviderRefs:
+  - ref:
+      name: anthropic-provider                 # <3>
+    targetModel: claude-sonnet-4-20250514      # <4>
+    apiFormat: messages                        # <5>
+    path: /v1/messages
+    weight: 100
+----
+<1> *API version* — `inference.opendatahub.io/v1alpha1`, the same external-model
+API group as the `ExternalProvider`.
+<2> *Client-facing model name* — clients use this name in the `model` field of
+inference requests. It must be unique in the namespace.
+<3> *Provider reference* — the `ExternalProvider` created in Module 01, which
+must be in Ready status before the `ExternalModel` can reconcile.
+<4> *Target model* — the upstream model identifier at the provider, such as
+`gpt-4o` or `claude-sonnet-4-20250514`.
+<5> *API format* — `messages` routes to the Anthropic Messages endpoint and
+activates passthrough when clients send requests to `/v1/messages`. Use
+`openai-responses` for the OpenAI Responses API. `openai-chat` always uses
+translation.
+
+. Verify that the `ExternalModel` was created:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get externalmodel claude-sonnet -n {guid}-llm
+----
++
+Expected output shows the model with a Ready phase, mirroring the
+`ExternalProvider` output:
++
+----
+NAME            PHASE   AGE
+claude-sonnet   Ready   30s
+----
++
+If the status is Failed, verify that the networking resources were created
+successfully in your model namespace:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get service,httproute,serviceentry,destinationrule -n {guid}-llm
+----
+
+IMPORTANT: When the `ExternalModel` resource is created, the controller
+automatically creates an `HTTPRoute` with per-provider routing rules. The
+`ExternalModel` must reference an `ExternalProvider` that is in Ready status.
+
+. Verify that the `HTTPRoute` exists:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get httproute -n {guid}-llm
+----
+
+. Create a `MaaSModelRef` custom resource in the same namespace as the
+`ExternalModel` to publish the external model to MaaS:
++
+[source,bash,role="execute",subs="attributes"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSModelRef
+metadata:
+  name: claude-sonnet
+  namespace: {guid}-llm
+spec:
+  modelRef:
+    kind: ExternalModel
+    name: claude-sonnet
+EOF
+----
+
+. Verify that the `MaaSModelRef` was created:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get maasmodelref claude-sonnet -n {guid}-llm
+----
++
+If the resource is missing, the external model does not appear in MaaS
+subscriptions.
+
+IMPORTANT: In multitenant deployments, external models are supported for the
+default tenant only. Non-default tenant instances have the `ExternalModel`
+controller disabled.
+
+=== Verify
+
+* `oc get externalmodel claude-sonnet -n {guid}-llm` shows a Ready phase.
+* An `HTTPRoute` exists in `{guid}-llm`.
+* `oc get maasmodelref claude-sonnet -n {guid}-llm` returns the resource.
+
+The external model is wired up and published to MaaS. The next exercise adds
+it to a subscription and verifies it from the dashboard before you send any
+traffic.
+
+== Exercise 2: Add the model to a subscription and verify in the dashboard
+
+MaaS subscription governance applies to external models the same way it applies
+to locally deployed models: the model appears in the subscription model list
+alongside internal models, and a matching authorization policy grants user
+groups access.
+
+. In the RHOAI dashboard as an administrator, navigate to *Settings* →
+*MaaS governance*.
+. Click the subscription you verified in Module 01.
+. In the *Models* section, verify that `claude-sonnet` is displayed in the
+list. Select the external model and configure token limits the same way as for
+internal models.
+. Create a matching authorization policy to grant your user group access to
+the external model.
+
+NOTE: Token limits apply at two levels. MaaS subscription-level token limits
+control per-user consumption within MaaS; the token limit on the provider API
+key applies to the aggregate consumption of all users who access the external
+model, because they all share the same key. Make sure the provider-level limit
+can handle the combined consumption — if it is exceeded, no users can access
+the model until the provider resets the limit (typically hourly, daily, or
+monthly).
+
+WARNING: MaaS subscription-level token rate limits apply only to OpenAI Chat
+Completions format requests. Models configured with `apiFormat: messages` or
+`apiFormat: openai-responses` are not metered at the MaaS subscription level
+(the metering relies on the `usage.total_tokens` response field, which only the
+OpenAI Chat Completions format returns). Use provider-level rate limits to
+manage consumption for passthrough models.
+
+. Verify the external model in the dashboard:
++
+. In the OpenShift AI dashboard, click *AI hub* → *Models*.
+. On the *Model deployments* page, click the *External models* tab.
+. Select the `{guid}-llm` project from the Project selector.
+. Verify that `claude-sonnet` is displayed with a *Ready* status.
+. Click the expand arrow on the model row and verify that the provider
+details — provider URL, authentication method, and target model ID — are
+correct.
+
+// TODO: capture screenshot
+image::02-external-models-tab.png[External models tab showing claude-sonnet with Ready status,link=self,window=blank,width=700]
+
+=== Verify
+
+* The subscription's *Models* section lists `claude-sonnet`.
+* The *External models* tab shows `claude-sonnet` with a Ready status and the
+correct provider details.
+
+The model is governed and visible. The next exercise sends real traffic — first
+the endpoint-URL way, then the single-gateway-URL way that AI coding tools use.
+
+== Exercise 3: Test passthrough end to end
+
+A successful response confirms that MaaS routed the request to the external
+provider and returns the model completion in the provider's native format. For
+the Anthropic Messages format, the request uses the `x-api-key` header; for
+OpenAI formats, it uses `Authorization: Bearer`.
+
+. Obtain the external API endpoint URL and a MaaS API key from the dashboard:
++
+. In the OpenShift AI dashboard, navigate to *Gen AI studio* →
+*AI asset endpoints*.
+. Locate `claude-sonnet` and click *View* in the *Endpoints* column.
+. Copy the external API endpoint URL from the Endpoints dialog.
+. Click *Create API key* and save the generated key.
+
+. Export the endpoint URL and API key in your terminal. Derive the gateway
+endpoint from the cluster (the MaaS Route):
++
+[source,bash,role="execute",subs="attributes"]
+----
+export MAAS_ENDPOINT="https://$(oc get route -n openshift-ingress \
+  -l gateway.networking.k8s.io/gateway-name=maas-default-gateway \
+  -o jsonpath='{.items[0].spec.host}')"
+----
+
+Copy the API key from the dashboard's *API keys* page into `$MAAS_API_KEY`
+(an invalid key still exercises the gateway path — the response is a 401):
++
+[source,bash,role="execute"]
+----
+export MAAS_API_KEY=%maas-api-key%
+----
+
+. Send a test inference request in the Anthropic Messages format:
++
+[source,bash,role="execute"]
+----
+curl -X POST $MAAS_ENDPOINT/v1/messages \
+  -H "x-api-key: $MAAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{ "model": "claude-sonnet", "max_tokens": 100, "messages": [{"role": "user", "content": "Hello"}] }'
+----
++
+The gateway detects the `/v1/messages` path suffix as the `messages` format,
+matches it against the configured `apiFormat: messages`, and forwards the
+request to `api.anthropic.com` without translation.
+
+. Verify that the response is in the Anthropic Messages format. A successful
+response contains a `content` array with the model's reply:
++
+----
+{
+  "id": "msg_abc123",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "Hello! How can I help you today?"
+    }
+  ],
+  "model": "claude-sonnet-4-20250514",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 10,
+    "output_tokens": 12
+  }
+}
+----
+
+NOTE: The response has no `choices` field — that is the OpenAI format. Seeing
+the `content` array with `stop_reason` confirms passthrough delivered the
+provider's native format instead of a translation.
+
+. Configure single-URL passthrough for an AI coding tool. AI coding tools such
+as Claude Code connect to a single MaaS gateway URL and switch between models
+mid-session by specifying the model name in the request body:
++
+[source,bash,role="execute"]
+----
+export ANTHROPIC_BASE_URL=https://%maas-gateway-url%
+export ANTHROPIC_API_KEY=%maas-api-key%
+----
++
+Replace `%maas-gateway-url%` with your MaaS gateway URL. The tool specifies the
+model name in the request body; the gateway extracts it and routes the request
+to the matching `ExternalModel` resource without requiring a URL change. To
+switch models, change the model name in the tool's configuration or next
+request.
+
+. Verify single-URL body-based routing with the same curl pattern against the
+gateway URL:
++
+[source,bash,role="execute"]
+----
+curl -X POST https://%maas-gateway-url%/v1/messages \
+  -H "x-api-key: %maas-api-key%" \
+  -H "Content-Type: application/json" \
+  -H "anthropic-version: 2023-06-01" \
+  -d '{ "model": "claude-sonnet", "max_tokens": 100, "messages": [{"role": "user", "content": "Hello"}] }'
+----
++
+The gateway resolves the model name by checking the `X-Gateway-Model-Name`
+header first, then the `model` field in the request body, and matches it
+against `spec.modelName` if configured on the `ExternalModel`, otherwise
+against `metadata.name`.
+
+NOTE: Body-based model routing is enabled by default as part of the MaaS
+deployment. For OpenAI Responses API models, the same pattern applies with
+`OPENAI_BASE_URL` and `OPENAI_API_KEY` and the `/v1/responses` path, using the
+`Authorization: Bearer` header.
+
+WARNING: Passthrough limitations to keep in mind when testing: streaming is
+buffered during cross-format translation (real-time streaming is available
+only when the client uses the provider's native format with passthrough),
+requests larger than 16 KB might experience body truncation when the Kuadrant
+wasm shim is active with the `allow_on_headers_stop_iteration` flag set
+(resolved in OpenShift Service Mesh 3.3.1 and later), and if you integrate
+NeMo Guardrails, response guards do not inspect responses in non-OpenAI
+formats — use `openai-chat` with translation if you require response content
+inspection.
+
+=== Verify
+
+* The `/v1/messages` request returns an Anthropic Messages response with a
+`content` array and `stop_reason: end_turn`.
+* The single-URL request against `%maas-gateway-url%` routes to the correct
+external model using the `model` field from the request body.
+* The response `model` field shows the target model ID,
+`claude-sonnet-4-20250514`.
+
+You have verified both access patterns. If a request with an unmatched model
+name does not fail immediately — the request is not handled by the external
+model routing pipeline and might result in a routing error or timeout
+downstream rather than an immediate rejection with a clear error message.
+
+== Module summary
+
+**What you accomplished:**
+
+* Created an `ExternalModel` with `apiFormat: messages` and published it with a `MaaSModelRef`
+* Added the external model to a MaaS subscription and verified it in the dashboard's External models tab
+* Tested end-to-end passthrough with a native Anthropic Messages request and configured single-URL passthrough for AI coding tools
+
+**Key takeaways:**
+
+* `apiFormat: messages` on the provider reference is what preserves Anthropic-specific features — the gateway forwards `/v1/messages` requests unchanged
+* Passthrough models are not metered by MaaS subscription-level token rate limits; use provider-level rate limits instead
+* Single-URL passthrough relies on body-based model routing, letting tools such as Claude Code switch models mid-session without per-model URLs
+
+**Next steps:**
+
+Continue to the conclusion for the documentation chapters behind this
+workshop, including the complete passthrough decision matrix and the
+Vertex AI behavior differences.

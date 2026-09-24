@@ -1,0 +1,27 @@
+= Conclusion
+:navtitle: Conclusion
+
+Congratulations on completing the Loki-based showback and user-scoped usage
+dashboards (MaaS) workshop.
+
+== What you covered
+
+* xref:module-01-getting-started.adoc[Getting Started] — verified the observability prerequisites and enabled Kuadrant observability plus MaaS telemetry
+* xref:module-02-hands-on.adoc[Hands-on Exercise] — enabled per-user metrics, read the observability dashboard, and exported showback data as CSV
+
+== Resources
+
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/govern_llm_access_with_models-as-a-service/monitor-models-as-a-service-usage-by-using-the-observability-dashboard[Monitor Models-as-a-Service usage by using the observability dashboard] — the source chapter for the dashboard, Kuadrant observability, telemetry, and CSV export steps
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/govern_llm_access_with_models-as-a-service/observability-configuration-for-models-as-a-service[Observability configuration for Models-as-a-Service] — the `OdhDashboardConfig` and Cluster Observability Operator prerequisites
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/monitoring_your_ai_systems/configuring-monitoring-for-your-model-serving-platform[Configuring monitoring for your model serving platform] — configuring the monitoring stack that backs the dashboard
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/release_notes/index[Red Hat OpenShift AI 3.5 release notes] — describes the Loki-based showback log pipeline and user-scoped dashboards enhancements
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5[RHOAI 3.5 documentation]
+* xref:index.adoc[Back to the workshop overview]
+* xref:home::index.adoc[Back to the catalog]
+
+== Where next in the catalog
+
+Continue your learning journey with these related workshops:
+
+* xref:external-metering-per-user::index.adoc[External metering: per-user token usage and cost]
+* xref:maas-core::index.adoc[Models-as-a-Service (MaaS) core: access model and token mechanism]

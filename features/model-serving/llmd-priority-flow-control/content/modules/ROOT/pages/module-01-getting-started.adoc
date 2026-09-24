@@ -1,0 +1,132 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will explore where flow control sits in the Distributed Inference with llm-d request path and enable it on a deployed `LLMInferenceService`.
+
+Flow control is a pool defense mechanism in the *Endpoint Picker (EPP)* component of Distributed Inference with llm-d. It manages request queuing, prioritization, and fairness in a multitenant inference serving environment, which helps with consolidating latency-sensitive and throughput-sensitive workloads on a single cluster while protecting critical service level objectives (SLOs). The EPP has two distinct layers:
+
+* **Flow Control layer** — controls *when* and *in what order* requests are dispatched to backends. It manages priority-based queuing, saturation detection, and load shedding.
+* **Scheduling layer** — controls *where* each request is routed among available backends, using routing plugins to select the optimal pod based on queue depth, KV cache utilization, and prefix cache affinity.
+
+The Scheduling layer is always enabled. Flow Control is optional and is enabled through the `flowControl` feature gate. Flow control is *work-conserving*: when the InferencePool has available capacity, requests dispatch immediately with no added latency. Queuing and priority enforcement activate only when the pool is saturated.
+
+Use flow control when you run many tenant applications with different SLA requirements on shared GPU infrastructure, when you need to guarantee latency for interactive workloads while maximizing GPU usage with batch jobs, or when you want to protect critical workloads from noisy neighbor effects. If you only have a single workload type with uniform SLA requirements, flow control adds unnecessary complexity.
+
+**Learning objectives:**
+
+* Explain the role of the flow control layer and the scheduling layer in the Endpoint Picker
+* Enable flow control and saturation detection on an `LLMInferenceService`
+* Validate that the Endpoint Picker is running with the flow control configuration
+
+IMPORTANT: Flow control depends on the Endpoint Picker to enforce priority and fairness policies. If the EPP becomes unavailable, the default Distributed Inference with llm-d configuration *fails open*: the gateway routes requests directly to model servers without flow control protection until the EPP recovers.
+
+== Exercise 1: Inspect your llm-d deployment and the Endpoint Picker
+
+Flow control sits between the Inference Gateway and the backend model servers, so you first confirm that you have a deployed `LLMInferenceService` with an Inference Gateway and an Endpoint Picker running.
+
+. List the LLM inference services in your working project:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llminferenceservice -n {guid}-{user}
+----
+
+The output shows your deployed models and their status. Note the name of an LLM inference service that is serving traffic.
+
+. Locate the Endpoint Picker (EPP) pod for that service. The EPP pod name follows the pattern `<service_name>-kserve-router-scheduler<random_suffix>`:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n {guid}-{user} | grep router-scheduler
+----
+
+. Check the EPP logs to see which scheduler plugins and profiles are currently loaded:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc logs <epp_pod_name> -n {guid}-{user} | grep -i "scheduler\|config"
+----
+
+Replace `<epp_pod_name>` with the pod name from the previous step.
+
+=== Verify
+
+The EPP pod is in the `Running` state, and the logs show scheduler initialization messages confirming which plugins and profiles are loaded. Without flow control enabled, you see the default four-scorer configuration (`queue-scorer`, `kv-cache-utilization-scorer`, `prefix-cache-scorer`, `no-hit-lru-scorer` with weights 2:2:3:2) and no flow control configuration.
+
+Your model deployment is serving traffic and the Endpoint Picker is running. You are ready to enable flow control on it.
+
+== Exercise 2: Enable flow control and saturation detection
+
+The `EndpointPickerConfig` is embedded within the `LLMInferenceService` custom resource under `spec.router.scheduler`. You enable the `flowControl` feature gate and configure a saturation detector in the inline scheduler configuration.
+
+. Patch your LLM inference service with the `flowControl` feature gate and saturation detector. The service name is resolved from your project, and the inline scheduler configuration is applied as a merge patch:
+
+[source,bash,role="execute",subs="attributes"]
+----
+LLM_SVC=$(oc get llminferenceservice -n {guid}-{user} -o jsonpath='{.items[0].metadata.name}')
+echo "Configuring $LLM_SVC"
+oc patch llminferenceservice $LLM_SVC -n {guid}-{user} --type=merge -p '{"spec":{"router":{"scheduler":{"config":{"inline":{"apiVersion":"llm-d.ai/v1alpha1","kind":"EndpointPickerConfig","featureGates":["flowControl"],"flowControl":{"saturationDetector":{"pluginRef":"utilization-detector"}},"plugins":[{"name":"utilization-detector","type":"utilization-detector","parameters":{"queueDepthThreshold":5,"kvCacheUtilThreshold":0.8,"metricsStalenessThreshold":"200ms"}}]}}}}}}'
+----
+
+- **featureGates** — Enables the flow control layer for priority-based queuing and saturation detection.
+- **saturationDetector.pluginRef** — Specifies the saturation detector plugin to use. If omitted, defaults to `utilization-detector`; you can also use `concurrency-detector` for concurrency-based saturation detection.
+- **plugins[].name** — Declares the plugin referenced by the saturation detector.
+- **queueDepthThreshold** — The queue depth threshold on model servers. A value of 5 (default) balances latency and throughput. Set to 1 for maximum fairness, or to 1-2x max batch size for maximum throughput.
+- **kvCacheUtilThreshold** — The KV cache utilization threshold from 0.0 to 1.0. Default is 0.8. Model servers are considered saturated when either threshold is crossed.
+
+. Wait for the EPP pod to restart with the new configuration:
+
+[source,bash,role="execute",subs="attributes"]
+----
+until oc get pods -n {guid}-{user} 2>/dev/null | grep router-scheduler | grep "1/1" >/dev/null; do sleep 10; echo "waiting for EPP router-scheduler..."; done
+oc get pods -n {guid}-{user} | grep router-scheduler
+----
+
+Wait until the EPP pod reaches the `Running` state with all containers ready.
+
+=== Verify
+
+. Confirm the LLM inference service is still `Ready` after the configuration change:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llminferenceservice $LLM_SVC -n {guid}-{user}
+----
+
+. On OpenShift, the controller automatically creates ServiceMonitor resources to scrape metrics from the inference scheduler. Verify the ServiceMonitor for scheduler metrics exists:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get servicemonitors -n {guid}-{user} -l app.kubernetes.io/component=llmmonitoring
+----
+
+The output shows a ServiceMonitor resource with a name that begins with `kserve-llm-isvc-scheduler`. This resource scrapes EPP and inference scheduler metrics from the metrics port on the scheduler service.
+
+. Flow control exposes the `llm_d_epp_flow_control_*` metric family once active. In the OpenShift web console, navigate to *Observe* > *Metrics* and run the following query:
+
+[source,prometheus,subs="attributes"]
+----
+llm_d_epp_flow_control_pool_saturation{namespace="{guid}-{user}"}
+----
+
+The query returns a result for your deployment. The value is the current pool saturation level, where `1.0` is the gating set point at which dispatch halts and values above `1.0` indicate oversubscription past the gating threshold.
+
+Flow control is enabled on your model deployment. Next you will define priority tiers that the flow control layer uses to decide which requests dispatch first.
+
+== Module summary
+
+**What you accomplished:**
+
+* Explored the flow control and scheduling layers of the Endpoint Picker in your llm-d deployment
+* Enabled the `flowControl` feature gate and configured a utilization-based saturation detector on an `LLMInferenceService`
+* Verified that the Endpoint Picker restarted with the new configuration and exposes flow control metrics
+
+**Key takeaways:**
+
+* Flow control is an optional feature gate in the EndpointPickerConfig, embedded in the LLMInferenceService under `spec.router.scheduler`
+* Flow control is work-conserving: queuing and priority enforcement activate only when the pool is saturated
+* The scheduler ServiceMonitor provides the `llm_d_epp_flow_control_*` metrics used to validate priority queuing
+
+**Next steps:**
+
+In the next module you will create `InferenceObjective` resources that define priority tiers, then drive load to see priority-based queuing and fairness in action.

@@ -1,0 +1,30 @@
+---
+# Core DataScienceCluster: only the components EVERY workshop lab needs. Feature
+# overlays patch their own component keys onto this CR (strategic-merge, so
+# stacking overlays is cumulative and idempotent).
+#
+# Components not listed here stay Removed (the operator default). Each overlay
+# under overlays/ enables what its labs need.
+apiVersion: datasciencecluster.opendatahub.io/v2
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+  namespace: redhat-ods-operator
+spec:
+  components:
+    dashboard:
+      managementState: Managed
+    workbenches:
+      managementState: Managed
+    # NOTE (3.5 DSC v2): the `datasciencepipelines` component was REMOVED from
+    # the v2 API (superseded by aipipelines / Argo Workflows). Setting it is
+    # rejected with "field not declared in schema".
+    aipipelines:
+      managementState: Managed
+      argoWorkflowsControllers:
+        managementState: Managed
+    # llamastackoperator must be Removed before ogx can be Managed — they are
+    # mutually exclusive (OGX supersedes LlamaStack). overlays/ogx re-asserts
+    # this in its patch.
+    llamastackoperator:
+      managementState: Removed

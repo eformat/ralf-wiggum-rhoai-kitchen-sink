@@ -1,0 +1,289 @@
+= Module 03: Advanced Usage
+:navtitle: Module 03: Advanced Usage
+
+In this module you will explore advanced configuration for the Feature Store: tuning the online
+store and feature server workers for latency and throughput, scaling for high availability with
+static replicas and a horizontal pod autoscaler, and choosing a client access pattern. You will
+also try the Ray compute engine for distributed feature pipelines.
+
+**Learning objectives:**
+
+* Tune the online store and feature server workers in the FeatureStore configuration
+* Scale the instance with static replicas and horizontal pod autoscaling
+* Choose the right client access pattern for inference and training workloads
+* Configure the Ray compute engine for distributed materialization
+
+== Exercise 1: Tune the online store and workers
+
+The online store is the single largest factor in `get_online_features()` latency. SQLite, the
+default for the local provider, does not support concurrent access and is unsuitable for
+production. For production on OpenShift, use Redis when your p99 latency budget is under 10 ms,
+or PostgreSQL with connection pooling when you need transactional consistency or already run
+PostgreSQL infrastructure.
+
+The following example shows a PostgreSQL online store configuration with connection pooling:
+
+[source,yaml,subs="attributes,callouts"]
+----
+online_store:
+  type: postgres
+  host: <DB_HOST>
+  port: 5432
+  database: feast
+  user: <DB_USERNAME>
+  password: <DB_PASSWORD>
+  conn_type: pool <1>
+  min_conn: 4 <2>
+  max_conn: 20 <2>
+  keepalives_idle: 30 <3>
+  sslmode: require <4>
+----
+
+<1> **conn_type: pool** — enables connection pooling. Without it, each request opens and closes
+a new TCP connection, which increases latency.
+<2> **min_conn / max_conn** — steady-state and burst connection limits. `max_conn` must not
+exceed PostgreSQL `max_connections` divided by the total worker processes.
+<3> **keepalives_idle** — TCP keep-alive interval that prevents idle connections from being
+closed by firewalls or load balancers.
+<4> **sslmode: require** — mandates TLS encryption; required for production deployments.
+
+You can also tune the feature server itself with Gunicorn worker settings under
+`services.onlineStore.server.workerConfigs` in the FeatureStore CR:
+
+[source,yaml,subs="attributes,callouts"]
+----
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: production-feature-store
+  labels:
+    feature-store-ui: enabled
+spec:
+  feastProject: my_project
+  services:
+    onlineStore:
+      server:
+        workerConfigs: <1>
+          workers: 4 <2>
+          workerConnections: 2000
+          maxRequests: 5000
+          maxRequestsJitter: 500
+          keepAliveTimeout: 30
+          registryTTLSeconds: 300
+        resources:
+          requests:
+            cpu: "2"
+            memory: 2Gi
+          limits:
+            cpu: "4"
+            memory: 4Gi <3>
+----
+
+<1> **workerConfigs** — Gunicorn worker tuning for the online feature server.
+<2> **workers** — number of worker processes; balance against your connection budget when
+scaling horizontally.
+<3> **resources** — CPU and memory requests and limits for the feature server pod.
+
+[TIP]
+====
+Keep a record of the values you change so you can restore them. Apply worker changes to your
+FeatureStore CR and watch the feature server pods roll out with `oc get pods -w`.
+====
+
+=== Verify
+
+After applying the updated CR, the feature server deployment picks up the new worker settings.
+Confirm the FeatureStore reconciles to a ready state:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get feast production-feature-store
+----
+
+The STATUS column shows `Ready` once the operator has reconciled the change.
+
+With the configuration tuned, you now scale the instance for high availability.
+
+== Exercise 2: Scale for high availability
+
+The Feature Store Operator deploys a single replica by default, which supports development but
+is a single point of failure in production. You can choose static replicas (fixed count, high
+availability, predictable footprint) or horizontal pod autoscaling (variable traffic patterns).
+
+[IMPORTANT]
+====
+To scale horizontally, use database-backed persistence for all enabled services — online store,
+offline store, and registry. Do not use file-based persistence such as SQLite, DuckDB, or
+`registry.db` with multiple replicas; those backends do not support concurrent access from
+multiple pods.
+====
+
+Scale to three static replicas with `oc scale`:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc scale featurestore/production-feature-store --replicas=3
+----
+
+Alternatively, set `replicas` in the FeatureStore CR. The operator automatically switches the
+deployment strategy to `RollingUpdate` and injects soft pod anti-affinity (node-level) and
+topology spread (zone-level) constraints.
+
+For variable traffic, configure an autoscaler with `services.scaling.autoscaling` in the CR:
+
+[source,yaml,subs="attributes,callouts"]
+----
+spec:
+  feastProject: my_project
+  services:
+    scaling:
+      autoscaling: <1>
+        minReplicas: 2 <2>
+        maxReplicas: 10 <3>
+        metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 70 <4>
+        podDisruptionBudgets:
+          maxUnavailable: 1 <5>
+----
+
+<1> **autoscaling** — instructs the operator to create and manage an HPA for the feature server.
+<2> **minReplicas** — minimum number of replicas kept running.
+<3> **maxReplicas** — upper bound for scale-out.
+<4> **averageUtilization: 70** — CPU target for scaling; omit `metrics` to default to 80% CPU.
+<5> **podDisruptionBudgets** — maximum pods allowed unavailable during disruptions.
+
+[WARNING]
+====
+Autoscaling is mutually exclusive with `spec.replicas > 1`. Set one or the other, not both.
+====
+
+=== Verify
+
+Verify that the operator created the HorizontalPodAutoscaler resource:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get hpa
+----
+
+You should see output similar to the following:
+
+----
+NAME                          REFERENCE                                 TARGETS      MINPODS   MAXPODS   REPLICAS   AGE
+feastautoscaledfeaturestore   Deployment/feastautoscaledfeaturestore    cpu: 1%/70%  2         10        2          8m37s
+----
+
+The HPA is named `feast-<featurestore-name>` (dashes stripped), references the feature server
+deployment, and shows the configured MINPODS/MAXPODS bounds. The TARGETS column initially
+displays `cpu: <unknown>/70%` for a minute while the metrics server begins scraping, then
+resolves to a live value.
+
+With scaling in place, the last step is choosing how clients reach the feature server.
+
+== Exercise 3: Client access patterns and the Ray compute engine
+
+Feature Store supports three client access patterns, each with a different performance profile:
+
+* *Direct REST API* (client → feature server → store): lowest client-side resource usage.
+  Recommended for production inference services in any language, and for deployments behind a
+  load balancer. You used this pattern in Module 02 with `curl`.
+* *SDK with remote store* (client → feature server → store): full Python SDK API with
+  centralized serving. Point the client configuration at the feature server with
+  `online_store: type: remote` and a connection pool size.
+* *SDK direct* (client → store): Python clients talking straight to the store. Avoid this in a
+  typical operator deployment — each client pod opens its own database connections, multiplying
+  connection load. Restrict it to development.
+
+For large feature pipelines, you can offload transformations, aggregations, joins, and
+materializations to the Ray compute engine, which executes feature computation as distributed
+directed acyclic graphs (DAGs) with point-in-time joins, broadcast join selection, and lazy
+evaluation. Enable it in `feature_store.yaml`:
+
+[source,yaml,subs="attributes,callouts"]
+----
+offline_store:
+  type: ray <1>
+  storage_path: data/ray_storage
+batch_engine:
+  type: ray.engine <2>
+  max_workers: 4 <3>
+  broadcast_join_threshold_mb: 100
+  target_partition_size_mb: 64
+  ray_address: localhost <4>
+----
+
+<1> **type: ray** — selects the Ray offline store for historical feature retrieval.
+<2> **type: ray.engine** — the batch engine that runs `materialize()` and
+`get_historical_features()` on Ray.
+<3> **max_workers** — caps the Ray worker processes; unset uses all cores.
+<4> **ray_address** — address of a running Ray cluster.
+
+The quickest way to try Ray is the retrieval-augmented generation (RAG) template, which
+parallelizes embedding generation across workers:
+
+[source,bash,role="execute",subs="attributes"]
+----
+feast init -t ray_rag my_rag_project
+cd my_rag_project/feature_repo
+----
+
+=== Verify
+
+`feast init` creates the new repository with a `feature_repo` directory containing
+`feature_store.yaml` and `example.py`. The output starts with a line similar to:
+
+----
+Creating a new Feast repository in /projects/my_rag_project.
+----
+
+If you configured Ray in `feature_store.yaml`, `feast configuration` displays the `ray.engine`
+batch engine settings you applied.
+
+== Explore: Production topologies and OIDC authentication
+
+The FeatureStore CR you tuned in Exercise 1 maps to one of three documented
+production topologies: *minimal production* (single namespace, no high
+availability, TLS, or RBAC — small teams only), *standard production* (the
+recommended topology: HA registry, HPA autoscaling, TLS via OpenShift route,
+Kubernetes RBAC), and *enterprise production* (namespace-per-team isolation,
+OIDC and Feast permissions, Prometheus metrics with distributed tracing). For
+enterprise multitenant environments, you can enable OpenID Connect (OIDC)
+authentication by adding `authz: { oidc: {} }` to the FeatureStore CR — or
+`authz.oidc.issuerUrl` when the identity provider (e.g. Keycloak) is not
+integrated through the Gateway API. Feast extracts groups and namespaces from
+the OIDC token to enforce group-based, namespace-based, or combined RBAC
+policies.
+
+Verify that the operator installed OIDC authorization:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get feast production-feature-store \
+  -o jsonpath='{.status.conditions[?(@.type=="Authorization")]}' | python3 -m json.tool
+----
+
+A successful configuration reports `"type": "Authorization"` with `"status": "True"`.
+
+== Module summary
+
+**What you accomplished:**
+
+* Tuned the online store (PostgreSQL connection pooling) and feature server workers
+* Scaled the Feature Store with static replicas and a horizontal pod autoscaler
+* Compared client access patterns and enabled the Ray compute engine
+
+**Key takeaways:**
+
+* The online store dominates `get_online_features()` latency; pool connections and use TLS
+* Never scale file-based persistence beyond one replica
+* Prefer the direct REST API for production inference and the SDK remote store for Python
+
+**Next steps:**
+
+Continue to the conclusion for a recap and pointers to the RHOAI documentation chapters that
+this workshop was built from.

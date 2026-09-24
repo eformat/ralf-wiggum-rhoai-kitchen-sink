@@ -1,0 +1,146 @@
+= Module 02: Publish and consume a model asset
+:navtitle: Module 02: Publish and consume a model asset
+
+In this module you will deploy a generative AI model as an AI asset endpoint,
+watch it appear on the AI Available Assets page, and consume it by launching a
+configured Gen AI playground directly from the page.
+
+**Learning objectives:**
+
+* Deploy a generative AI model with the *Add as AI asset endpoint* option
+* Verify the deployed model endpoint from the CLI
+* Consume an available asset by creating a playground from the AI asset endpoints page
+
+== Exercise 1: Deploy a model as an AI asset endpoint
+
+A model only appears on the AI Available Assets page if you designate it as an
+available asset while deploying. You do this with the *Add as AI asset
+endpoint* checkbox in the deploy model wizard.
+
+. From the RHOAI dashboard, click *Projects* and open your project, `{guid}-{user}`.
+. Click the *Deployments* tab, then click *Deploy model*.
+. In the *Model details* section:
+   .. From the *Model location* list, specify where your model is stored (OCI-compliant registry, S3-compatible object storage, or URI) and complete the connection detail fields.
+   .. From the *Model type* list, select *Generative AI model*.
+   .. Click *Next*.
+. In the *Model deployment* section:
+   .. Enter a unique *Model deployment name*, for example `granite-asset-demo`.
+   .. From the *Hardware profile* list, select a suitable hardware profile.
+   .. Choose a *Serving runtime* selection method (auto-select or pick from a list), set the number of model server replicas, then click *Next*.
+. In the *Advanced settings* section:
+   .. Select the *Add as AI asset endpoint* checkbox. This adds your model's endpoint to the *Gen AI studio → AI asset endpoints* page.
+   .. In the *Use case* field, enter the types of tasks your model performs, such as `chat`, `multimodal`, or `natural language processing`.
+   .. Complete the remaining advanced options (model access route, token authentication) as required by your workshop, then click *Deploy*.
+
+NOTE: You must add your model as an AI asset endpoint to test your model on the
+Gen AI studio → playground page. If you skip the checkbox, the deployment still
+runs but will not be listed as an available asset.
+
+=== Verify
+
+Wait for the deployment to finish, then confirm the endpoint exists from the CLI:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get inferenceservice -n {guid}-{user}
+----
+
+The output shows your deployment with `STATUS` `Successful` and URL `True`:
+
+[subs="attributes"]
+----
+NAME                  URL                                                  READY   PREFAILED   PREISSUE   STATUS       AGE
+granite-asset-demo    https://granite-asset-demo.{guid}-{user}.apps.cluster.example.com   True                Successful    2m
+----
+
+Back in the dashboard, open *Gen AI studio → AI asset endpoints*, select
+`{guid}-{user}` in the *Project* drop-down list, and confirm the model appears
+on the *Models* tab. Models with vision or audio transcription capabilities
+display badge labels in the table and the playground model selector.
+
+With the model published as an asset, you can now consume it from the same page
+without any further configuration.
+
+== Exercise 2: Consume the asset from the AI Available Assets page
+
+The primary purpose of the AI Available Assets page is to be a starting point
+for using the listed assets. From here you can add a model to a playground
+instance for testing.
+
+. From the RHOAI dashboard, click *Gen AI studio → AI asset endpoints*.
+. Select `{guid}-{user}` from the *Project* drop-down list and click the *Models* tab.
+. Locate `granite-asset-demo` and click *Add to playground*.
+   The *Configure playground* dialog opens.
+. In the dialog, select the models to use in this playground instance. For each model, use the *Type* dropdown to select *Inference* or *Embedding*.
+. Optional: To collect distributed traces for this session, toggle *Enable tracing* in the dialog footer.
+. Click *Create* and wait for the playground interface to finish loading.
+
+NOTE: The *Enable tracing* toggle is visible only if your cluster administrator
+has configured the platform observability stack and enabled the `genAiTracing`
+feature flag.
+
+=== Verify
+
+The playground interface loads successfully with a chat area and a *Configure*
+panel on the left side. In the *Configure* panel, the *Model* tab displays
+`granite-asset-demo`, and the model list in the chatbot header bar shows the
+name of your selected model. Send a prompt from the chat area to confirm the
+asset endpoint responds.
+
+== Optional: Enable custom endpoints for the playground
+
+Users can also consume models that are *not* deployed in their own namespace by
+creating custom endpoints. A platform engineer enables this feature through the
+`OdhDashboardConfig` custom resource.
+
+. Log in to OpenShift as a cluster administrator and open the `OdhDashboardConfig` custom resource for editing.
+. In the `spec` section, set the following configuration options:
++
+
+[source,yaml]
+----
+spec:
+  dashboardConfig:
+    aiAssetCustomEndpoints: true <1>
+  genAiStudioConfig:
+    aiAssetCustomEndpoints:
+      externalProviders: true <2>
+      clusterDomains: [] <3>
+----
+
+<1> *dashboardConfig.aiAssetCustomEndpoints:* Shows the custom endpoints feature; set to `true` to allow users to create custom model endpoints from models deployed in another namespace on the same cluster. The default value is `false`.
+<2> *externalProviders:* Allows users to create endpoints for external third-party providers such as OpenAI, Anthropic, or AWS. The default value is `false`.
+<3> *clusterDomains:* Array of domains considered internal to the cluster, in addition to `.svc.cluster.local`, which is always treated as internal.
+
+. Save the custom resource.
+
+WARNING: Enabling external providers allows users to send data from the
+responses API, including RAG context, MCP tool results, and user input, to
+endpoints outside the cluster. Evaluate your organization's data security
+requirements before enabling this flag.
+
+=== Verify
+
+Users see the *Create endpoint* option on the AI asset endpoints page. When a
+user creates an endpoint from a model in another namespace, the model is
+displayed on the AI asset endpoints page with the correct endpoint type and can
+be selected in the playground for inference responses.
+
+== Module summary
+
+**What you accomplished:**
+
+* Deployed a generative AI model with the *Add as AI asset endpoint* option and a use-case label
+* Verified the model endpoint from the CLI and on the AI Available Assets page
+* Consumed the asset by launching a configured playground directly from the page
+
+**Key takeaways:**
+
+* *Add as AI asset endpoint* is the switch that turns a deployment into a discoverable asset
+* The AI Available Assets page is the launch point for consuming assets — *Add to playground* takes you straight to a configured session
+* Custom endpoints extend the page to models outside your project namespace, gated by the `OdhDashboardConfig` settings
+
+**Next steps:**
+
+Continue to the conclusion for the full resources list, or experiment further
+by adding an embedding model and testing RAG workflows in the same playground.

@@ -1,0 +1,47 @@
+= Welcome to the Platform-wide direct OIDC authentication (GatewayConfig CR) Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *Platform-wide direct OIDC authentication (GatewayConfig CR)*.
+
+RHOAI's centralized authentication service routes ingress traffic for all
+services behind a single domain: one authentication service, one client ID and
+secret from your external OIDC identity provider (IdP), and backend services
+that no longer each need an `oauth-proxy` sidecar. You configure it on OpenShift
+Gateway API (OCP 4.19.9 or later) with the `GatewayConfig` CR.
+
+**What you will learn:**
+
+* What the centralized authentication service does and where it fits in RHOAI 3.5
+* Verify that OpenShift is configured for direct authentication with an external OIDC identity provider
+* Enable OIDC authentication for the platform gateway by patching the `GatewayConfig` CR (`default-gateway`) with your issuer URL, client ID, and client secret reference
+* Verify the rollout end to end — GatewayConfig conditions, `kube-auth-proxy`, `data-science-gateway`, and console login through your OIDC provider
+* Map external IdP groups to OpenShift ClusterRoles and troubleshoot a `Ready: False` GatewayConfig
+
+== Prerequisites
+
+* An OpenShift cluster with RHOAI 3.5 installed — the RHOAI Operator in the `rhods-operator` namespace, and the `DataScienceCluster` and `DSCInitialization` resources deployed
+* OpenShift configured for direct authentication with an external OIDC identity provider (Gateway API support enabled on OCP 4.19.9 or later)
+* External IdP details: issuer URL, client ID, client secret (and realm name for Keycloak)
+* Cluster administrator access — required to create secrets and configure the `GatewayConfig`
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Getting Started]
+* xref:module-02-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

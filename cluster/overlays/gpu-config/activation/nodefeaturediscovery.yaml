@@ -1,0 +1,18 @@
+---
+# Activation CR — apply AFTER the NFD operator CSV reaches Succeeded (the
+# nfd.openshift.io CRD is registered by the operator install):
+#   oc apply -k cluster/overlays/gpu-config/activation
+apiVersion: nfd.openshift.io/v1
+kind: NodeFeatureDiscovery
+metadata:
+  name: nfd-instance
+  namespace: openshift-nfd
+spec:
+  operand:
+    namespace: openshift-nfd
+  workerConfig:
+    configData: |
+      core:
+      sources:
+        cpu:
+          labels: true

@@ -1,0 +1,169 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will get a guided tour of LoRA-aware routing for llm-d in
+your workshop cluster: what the feature does, why adapter cold-load latency
+matters, and how the llm-d serving stack in RHOAI 3.5 makes adapter-aware
+routing decisions.
+
+**Learning objectives:**
+
+* Explain what LoRA-aware request routing does for LoRA adapter deployments
+* Describe where adapter-aware routing decisions happen in the llm-d serving stack
+* Inspect your cluster to confirm Distributed Inference with llm-d is available
+
+== Exercise 1: Understand LoRA-aware request routing
+
+*Low-Rank Adaptation (LoRA)* is a parameter-efficient fine-tuning technique
+that freezes the pre-trained model weights and injects trainable low-rank
+matrices into each transformer layer, enabling task-specific adaptation with a
+fraction of the memory and compute required for full fine-tuning. Because
+adapters are small compared to the base model, a single serving endpoint often
+hosts several adapters for the same base model — one per task, domain, or
+tenant.
+
+That multi-adapter setup creates a routing problem. Adapters load into GPU
+memory on demand: a pod that is serving the base model does not necessarily
+have every adapter warm. When a request targeting a specific adapter lands on a
+pod that does not have that adapter loaded, the serving layer swaps the adapter
+in before inference can begin — the *cold-load latency* of an on-demand adapter
+swap.
+
+*LoRA-aware request routing* for Distributed Inference with llm-d addresses
+this. Platform operators can route requests to pods where the target LoRA
+adapter is already loaded, avoiding cold-load latency from on-demand adapter
+swaps. When no pod with the target adapter is available, requests automatically
+fall back to standard routing — adapter awareness improves placement, it never
+blocks a request.
+
+In Red Hat OpenShift AI 3.5 this capability is a *Developer Preview* feature,
+announced in the Developer Preview features chapter of the release notes. It
+rides on *Distributed Inference with llm-d*, the serving stack that owns
+request placement decisions for every `LLMInferenceService` deployment.
+
+[NOTE]
+====
+Developer Preview features are provided as-is with no support and no guarantee
+of future availability. Expect the surface described here to change between
+releases.
+====
+
+=== Verify
+
+You can answer, without looking back:
+
+* Why does a request pay cold-load latency when it lands on a pod without the target adapter?
+* What happens when no pod with the target adapter is available?
+* Which RHOAI serving stack owns the routing decision?
+
+== Exercise 2: Where the feature fits in the llm-d serving stack
+
+The Endpoint Picker (EPP), or inference scheduler, is the request orchestration
+component of Distributed Inference with llm-d. It sits between the Inference
+Gateway and the backend model servers and processes every request through two
+layers:
+
+* *Flow Control layer* — decides *when* requests are dispatched: priority-based
+  queuing, saturation detection, and load shedding.
+* *Scheduling layer* — decides *where* each request is routed among the
+  available model replicas using scorer plugins.
+
+Every routed request carries two identity labels in the EPP request metrics:
+`model_name` (the deployed model) and `target_model_name` (the model or adapter
+the request actually targets). That pairing is the observable trace of
+adapter-aware routing — you will look at these metrics in module 02.
+
+Adapter awareness also shows up in the routing-group layer. The llm-d
+controller partitions routing groups so that each member's HTTPRoute carries
+weighted backend references only for members serving the same model — and it
+treats *different LoRA adapter sets* as a divergence trigger
+(`GroupDegraded` with reason `MemberDivergence`). In other words, adapters are
+part of routing identity in the llm-d stack, not an afterthought.
+
+Router configurations are the operator-facing way to shape this routing layer:
+optional `LLMInferenceServiceConfig` resources, labeled
+`opendatahub.io/config-type: router`, that add capabilities such as KV
+cache-aware scheduling, intelligent gateway routing, and circuit breaking on
+top of the default optimized routing. The dashboard only offers router
+configurations whose `opendatahub.io/supported-topologies` annotation includes
+the deployment topology you selected.
+
+[NOTE]
+====
+The 3.5 documentation covers LoRA-aware routing as a release notes entry —
+there is no dedicated configuration procedure chapter for it yet. This
+workshop is a guided tour of the documented routing surfaces it builds on, not
+a configuration guide.
+====
+
+=== Verify
+
+In the RHOAI dashboard, under *Settings*, an administrator sees *llm-d routing
+configurations* and *llm-d topology configurations* pages. If you have
+administrator access, open both pages now and note the columns shown — you
+will walk the advanced routing workflow in the next module.
+
+== Exercise 3: Confirm your environment is ready
+
+LoRA-aware routing rides on the llm-d serving stack, so first confirm the
+stack is present in your working project.
+
+. Confirm that `LLMInferenceService` resources are recognized by the cluster
+and list any deployed models:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llmisvc -n {guid}-{user}
+----
++
+Expected output shows either a list of deployed models with their URL and
+`READY` status, or `No resources found` if you have not deployed a model yet.
+Both are fine for this guided tour.
+
+. List the `LLMInferenceServiceConfig` templates that back the llm-d topology
+and router options in the deployment wizard:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llminferenceserviceconfig -A
+----
++
+Expected output lists configurations such as topology presets and, if your
+administrator created them, router configs whose names often contain `router`.
+Note the namespaces they live in.
+
+. Open the RHOAI dashboard, navigate to *Data Science Projects*, select your
+project, and click *Deploy model*. In the wizard, expand *Advanced routing* and
+observe that a *Default optimized routing* option is pre-selected — that
+default is the built-in routing profile that LoRA-aware placement extends.
+
+[TIP]
+====
+If `oc get llmisvc` fails with `the server doesn't have a resource type`, the
+Distributed Inference with llm-d component is not enabled in your cluster. Ask
+your workshop facilitator before continuing.
+====
+
+=== Verify
+
+You ran read-only `oc` commands without errors and located the Advanced routing
+section of the model deployment wizard.
+
+== Module summary
+
+**What you accomplished:**
+
+* Explained how LoRA-aware routing avoids cold-load adapter swap latency and how fallback works
+* Mapped the llm-d Endpoint Picker layers and where adapter awareness is observable
+* Confirmed the llm-d serving resources and wizard surfaces exist in your cluster
+
+**Key takeaways:**
+
+* Adapter warm-up, not model size alone, determines first-token latency for multi-adapter endpoints
+* `target_model_name` alongside `model_name` is the observable trace of adapter-aware placement
+* Router configurations are optional enhancements layered on top of default optimized routing
+
+**Next steps:**
+
+Continue to the next module, where you walk the advanced routing workflow and
+observe the request metrics that reveal adapter-targeted routing.

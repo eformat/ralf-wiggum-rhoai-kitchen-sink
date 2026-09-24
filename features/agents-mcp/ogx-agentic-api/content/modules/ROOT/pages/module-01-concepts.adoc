@@ -1,0 +1,139 @@
+= Module 01: OGX agentic API concepts
+:navtitle: Module 01: OGX agentic API concepts
+
+In this module you will learn what the OGX-native agentic API surface is, which endpoints make it
+up, and how it fits into Red Hat OpenShift AI 3.5.
+
+**Learning objectives:**
+
+* Explain the role of OGX and its Operator in RHOAI
+* Distinguish the native OGX APIs from the OpenAI-compatible API surface
+* Locate and verify the OGX components in your cluster
+
+ifeval::["{feature_maturity}" == "TP"]
+NOTE: This feature is a *Technology Preview*. Technology Preview features are not supported with
+Red Hat production service-level agreements (SLAs) and might not be functionally complete. The
+endpoints, parameters, and support levels shown in this module may change between releases.
+endif::[]
+
+== Exercise 1: Where the OGX agentic API surface fits
+
+OGX is a unified AI runtime that simplifies deployment and management of generative AI workloads
+on OpenShift AI. The *OGX Operator* manages the deployment lifecycle of OGX server instances, and
+the *OGXServer* custom resource (CR) declares the runtime configuration: model providers, embedding
+configuration, vector storage, and persistence settings. A `run.yaml` file defines which APIs are
+enabled and how backend providers are configured for each server.
+
+OGX exposes two distinct API layers that matter for agentic applications:
+
+[cols="1,2,3"]
+|===
+|Layer |Endpoints |Role in agentic workflows
+
+|Native OGX APIs
+|`/v1/tool-runtime`, `/v1/vector-io`
+|Tool Runtime lets a model dynamically call a tool at runtime; Vector_IO manages and queries
+vector embeddings. Both are *Developer Preview* support level. The native Inference API is
+deprecated in favor of the OpenAI-compatible Chat Completions and Completions APIs.
+
+|OpenAI-compatible APIs
+|`/v1/responses`, `/v1/conversations`, `/v1/chat/completions`, `/v1/models`, `/v1/files`,
+`/v1/vector_stores`
+|Reuses existing OpenAI SDKs and tools without changing client code. The *Responses API*
+generates model outputs by combining inference, file search, and tool calling in one endpoint.
+The *Conversations API* manages server-side conversation state for multi-turn, context-aware
+chats.
+|===
+
+The agentic surface is built around the Responses and Conversations APIs: the Responses API
+orchestrates inference and retrieval, while the Conversations API stores message history so each
+turn can reference context from all previous turns without manually passing
+`previous_response_id`.
+
+IMPORTANT: When connecting OpenAI SDKs or third-party tools to OpenShift AI, you must use your
+deployment's OGX route as the `base_url`, and the `base_url` must include the `/v1` path suffix so
+that requests reach the OpenAI-compatible API surface. For example:
+`http://ogx-service:8321/v1`. Using the service endpoint without `/v1` results in request
+failures.
+
+. Log in to the OpenShift console at `{openshift_console_url}`.
+. Open the *Red Hat OpenShift AI* dashboard from the application launcher grid and browse the
+enabled components.
+. In the console, navigate to *Administrator -> CustomResourceDefinitions* and search for
+`ogxservers`.
+
+// TODO: capture screenshot
+image::01-ogx-crd-search.png[Searching for the OGXServer CRD in the OpenShift console,link=self,window=blank,width=700]
+
+=== Verify
+
+The `OGXServer` custom resource definition appears in the console search results, confirming the
+OGX Operator is installed on the cluster.
+
+With the two API layers mapped out, you are ready to inspect the OGX resources inside your own
+project.
+
+== Exercise 2: Inspect the OGX components in your cluster
+
+The OGX Operator is enabled through the OpenShift AI `DataScienceCluster` component spec. Verify
+the component state, the OGXServer CRD, and any existing OGX servers.
+
+. Confirm the OGX component is enabled on the cluster. Run `oc get datasciencecluster` and note
+the name of your DataScienceCluster resource, then inspect the `ogx` component:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get datasciencecluster
+oc get datasciencecluster <dsc-name> -o jsonpath='{.spec.components.ogx.managementState}'
+----
+
+The second command prints `Managed`, which is the value the migration procedure sets with
+`dsc.spec.components.ogx = "Managed"`.
+
+. Check that the OGXServer CRD is registered:
+
+[source,bash,role="execute"]
+----
+oc get crd ogxservers.ogx.io
+----
+
+. List any OGXServer resources in your project and their status:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get ogxserver -n {guid}-{user}
+----
+
+Expected output:
+
+----
+NAME         PHASE      AGE
+----
+
+At this stage the list is empty — no OGX server exists in your project yet. In the next module you
+deploy one.
+
+=== Verify
+
+* `oc get crd ogxservers.ogx.io` returns the registered CRD.
+* The `ogx` component reports `managementState: Managed` on the DataScienceCluster.
+* The OGXServer list is empty, ready for deployment in Module 02.
+
+== Module summary
+
+**What you accomplished:**
+
+* Mapped the OGX architecture: Operator, OGXServer CR, and the run.yaml provider configuration
+* Distinguished the native OGX APIs (Tool Runtime, Vector_IO) from the OpenAI-compatible surface (Responses, Conversations)
+* Verified the OGX component and OGXServer CRD in your cluster
+
+**Key takeaways:**
+
+* The OGX Operator manages OGX server instances declared through OGXServer custom resources
+* The OpenAI-compatible surface lets you reuse OpenAI SDKs by pointing `base_url` at the OGX route with a `/v1` suffix
+* The Responses and Conversations APIs are the backbone of agentic workflows in OGX
+
+**Next steps:**
+
+Continue to Module 02, where you deploy your own OGXServer and drive it with the OpenAI-compatible
+Responses and Conversations APIs.

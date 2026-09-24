@@ -1,0 +1,430 @@
+= Module 02: Enforce Guardrails on MCP Gateway Agent Tool Calls
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you apply the `NemoGuardrails` CR with the `mcpGateway`
+configuration, watch the TrustyAI operator discover the MCP gateway and BBR
+plugin, verify that the `mcp-sse-strip` EnvoyFilter was provisioned, explore
+the integration's lifecycle management, and send a real MCP tool call through
+the guarded gateway to see the guardrails outcome.
+
+**Learning objectives:**
+
+* Configure the `mcpGateway` field of the `NemoGuardrails` CR
+* Verify MCP gateway discovery and BBR plugin detection through CR status fields
+* Observe the operator's automatic EnvoyFilter lifecycle management
+* Send a real MCP tool call through the guarded gateway and observe the guardrails decision on tool-call payloads
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: NeMo Guardrails integration with MCP gateway is a *Technology Preview*
+feature only. Technology Preview features are not supported with Red Hat
+production service-level agreements (SLAs) and might not be functionally
+complete. Red Hat does not recommend using them in production. The CRD API
+versions shown here (`trustyai.opendatahub.io/v1alpha1` and
+`mcp.kuadrant.io/v1alpha1`) may change between releases.
+endif::[]
+
+== Exercise 1: Configure the NemoGuardrails CR with the mcpGateway field
+
+After you apply the CR, the TrustyAI operator automatically discovers the MCP
+gateway and Body-Based Routing (BBR) plugin, then provisions an EnvoyFilter to
+route agent tool-call traffic through guardrails enforcement.
+
+TIP: If your primary goal is guardrail enforcement on agent tool calls and you
+do not need the full TrustyAI stack, ask your facilitator to set the TrustyAI
+component to `mCPGuardrailsOnlyMode=True` in the DataScienceCluster. This
+standalone mode reduces resource overhead.
+
+. Ask your facilitator for the Kubernetes `Gateway` resource name and the
+  namespace where the `MCPGatewayExtension` is deployed. These steps use
+  `my-mcp-gateway` in `mcp-gateway-system` as the example values.
+. Create a file named `nemoguardrails-mcp.yaml`:
+
+[source,yaml,subs="attributes,callouts"]
+----
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: NemoGuardrails
+metadata:
+  name: guardrails-mcp
+  namespace: {guid}-{user} <1>
+  annotations:
+    security.opendatahub.io/enable-auth: 'true' <2>
+spec:
+  nemoConfigs:
+  - name: nemo-quickstart-config <3>
+    configMaps:
+    - nemo-quickstart-config
+  template:
+    pod:
+      mcpGateway:
+        name: my-mcp-gateway <4>
+        namespace: mcp-gateway-system <5>
+----
+
+`namespace`:: Your personal workshop project, where the NeMo Guardrails
+deployment runs.
+`security.opendatahub.io/enable-auth`:: Enables OpenShift AI authentication on
+the guardrails service route.
+`nemoConfigs[].name`:: Reuses the rails configuration you deployed in Module 01,
+so the same built-in detectors enforce policy on tool-call traffic.
+`mcpGateway.name`:: The Kubernetes `Gateway` resource that the
+`MCPGatewayExtension` references in its `targetRef.name` field; the operator
+searches for an `MCPGatewayExtension` matching this value.
+`mcpGateway.namespace`:: The namespace where the `MCPGatewayExtension` resource
+is deployed.
+
+TIP: Omit the `name` field under `mcpGateway` to use zero-config
+auto-discovery, which selects the first `MCPGatewayExtension` in the specified
+namespace. Use this mode when only one MCP gateway is deployed in the namespace.
+
+. Apply the CR:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f nemoguardrails-mcp.yaml -n {guid}-{user}
+----
+
+. Wait for the operator to reconcile the resource. The operator discovers the
+  MCP gateway and BBR plugin, then provisions the `mcp-sse-strip` EnvoyFilter.
+  This process typically completes within 30 seconds.
+
+=== Verify
+
+Verify that the MCP gateway was discovered by inspecting the CR status:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get nemoguardrails guardrails-mcp -n {guid}-{user} -o jsonpath={.status.mcpGateway}
+----
+
+Expected output:
+
+----
+{"mcpGatewayFound":true}
+----
+
+Verify that the BBR plugin was detected:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get nemoguardrails guardrails-mcp -n {guid}-{user} -o jsonpath={.status.bbrPlugin}
+----
+
+Expected output:
+
+----
+{"bbrPluginFound":true}
+----
+
+Verify that the `mcp-sse-strip` EnvoyFilter was created in the gateway
+namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get envoyfilters mcp-sse-strip -n mcp-gateway-system
+----
+
+The command returns the `EnvoyFilter` resource details if it was successfully
+provisioned.
+
+The status fields tell you exactly where the integration stands:
+
+[cols="1,1,3",options="header"]
+|===
+|`mcpGatewayFound` |`bbrPluginFound` |Meaning
+
+|`true`
+|`true`
+|The integration is complete. The operator has provisioned the `mcp-sse-strip`
+EnvoyFilter and guardrails are active on MCP gateway traffic.
+
+|`true`
+|`false`
+|The MCP gateway was discovered but the BBR plugin EnvoyFilter is missing.
+Install the BBR ext_proc plugin in the gateway namespace.
+
+|`false`
+|Not reported
+|The MCP gateway was not discovered. Verify that `MCPGatewayExtension`
+resources exist in the specified namespace and that the referenced `Gateway`
+resource is deployed.
+|===
+
+With enforcement plumbing verified end to end, the next exercise shows how the
+operator keeps that plumbing in sync when you change the CR.
+
+== Exercise 2: Explore EnvoyFilter lifecycle management
+
+The operator manages the `mcp-sse-strip` EnvoyFilter throughout its lifecycle:
+it creates the filter when both the MCP gateway and BBR plugin are detected,
+patches the workload selector if the gateway name changes, deletes it when you
+remove the `mcpGateway` field or a prerequisite disappears, and retries
+discovery every 30 seconds while prerequisites are unavailable.
+
+. Remove the `mcpGateway` field from the CR with a JSON patch:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch nemoguardrails guardrails-mcp -n {guid}-{user} --type=json \
+  -p '[{"op":"remove","path":"/spec/template/pod/mcpGateway"}]'
+----
+
+. Verify that the operator deleted the EnvoyFilter on the next reconciliation:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get envoyfilters mcp-sse-strip -n mcp-gateway-system
+----
+
+Expected output:
+
+----
+Error from server (NotFound): envoyfilters.networking.istio.io "mcp-sse-strip" not found
+----
+
+. Re-apply the original CR to restore the integration:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f nemoguardrails-mcp.yaml -n {guid}-{user}
+----
+
+. Verify that the operator recreated the EnvoyFilter within one reconciliation
+  cycle:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get envoyfilters mcp-sse-strip -n mcp-gateway-system
+----
+
+=== Verify
+
+The first `oc get envoyfilters` command returns `NotFound` after you remove the
+`mcpGateway` field, and the same command returns the `EnvoyFilter` details
+again after you re-apply the CR. This confirms the operator creates and deletes
+the filter automatically as prerequisites appear and disappear.
+
+=== Troubleshooting discovery failures
+
+If the integration does not complete, inspect the full CR status for error
+messages:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get nemoguardrails guardrails-mcp -n {guid}-{user} -o yaml
+----
+
+Review the `status.mcpGateway` and `status.bbrPlugin` sections. Common issues:
+
+* `mcpGatewayFound: false` with `MCP gateway not found: <name>` — the specified
+  `MCPGatewayExtension` does not exist, or its `targetRef` does not resolve to
+  an existing Kubernetes `Gateway` resource.
+* `mcpGatewayFound: false` with `MCP gateway not found in namespace:
+  <namespace>` — no `MCPGatewayExtension` resources exist in the specified
+  namespace. Verify the namespace and that the MCP gateway is deployed.
+* `bbrPluginFound: false` — the BBR ext_proc plugin EnvoyFilter is not present
+  in the gateway namespace, or it does not contain the
+  `envoy.filters.http.ext_proc.bbr` sub-filter.
+* `mcp-sse-strip` not created — both the MCP gateway and the BBR plugin must be
+  detected first. Resolve any discovery errors; the operator retries every 30
+  seconds and completes the integration automatically on the next
+  reconciliation cycle.
+
+== Exercise 3: Send an MCP tool call through the guarded gateway
+
+With the enforcement plumbing active, drive a real MCP session through the
+guarded gateway. MCP clients communicate with the gateway by sending JSON-RPC
+requests to the gateway's `/mcp` endpoint: you initialize a session, list the
+tools the gateway exposes, and call one. Tool-call traffic passing through the
+gateway is intercepted by the `nemo-request-guard` and `nemo-response-guard`
+BBR plugins, which route it to the NeMo Guardrails service for enforcement
+using the same rails configuration you attached to the CR in Exercise 1.
+
+NOTE: The RHOAI 3.5 documentation describes the interception architecture, the
+MCP session flow, and the guardrails response schema in separate procedures and
+does not publish a single end-to-end guarded tool-call walkthrough. This
+exercise composes the documented MCP call flow from the MCP gateway
+documentation with the documented guardrails response schema from the AI
+safety documentation.
+
+. Ask your facilitator for the external URL of the MCP gateway. These steps
+  reference it as `$MCP_GATEWAY_URL`.
+
+[source,bash,role="execute",subs="attributes"]
+----
+export MCP_GATEWAY_URL=https://<gateway-url>
+----
+
+. Connect to the MCP gateway and initialize a session, dumping the response
+headers to a file:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -s -D /tmp/mcp_headers -X POST $MCP_GATEWAY_URL/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "test-client", "version": "1.0.0"}}}'
+----
+
+TIP: If the gateway is fronted with an authentication policy, include an
+`Authorization: Bearer <token>` header on each request, as described in the
+MCP gateway authorization documentation.
+
+. Extract the MCP session ID from the dumped response headers:
+
+[source,bash,role="execute",subs="attributes"]
+----
+SESSION_ID=$(grep -i "mcp-session-id:" /tmp/mcp_headers | cut -d' ' -f2 | tr -d '\r') && echo "MCP Session ID: $SESSION_ID"
+----
+
+. List the tools using the session ID:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -X POST $MCP_GATEWAY_URL/mcp \
+  -H "Content-Type: application/json" \
+  -H "mcp-session-id: $SESSION_ID" \
+  -d '{"jsonrpc": "2.0", "id": 2, "method": "tools/list"}'
+----
+
+The tools registered with the gateway are listed in the response, prefixed
+with the prefix value configured in the `MCPServerRegistration` CR. The
+response arrives as JSON because the `mcp-sse-strip` EnvoyFilter converts MCP
+server responses from server-sent events (SSE) to JSON, which NeMo Guardrails
+requires for guardrail processing.
+
+. Call one of the listed tools by using the `tools/call` method with the
+prefixed name and the session ID. Replace `<prefixed_tool_name>` with a tool
+name from the `tools/list` response:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -X POST $MCP_GATEWAY_URL/mcp \
+  -H "Content-Type: application/json" \
+  -H "mcp-session-id: $SESSION_ID" \
+  -d '{"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "<prefixed_tool_name>", "arguments": {}}}'
+----
+
+A benign tool call passes through the `nemo-request-guard` plugin and returns
+a normal JSON-RPC result.
+
+. Set the route of your guarded guardrails deployment as an environment
+variable — the verification steps below use it:
+
+[source,bash,role="execute",subs="attributes"]
+----
+export MCP_GUARDRAILS_ROUTE=https://$(oc get routes/guardrails-mcp -n {guid}-{user} -o jsonpath='{.status.ingress[0].host}')
+----
+
+. Clean up the session headers file:
+
+[source,bash,role="execute",subs="attributes"]
+----
+rm -f /tmp/mcp_headers
+----
+
+=== Verify
+
+The `tools/list` response lists the gateway's tools with their configured
+prefix, and the `tools/call` request returns a JSON-RPC result for benign
+arguments — the call flowed through the guarded gateway and was allowed.
+
+To see the decision the guardrails enforcement produces for tool-call
+payloads, validate the same content against the configured rails using the
+`/v1/guardrail/checks` endpoint. The gateway's `nemo-request-guard` plugin
+routes tool-call traffic to the same NeMo Guardrails service, so the rails you
+attached in Exercise 1 decide the outcome.
+
+NOTE: The documentation maps message roles to rail types — user messages are
+evaluated by input rails, tool messages by tool_input rails. Because the
+Module 01 quickstart configuration enables the built-in input detectors, these
+steps submit the tool-call payload as a user message so the same Presidio and
+regex detectors that enforce policy on tool-call traffic evaluate it.
+
+Benign tool-call content passes:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k -X POST $MCP_GUARDRAILS_ROUTE/v1/guardrail/checks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(oc whoami -t)" \
+  -d '{
+    "model": "test",
+    "messages": [
+      {"role": "user", "content": "tool arguments: {\"city\": \"Paris\"}"}
+    ]
+  }'
+----
+
+Expected output:
+
+----
+{
+  "status": "success",
+  "rails_status": {
+    "detect sensitive data on input": {"status": "success"},
+    "regex check input": {"status": "success"},
+    ...
+  }
+}
+----
+
+Tool-call content that carries sensitive data is blocked:
+
+[source,bash,role="execute",subs="attributes"]
+----
+curl -k -X POST $MCP_GUARDRAILS_ROUTE/v1/guardrail/checks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(oc whoami -t)" \
+  -d '{
+    "model": "test",
+    "messages": [
+      {"role": "user", "content": "tool arguments: {\"email\": \"alice@example.com\", \"api-key\": \"sk-123\"}"}
+    ]
+  }'
+----
+
+Expected output:
+
+----
+{
+  "status": "blocked",
+  "rails_status": {
+    "detect sensitive data on input": {"status": "blocked"},
+    "regex check input": {"status": "blocked"}
+  },
+  "guardrails_data": {
+    "log": {
+      "activated_rails": [
+        "detect sensitive data on input",
+        "regex check input"
+      ]
+    }
+  }
+}
+----
+
+The overall `status` is `blocked` because at least one rail triggered: the
+sensitive data detector blocked the email address and the regex rail blocked
+the `api-key` pattern. `guardrails_data.log.activated_rails` lists the rails
+that blocked the content — the same detector response the enforcement layer
+produces for tool-call traffic.
+
+== Module summary
+
+**What you accomplished:**
+
+* Applied a `NemoGuardrails` CR with the `mcpGateway` field and reused your Module 01 rails configuration
+* Verified MCP gateway discovery, BBR plugin detection, and the provisioned `mcp-sse-strip` EnvoyFilter
+* Triggered automatic EnvoyFilter deletion and recreation by removing and restoring the `mcpGateway` field
+* Initialized an MCP session, listed and called a tool through the guarded gateway, and observed the guardrails decision on tool-call payloads
+
+**Key takeaways:**
+
+* The `status.mcpGateway` and `status.bbrPlugin` fields report discovery results and error messages
+* The operator manages the EnvoyFilter lifecycle automatically — creation, patching, deletion, and 30-second retries
+* Zero-config auto-discovery omits the gateway name when only one MCP gateway exists in the namespace
+* MCP clients drive the gateway through the `/mcp` endpoint — initialize, tools/list, tools/call — and tool-call traffic is enforced by the same built-in detectors you validated
+
+**Next steps:**
+
+Head to the conclusion for the full documentation references, including the
+MCP gateway installation guides your facilitator used to prepare the cluster.

@@ -1,0 +1,46 @@
+= Welcome to the NeMo Guardrails integration with MCP Gateway Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *NeMo Guardrails integration with MCP Gateway*: you
+enforce guardrails on agent tool calls at the gateway layer, so PII leakage,
+prompt injection, and content safety violations are blocked before traffic
+reaches backend tool servers — without implementing guardrails in each agent
+application.
+
+**What you will learn:**
+
+* How the TrustyAI operator discovers the MCP gateway and BBR plugin and provisions the `mcp-sse-strip` EnvoyFilter
+* How to verify the MCP gateway prerequisites from the CLI
+* How to deploy a standalone NeMo Guardrails service and test its built-in detectors with `/v1/guardrail/checks`
+* How to configure the `mcpGateway` field of the `NemoGuardrails` CR and verify discovery through CR status fields
+
+== Prerequisites
+
+* RHOAI operator installed with the TrustyAI component set to `Managed`
+* Guardrails enabled in the DataScienceCluster
+* An MCP gateway with a Kubernetes `Gateway` resource deployed by your workshop facilitator
+* The `MCPGatewayExtension` CRD from RHCL MCP gateway available, with at least one resource in the target namespace
+* OpenShift Service Mesh or Istio with `EnvoyFilter` support, and the `nemo-request-guard` and `nemo-response-guard` BBR plugins installed in the gateway namespace
+* Recommended prerequisite: complete the xref:nemo-guardrails::index.adoc[NeMo Guardrails] workshop first
+
+== Estimated time
+
+About 60-90 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-getting-started.adoc[Module 01: Getting Started]
+* xref:module-02-hands-on.adoc[Module 02: Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

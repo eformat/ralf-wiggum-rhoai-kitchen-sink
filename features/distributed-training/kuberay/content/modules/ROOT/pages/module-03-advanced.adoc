@@ -1,0 +1,226 @@
+= Module 03: Advanced Usage
+:navtitle: Module 03: Advanced Usage
+
+In this module you will explore advanced usage of Ray-based distributed workloads:
+running Ray from an AI pipeline, monitoring workload metrics in the dashboard, and
+troubleshooting common failure states of a Ray cluster.
+
+**Learning objectives:**
+
+* Compile and run an AI pipeline that creates a Ray cluster with GPU requests
+* Monitor distributed workload metrics and status in the OpenShift AI dashboard
+* Diagnose a suspended or failed Ray cluster using the console and `status.conditions`
+
+== Exercise 1: Run Ray workloads from an AI pipeline
+
+You can run a Ray-based distributed workload from a pipeline instead of a notebook.
+The pipeline must include a link to your Ray cluster image.
+
+Prerequisites: you have S3-compatible object storage, and you have configured a
+connection and a pipeline server for your project as described in the *Working with
+AI pipelines* documentation.
+
+. Create a file named `compile_example.py`:
+
+[source,python,subs="callouts"]
+----
+from kfp import dsl
+
+@dsl.component(
+    base_image="registry.redhat.io/ubi9/python-311:latest",
+    packages_to_install=['codeflare-sdk']                    <1>
+)
+def ray_fn():
+    import ray
+    from codeflare_sdk import Cluster, ClusterConfiguration, generate_cert
+    cluster = Cluster(
+        ClusterConfiguration(
+            namespace="my_project",
+            name="raytest",
+            num_workers=1,
+            head_cpu_requests="500m",
+            head_cpu_limits="500m",
+            worker_memory_requests=1,
+            worker_memory_limits=1,
+            worker_extended_resource_requests={"nvidia.com/gpu": 1},         <2>
+            image="quay.io/modh/ray:2.47.1-py311-cu121",
+            local_queue="local_queue_name",
+        )
+    )
+    print(cluster.status())
+    cluster.up()
+    cluster.wait_ready()
+    print(cluster.status())
+    print(cluster.details())
+
+    ray_dashboard_uri = cluster.cluster_dashboard_uri()
+    ray_cluster_uri = cluster.cluster_uri()
+    print(ray_dashboard_uri, ray_cluster_uri)
+    # Enable Ray client to connect to secure Ray cluster that has mTLS enabled
+    generate_cert.generate_tls_cert(cluster.config.name, cluster.config.namespace)
+    generate_cert.export_env(cluster.config.name, cluster.config.namespace)   <3>
+
+    ray.init(address=ray_cluster_uri)
+    print("Ray cluster is up and running: ", ray.is_initialized())
+
+    @ray.remote
+    def train_fn():
+        # complex training function
+        return 100
+
+    result = ray.get(train_fn.remote())
+    assert 100 == result
+    ray.shutdown()
+
+    cluster.down()                                            <4>
+    auth.logout()
+    return result
+
+@dsl.pipeline(
+    name="Ray Simple Example",
+    description="Ray Simple Example",
+)
+def ray_integration():
+    ray_fn()
+
+if __name__ == '__main__':
+    from kfp.compiler import Compiler
+    Compiler().compile(ray_integration, 'compiled-example.yaml')             <5>
+----
+<1> Installs the CodeFlare SDK into the pipeline component's base image.
+<2> Optional: the requested accelerators for the Ray cluster (here, 1 NVIDIA GPU). Use `amd.com/gpu` for AMD GPUs, or omit for CPU-only.
+<3> Enables the Ray client to connect to the mTLS-secured Ray cluster; mTLS is enabled by default in the Ray component in OpenShift AI.
+<4> Removes the Ray cluster when your workload is finished.
+<5> Compiles the pipeline into a YAML file that you import in the OpenShift AI dashboard.
+
+. Compile the Python file; this creates a YAML file you can import:
+
+[source,bash,role="execute",subs="attributes"]
+----
+python compile_example.py
+----
+
+. In the OpenShift AI dashboard, import `compiled-example.yaml` as a pipeline and
+  schedule a pipeline run.
+. When the pipeline run is complete, confirm it is included in the list of triggered
+  pipeline runs and view the run details.
+
+WARNING: The pipeline creates a real Ray cluster inside the run and tears it down
+with `cluster.down()`. If a run fails mid-way, check `oc get rayclusters` for a
+stray cluster before rerunning.
+
+=== Verify
+
+The YAML file is created, the pipeline import succeeds, and the pipeline run
+completes without errors. The run logs show
+`Ray cluster is up and running: True`.
+
+== Exercise 2: Monitor distributed workloads
+
+With a workload run in your project, use the dashboard metrics to track resources and
+status.
+
+. In the OpenShift AI left navigation pane, click *Observe & monitor* -> *Workload
+  metrics*.
+. From the *Project* list, select the project that contains the distributed workloads.
+. Click the *Project metrics* tab and review the CPU and Memory graphs: requested by
+  the selected project, requested by all projects, and the total shared quota provided
+  by the cluster queue.
+. Scroll to the *Distributed workload resource metrics* table, which lists all
+  distributed workloads in the project with progress bars for requested versus actual
+  CPU and memory usage.
+. Click the *Distributed workload status* tab and review the status overview. A
+  workload can be Pending, Inadmissible, Admitted, Running, Evicted, Succeeded, or
+  Failed. Read the latest message in the *Distributed workloads* table to identify
+  corrective action — for example, a workload is Inadmissible when requested resources
+  exceed available resources.
+
+NOTE: AI pipelines workloads are not managed by the distributed workloads feature and
+are not included in the distributed workloads metrics.
+
+=== Verify
+
+On the *Project metrics* tab, the graphs and table show resource-usage data for your
+project; on the *Distributed workload status* tab, your workload appears with a
+status and a latest message.
+
+== Exercise 3: Troubleshoot a suspended Ray cluster
+
+The most common Ray cluster failure is a suspended state caused by insufficient quota
+or a missing resource flavor.
+
+. In the {openshift_console_url}, select your project from the *Project* list.
+. Check the workload resource: click *Search*, and from the *Resources* list select
+  *Workload*. Select the workload created with the Ray cluster resource and click the
+  *YAML* tab. Check `status.conditions.message`, which explains the suspended state:
+
+[source,yaml]
+----
+status:
+  conditions:
+  - lastTransitionTime: '2024-05-29T13:05:09Z'
+    message: 'couldn''t assign flavors to pod set small-group-jobtest12: insufficient
+      quota for nvidia.com/gpu in flavor default-flavor in ClusterQueue'
+----
+
+. Check the Ray cluster resource: click *Search*, from the *Resources* list select
+  *RayCluster*, select the cluster, and click the *YAML* tab. Check
+  `status.conditions.message`.
+. Check the cluster queue: click *Search*, from the *Resources* list select
+  *ClusterQueue*, and confirm the resources you requested are within the limits
+  defined for the project.
+. Either reduce your requested resources, or ask your administrator for more quota.
+
+You can cross-check from the CLI:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get rayclusters,workloads,clusterqueues -n {user}
+----
+
+Other documented failure states worth knowing:
+
+* *Cluster stays in Starting, no pods created* — check the *Workload* and
+  *RayCluster* resources as above; `status.conditions.message` explains why.
+* *`Default Local Queue ... not found` error after `cluster.apply()`* — no default
+  local queue is defined and none was specified; add `local_queue="<name>"` to the
+  cluster configuration or create a LocalQueue.
+* *`local_queue provided does not exist` error* — the queue name or namespace in the
+  cluster configuration is wrong; check spelling and that the namespace matches your
+  project.
+* *`RuntimeError: Failed to get RayCluster CustomResourceDefinition: (403)`* — wrong
+  credentials in `TokenAuthentication`; re-copy the token and server values from the
+  OpenShift Console *Copy login command* page.
+
+[TIP]
+====
+For GPU training at scale, check the base training images: use *Ray CUDA* images for
+NVIDIA GPUs and *Ray ROCm* images for AMD GPUs. On IBM Power (ppc64le) without GPUs,
+use the validated CPU-only images such as `quay.io/modh/ray:2.52.1-py311-cpu` as the
+base for custom training images.
+====
+
+=== Verify
+
+* The *Workload* YAML shows a clear quota/flavor message that matches your fix.
+* After reducing requests (or gaining quota), the Ray cluster status changes from
+  Suspended toward `Active` and the pods are created.
+
+== Module summary
+
+**What you accomplished:**
+
+* Compiled and ran an AI pipeline that creates a GPU-requesting Ray cluster with the CodeFlare SDK
+* Monitored project metrics and workload status in the OpenShift AI dashboard
+* Diagnosed a suspended Ray cluster through the Workload, RayCluster, and ClusterQueue resources
+
+**Key takeaways:**
+
+* Pipelines use the same `Cluster`/`ClusterConfiguration` API as notebooks, compiled into a YAML pipeline file
+* Workload status messages in `status.conditions.message` are the primary diagnostic for queueing failures
+* Metrics for pipelines are excluded from the distributed workloads feature
+
+**Next steps:**
+
+You have covered the full Ray workflow — continue to the conclusion for the
+documentation links and next topics.

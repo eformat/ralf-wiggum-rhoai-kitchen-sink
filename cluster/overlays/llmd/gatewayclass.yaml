@@ -1,0 +1,13 @@
+---
+# GatewayClass for Distributed Inference with llm-d. The llm-d labs expect a
+# GatewayClass and Gateway named openshift-ai-inference in openshift-ingress —
+# if missing, they say "ask your facilitator to complete the cluster setup".
+# This manifest is that cluster setup.
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: openshift-ai-inference
+spec:
+  # The OpenShift Gateway API controller (same controller the default ingress
+  # GatewayClass uses — no Service Mesh required).
+  controllerName: "openshift.io/gateway-controller/v1"

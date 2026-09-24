@@ -1,0 +1,187 @@
+= Module 01: Core Concepts
+:navtitle: Module 01: Core Concepts
+
+In this module you will learn what MLflow experiment tracking in Red Hat
+OpenShift AI is, how the single shared MLflow instance is deployed, how
+projects map to MLflow workspaces, which RBAC roles control the MLflow API,
+and how to confirm that your cluster is ready.
+
+**Learning objectives:**
+
+* Explain how MLflow is deployed in RHOAI and how projects map to workspaces
+* Identify the aggregate ClusterRoles and pseudo-resources that authorize MLflow API requests
+* Verify that the `mlflowoperator` component is managed and the MLflow instance is ready
+
+== Exercise 1: Where MLflow fits
+
+Red Hat OpenShift AI deploys a *single shared MLflow instance* through the
+MLflow Operator. With this deployment you can use MLflow workspaces and
+Kubernetes-backed authorization. MLflow provides logical isolation of
+experiments, runs, registered models, prompts, datasets, and traces per
+workspace.
+
+The mapping is one-to-one: every OpenShift Container Platform project — a
+namespace with its own objects, policies, constraints, and service accounts —
+maps to an MLflow workspace. You do not manage workspaces through the MLflow
+API; you manage projects through the OpenShift AI dashboard or the `oc` CLI,
+and the corresponding workspace becomes available automatically.
+
+=== How every API request is authorized
+
+The MLflow server authorizes every API request with a Kubernetes
+`SelfSubjectAccessReview`, using the caller's bearer token and the target
+project namespace. The checks run against pseudo-resources in the
+`mlflow.kubeflow.org` API group. Pseudo-resources are *not* real Kubernetes
+objects — you cannot create, list, or inspect them with `kubectl` or `oc`.
+They exist only for RBAC policy evaluation.
+
+[cols="2,3",options="header"]
+|===
+|Pseudo-resource |Controls access to
+
+|`experiments`
+|Experiments, runs, traces, artifacts, logged models, scorers, and related tracking operations.
+
+|`registeredmodels`
+|Registered models, model versions, and prompts.
+
+|`datasets`
+|Evaluation datasets and related dataset operations.
+|===
+
+Users who already have the OpenShift `admin`, `edit`, or `view` roles on a
+project automatically receive the corresponding MLflow permissions through
+aggregate ClusterRoles:
+
+[cols="2,3",options="header"]
+|===
+|ClusterRole |What it grants
+
+|`mlflow-view`
+|Read-only access: `get`, `list`, `watch` on the `mlflow` and `mlflowconfigs` CRDs, `get`/`list` on MLflow pseudo-resources, and read access to MLflow status.
+
+|`mlflow-edit`
+|Write access: create/update/delete on the `mlflow` CRD, patch on `mlflowconfigs`, and create/update/delete on MLflow pseudo-resources.
+
+|`mlflow-integration`
+|Data-plane access for service accounts: tracking API and model registry permissions without delete or control-plane privileges. This is the role bound to workbench service accounts.
+|===
+
+IMPORTANT: Standard bindings for `view`, `edit`, and `admin` do not grant
+identical access to all MLflow resources. The `mlflow` resource is
+cluster-scoped while `mlflowconfig` resources are namespace-scoped, so
+effective access depends on whether the binding is granted at the cluster
+level or the namespace level.
+
+=== Inspect the DataScienceCluster
+
+MLflow requires the `mlflowoperator` component in your DataScienceCluster
+(DSC) to be set to `Managed`:
+
+. Check the DSC state:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get dsc
+----
++
+Expected output shows a DataScienceCluster resource, for example
+`default-dsc`, with `PHASE` `Ready`.
+
+. Check that the MLflow component is managed:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get dsc -o custom-columns=NAME:.metadata.name,MLFLOW:.spec.components.mlflowoperator.managementState
+----
++
+Expected output shows `Managed` for the mlflowoperator component:
++
+----
+NAME          MLFLOW
+default-dsc   Managed
+----
++
+The default value for this component is `Removed`, so if the output shows
+`Removed`, MLflow has not been enabled yet — module 2 walks through enabling
+it. Ask your cluster administrator or continue to
+xref:module-02-hands-on.adoc[Module 02].
+
+=== Verify
+
+The `oc get dsc` command lists a DataScienceCluster whose mlflowoperator
+component reports `Managed`. You can also confirm the feature in the RHOAI
+dashboard: the *Applications* menu lists *MLflow UI* once the operator is
+enabled and an `MLflow` instance is created.
+
+With the platform confirmed, inspect the operator and CRs that back it in the
+next exercise.
+
+== Exercise 2: Inspect the cluster resources
+
+Review the operator, CRDs, and MLflow instance that back this feature.
+
+. Confirm the MLflow Operator pod is running:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n redhat-ods-applications -l app=mlflow-operator --field-selector status.phase=Running
+----
++
+Expected output shows one or more operator pods in `Running` status. If the
+command returns no results, verify that the `mlflowoperator` component
+management state is `Managed` and wait for the pods to start.
+
+. Confirm the MLflow CRDs are served:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc api-resources --api-group=mlflow.opendatahub.io
+----
++
+Expected output lists the cluster-scoped `MLflow` kind:
++
+----
+NAME      SHORTNAMES   APIVERSION                          NAMESPACED   KIND
+mlflow                 mlflow.opendatahub.io/v1            false        MLflow
+----
+
+. Confirm the MLflow instance exists. The resource is cluster-scoped, must be
+named `mlflow`, and lives in the `redhat-ods-applications` namespace:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mlflow mlflow -n redhat-ods-applications
+----
++
+Expected output shows the instance with a ready status. If it is missing, an
+administrator must create it — the hands-on module does this step by step.
+
+=== Verify
+
+`oc api-resources --api-group=mlflow.opendatahub.io` lists `mlflow` served by
+`mlflow.opendatahub.io/v1` as a *cluster-scoped* kind, and
+`oc get mlflow mlflow -n redhat-ods-applications` shows the single shared
+instance. Because the resource is cluster-scoped and must be named `mlflow`,
+a cluster can have exactly one instance — per-project behaviour is configured
+through the namespace-scoped `MLflowConfig` resource instead, which the
+advanced module covers.
+
+== Module summary
+
+**What you accomplished:**
+
+* Mapped the MLflow architecture: one shared cluster-scoped `MLflow` instance managed by the MLflow Operator, with each OpenShift project mapping to an MLflow workspace
+* Identified the `experiments`, `registeredmodels`, and `datasets` pseudo-resources and the `mlflow-view`, `mlflow-edit`, and `mlflow-integration` aggregate ClusterRoles
+* Confirmed the `mlflowoperator` component is `Managed`, the operator pod is running, and the `mlflow` instance exists
+
+**Key takeaways:**
+
+* Every MLflow API request is authorized with a `SelfSubjectAccessReview` against `mlflow.kubeflow.org` pseudo-resources — standard OpenShift project roles carry over automatically
+* Workspaces are managed indirectly: you manage OpenShift projects, and the MLflow workspace follows
+* Only one `MLflow` instance is allowed per cluster, named `mlflow` in `redhat-ods-applications`
+
+**Next steps:**
+
+Enable the MLflow Operator component, deploy the tracking server, and track
+your first experiment from a workbench in the hands-on module.

@@ -1,0 +1,129 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will learn what the Kale JupyterLab extension does, confirm
+that your project can host a converted pipeline, and enable the extension in
+your workbench.
+
+**Learning objectives:**
+
+* Explain how Kale converts annotated notebooks into AI Pipelines
+* Verify that a Data Science Pipelines Application is deployed in your project
+* Enable the Kale extension in the workbench terminal and check the KFP connection status
+
+Normally an AI Pipeline in OpenShift AI is written in Python with the Kubeflow
+Pipelines SDK, compiled to an Intermediate Representation (IR) YAML file, and
+imported into the dashboard. Kale — the Kubeflow Automated PipeLines Engine —
+skips that authoring step: the JupyterLab extension converts an annotated
+Jupyter notebook into an AI Pipeline without writing any Kubeflow Pipelines
+SDK code. The extension ships pre-installed but *disabled by default* in the
+standard data science notebook images.
+
+ifeval::["{feature_maturity}" == "DP"]
+NOTE: Kale is a *Developer Preview* feature. Developer Preview features are
+not supported by Red Hat in any way, might not have any documentation, are
+subject to change or removal at any time, and have received limited testing.
+In RHOAI 3.5 the feature is described only in the release notes, which defer
+field-level detail to the upstream Kale documentation.
+endif::[]
+
+== Exercise 1: Confirm your project is pipeline-ready
+
+Kale talks to the Kubeflow Pipelines (KFP) backend in your project. Before
+enabling anything, observe whether that backend exists.
+
+. Check that a Data Science Pipelines Application is deployed in the same
+namespace as your workbench:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get dspa -n {guid}-{user}
+----
+
+Expect a `NAME` entry with an `AGE` value. If the output is `No resources found
+in ... namespace`, the Data Science Pipelines Application is missing — the
+Kale connection status stays yellow until it is deployed.
+
+. In the OpenShift AI dashboard, click *Data science projects*, open your
+project, and check the *Workbenches* tab. Note which image your workbench runs.
+
+Kale ships pre-installed but disabled by default only in the default data
+science notebook images: *Standard Data Science*, *PyTorch*, *TensorFlow*,
+*TrustyAI*, *ROCm-PyTorch*, and *ROCm-TensorFlow*.
+
+NOTE: Kale is not available in custom notebook images. If your workbench uses
+a custom image, create a workbench based on one of the default images before
+continuing.
+
+=== Verify
+
+You have confirmed that a Data Science Pipelines Application is deployed in
+your project and that your workbench image ships the Kale extension.
+
+With the prerequisites observed, the next step is to switch the extension on.
+
+== Exercise 2: Enable the Kale extension
+
+The extension is disabled by default, so the JupyterLab UI hides it until you
+enable it from the workbench terminal.
+
+. Open your workbench in JupyterLab and click *File → New → Terminal*.
+. Enable the Kale JupyterLab extension:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+jupyter labextension enable jupyterlab-kubeflow-kale
+----
+
+. Refresh your browser so JupyterLab picks up the newly enabled extension.
+. Confirm the extension is registered:
++
+
+[source,bash,role="execute",subs="attributes"]
+----
+jupyter labextension list
+----
+
+The expected output includes `jupyterlab-kubeflow-kale` listed with an enabled
+status.
+
+=== Verify
+
+The `jupyter labextension list` output shows the Kale extension enabled, and
+the Kale user interface appears in JupyterLab after the browser refresh.
+
+The extension is on. Next, you check whether it can reach the pipeline server.
+
+== Exercise 3: Check the KFP connection status
+
+After enabling, Kale reports its connection to the Kubeflow Pipelines backend.
+
+. In JupyterLab, observe the Kale connection status indicator.
+. Interpret the color:
+
+* A *green* connection status means KFP is connected and the extension can
+reach the pipeline server in your project.
+* A *yellow* warning means KFP is disconnected — go back to Exercise 1 and
+confirm that the Data Science Pipelines Application is deployed in the same
+namespace as the workbench.
+
+== Module summary
+
+**What you accomplished:**
+
+* Confirmed that a Data Science Pipelines Application is deployed in the same namespace as your workbench
+* Enabled the Kale JupyterLab extension with `jupyter labextension enable jupyterlab-kubeflow-kale`
+* Checked the Kale connection status to the Kubeflow Pipelines backend
+
+**Key takeaways:**
+
+* Kale converts annotated Jupyter notebooks into AI Pipelines without writing Kubeflow Pipelines SDK code
+* The extension ships pre-installed but disabled in the default data science notebook images, and is not available in custom images
+* Kale needs the Data Science Pipelines Application in the same namespace as the workbench; green status means connected, yellow means disconnected
+
+**Next steps:**
+
+Continue to Module 02, where you turn Kale on for a notebook and trace the
+converted pipeline through the OpenShift AI dashboard.

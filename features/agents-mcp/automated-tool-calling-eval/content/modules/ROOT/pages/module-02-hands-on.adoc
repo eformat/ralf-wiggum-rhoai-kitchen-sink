@@ -1,0 +1,273 @@
+= Module 02: Hands-on Exercise
+:navtitle: Module 02: Hands-on Exercise
+
+In this module you will deploy the EvalHub MCP server, connect an AI coding agent to it, and generate evaluation data through automated tool-calling end to end.
+
+**Learning objectives:**
+
+* Enable the MCP server on the `EvalHub` custom resource and expose it through a route
+* Register the EvalHub MCP server with an AI coding agent using an authenticated HTTP transport
+* Drive provider discovery, job submission, and job monitoring through MCP tool calls
+* Confirm the generated evaluation data with the `evalhub` CLI
+
+== Exercise 1: Deploy the EvalHub MCP server
+
+You enable the MCP server by adding a `spec.mcp` block to your existing `EvalHub`
+custom resource (CR). The TrustyAI Operator then deploys the MCP server alongside
+the EvalHub server.
+
+[IMPORTANT]
+====
+EvalHub requires a PostgreSQL connection Secret and a running EvalHub instance
+before you enable the MCP server. If `oc get evalhub -n {guid}-evalhub` returns no
+resources, ask your facilitator to complete the base EvalHub deployment first.
+====
+
+. Create the `EvalHub` CR with the `spec.mcp` configuration:
++
+[source,bash,role="execute"]
+----
+cat > evalhub_cr.yaml <<'EOF'
+apiVersion: trustyai.opendatahub.io/v1
+kind: EvalHub
+metadata:
+  name: evalhub
+spec:
+  replicas: 1
+  database:
+    type: postgresql
+    secret: evalhub-db-credentials
+  providers:
+    - lm-evaluation-harness
+    - garak
+  mcp:
+    enabled: true
+    transport: http
+    port: 3001
+EOF
+oc apply -f evalhub_cr.yaml -n {guid}-evalhub
+----
+
+**mcp** enables the MCP server alongside the EvalHub server; `enabled: true`
+deploys the MCP server container. `transport: http` is for remote MCP clients
+such as your coding agent (use `stdio` for local clients that launch the
+server as a child process); `port` is the MCP server port for `http`
+transport.
++
+The TrustyAI Operator reconciles the CR and deploys the MCP server.
+
+. Create a route to expose the MCP server:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc expose service evalhub-mcp --port=3001 -n {guid}-evalhub
+----
+
+. Store the MCP server URL for later steps:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export MCP_URL=https://$(oc get route evalhub-mcp -o jsonpath={.spec.host} -n {guid}-evalhub)
+echo $MCP_URL
+----
+
+=== Verify
+
+Confirm that the EvalHub pod includes a ready MCP server container:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods -n {guid}-evalhub -l app=eval-hub -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .status.containerStatuses[*]}{.name}={.ready}{" "}{end}{"\n"}{end}'
+----
++
+Expected output shows `mcp=true` for the EvalHub pod. A route named `evalhub-mcp`
+must also appear in `oc get routes -n {guid}-evalhub`.
+
+== Exercise 2: Register the MCP server with your coding agent
+
+An MCP client needs the server URL, an authentication token, and the tenant
+namespace header before it can call EvalHub tools. This workshop uses Claude Code
+as the MCP client.
+
+. Create a token for the EvalHub service account:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export EVALHUB_TOKEN="$(oc create token <service_account> \
+  -n {guid}-evalhub)"
+----
++
+Replace `<service_account>` with a mounted pod token or long-lived token that has
+EvalHub access.
+
+[NOTE]
+====
+Tokens created by using `oc create token` expire. If the MCP client returns a
+`401 Unauthorized` response, create a new token and update the client
+configuration.
+====
+
+. Register the server with Claude Code:
++
+[source,bash,role="execute",subs="attributes"]
+----
+claude mcp add evalhub --transport http $MCP_URL \
+  --header "Authorization: Bearer $EVALHUB_TOKEN" \
+  --header "x-tenant: {guid}-evalhub"
+----
+
+=== Verify
+
+From your MCP client, ask the agent:
+
+----
+List the available evaluation providers.
+----
+
+The agent calls `discover_providers` and returns the registered providers from
+EvalHub, for example `lm_evaluation_harness` and `garak`. An empty or
+`401 Unauthorized` response means the token expired or the `x-tenant` header does
+not match your EvalHub tenant namespace.
+
+== Exercise 3: Generate evaluation data through tool calls
+
+With the MCP server connected, you drive an evaluation by describing your goal and
+letting the agent construct valid job requests from the provider's agent metadata.
+
+. Ask the agent to find a provider that matches your evaluation goal:
++
+----
+What providers can evaluate my model for safety?
+----
++
+The agent calls `discover_providers` filtered by target type and capability tags.
+Because you set a filter, providers without agent metadata are excluded from the
+results, and `garak` returns with its `evaluates` tags, `hints`, and
+`result_interpretation` guidance.
+
+. Ask the agent to submit an evaluation for your model endpoint:
++
+----
+Run a quick safety scan on my model at http://vllm:8000/v1.
+----
++
+The agent calls `submit_evaluation`. The `quick` benchmark from `garak` runs a
+single DAN probe for fast smoke testing, as documented in the provider's `hints`:
+
+. Request progress updates while the evaluation job runs:
++
+----
+Check on the evaluation job.
+----
++
+The agent calls `get_job_status` repeatedly. The response includes the job state,
+`progress_percent`, and per-benchmark status. When a benchmark reaches a terminal
+state, the response adds `result_interpretation` and `complements` fields from the
+provider's agent metadata.
+
+Evaluation jobs progress through the following states:
+
+[cols="1,3"]
+|===
+|State |Description
+
+|`pending`
+|Job is queued and waiting to start.
+
+|`running`
+|One or more benchmarks are executing.
+
+|`completed`
+|All benchmarks finished successfully.
+
+|`failed`
+|One or more benchmarks failed.
+
+|`cancelled`
+|Job was cancelled by a user calling `cancel_job`.
+
+|`partially_failed`
+|Some benchmarks completed, others failed.
+|===
+
+=== Verify
+
+The agent reports a job state transition from `pending` to `running` to
+`completed` and summarizes the results using the provider's
+`result_interpretation` metadata — for example explaining that
+`attack_success_rate` measures how often the model was exploited and that lower is
+better.
+
+== Exercise 4: Validate the generated data with the CLI
+
+The MCP tool calls produce the same jobs and results that the EvalHub REST API
+tracks, so you can validate the generated evaluation data with the `evalhub` CLI
+from a workstation or workbench.
+
+. Install the EvalHub SDK with CLI support:
++
+[source,bash,role="execute",subs="attributes"]
+----
+pip install "eval-hub-sdk[cli]"
+----
+
+. Configure the CLI for your EvalHub instance:
++
+[source,bash,role="execute",subs="attributes"]
+----
+export EVALHUB_URL=https://$(oc get routes evalhub -o jsonpath='{.spec.host}' -n {guid}-evalhub)
+export TOKEN=$(oc whoami -t)
+evalhub config set base_url $EVALHUB_URL
+evalhub config set tenant {guid}-evalhub
+evalhub config set token $TOKEN
+----
++
+The CLI stores connection settings in named profiles at
+`~/.config/evalhub/config.yaml`, persistent across commands.
+
+. List your jobs and confirm the tool-called evaluation appears:
++
+[source,bash,role="execute",subs="attributes"]
+----
+evalhub eval status <job_id>
+----
++
+Replace `<job_id>` with the job identifier the agent reported in Exercise 3.
+
+. Retrieve the generated benchmark results:
++
+[source,bash,role="execute",subs="attributes"]
+----
+evalhub eval results <job_id> --format table
+----
++
+Expected output is a tabular view of benchmark metrics:
+----
+BENCHMARK             PROVIDER   METRIC               VALUE
+quick                 garak      attack_success_rate  0.0
+----
+
+=== Verify
+
+`evalhub eval results <job_id> --format table` lists the benchmark metrics for the
+job the agent submitted, and the metrics match the values the agent interpreted in
+Exercise 3. If a job failed, run `evalhub eval status <job_id> --format=json` to
+view the error message.
+
+== Module summary
+
+**What you accomplished:**
+
+* Enabled the MCP server on the `EvalHub` CR and exposed it through the `evalhub-mcp` route
+* Registered the EvalHub MCP server with Claude Code using an authenticated HTTP transport and tenant header
+* Generated evaluation data end to end through `discover_providers`, `submit_evaluation`, and `get_job_status` tool calls, then validated it with the `evalhub` CLI
+
+**Key takeaways:**
+
+* The `spec.mcp` block is the only configuration change needed to make EvalHub agent-accessible
+* Filtered `discover_providers` calls exclude providers without agent metadata, so custom providers must add an `agent` block to be discoverable
+* MCP tool calls and the `evalhub` CLI read from the same job store — use either to validate the other
+
+**Next steps:**
+
+In the next module you will make your custom providers agent-discoverable with agent metadata and generate auditable evaluation cards.

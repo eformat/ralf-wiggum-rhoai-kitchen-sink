@@ -1,0 +1,167 @@
+= Module 01: Getting Started
+:navtitle: Module 01: Getting Started
+
+In this module you will take a guided tour of latency-aware routing for llm-d in
+your workshop cluster: what per-request latency targets mean, how the llm-d
+Endpoint Picker decides *when* and *where* to dispatch each request, and how to
+confirm your environment is ready for latency-aware serving.
+
+**Learning objectives:**
+
+* Explain what latency-aware routing for llm-d does for mixed interactive and batch workloads
+* Describe the two Endpoint Picker layers and where latency-aware scheduling happens
+* Inspect your cluster to confirm Distributed Inference with llm-d is available
+
+== Exercise 1: Understand latency-aware routing
+
+Interactive workloads — chat assistants, agents, code completion — live or die
+by *Time To First Token* (TTFT): how long a user waits before the first output
+token appears. Batch workloads, such as document summarization or synthetic
+data generation, care mostly about total throughput and tolerate waiting behind
+other requests. Serving both workload classes on the same GPU pool risks
+either wasting capacity or breaking interactive service-level objectives.
+
+*Latency-aware routing for Distributed Inference with llm-d* addresses this.
+Platform operators can declare per-request latency targets for TTFT and *Time
+Per Output Token* (TPOT). The routing layer then places each request on a pod
+predicted to meet its specific target. Latency-sensitive traffic is routed to
+pods with available capacity, while throughput-sensitive traffic fills pods
+that are already handling longer work.
+
+In Red Hat OpenShift AI 3.5 this capability is a *Developer Preview* feature
+and works together with *Distributed Inference with llm-d*, the serving stack
+that provides the routing layer where the predictions and placement decisions
+are made.
+
+=== Verify
+
+You can answer, without looking back:
+
+* Which two latency metrics can operators declare per-request targets for?
+* Where do latency-sensitive requests get routed, and where does throughput-sensitive traffic go?
+* Which RHOAI serving stack hosts the latency-aware routing layer?
+
+== Exercise 2: Where the feature fits in the llm-d serving stack
+
+The Endpoint Picker (EPP) is the request orchestration component of Distributed
+Inference with llm-d. It sits between the Inference Gateway and the backend
+model servers, and every request passes through two sequential layers:
+
+* *Flow Control layer* — decides *when* requests are dispatched: priority-based
+  queuing, saturation detection (queue depth and KV cache utilization), and
+  load shedding to protect the inference pool.
+* *Scheduling layer* — decides *where* each request is routed among the
+  available model replicas using routing plugins, based on factors such as
+  prefill versus decode capacity, prefix cache affinity, and load distribution.
+
+Latency-aware routing lives in the *Scheduling layer*. If you do not specify
+custom scheduler configuration, the system uses an optimized default profile
+combining four scorer plugins with weights 2:2:3:2 (`queue-scorer`,
+`kv-cache-utilization-scorer`, `prefix-cache-scorer`, `no-hit-lru-scorer`).
+That default balances load and KV cache reuse but knows nothing about
+*predicted* response latency.
+
+For deployments where response latency is the primary optimization goal, three
+optional plugins implement latency-aware routing:
+
+[cols="2,3",options="header"]
+|===
+|Plugin |Role in latency-aware routing
+
+|`predicted-latency-producer`
+|A data producer plugin that calls the latency predictor service and annotates each candidate endpoint with predicted TTFT and TPOT values. The predictor learns from historical request patterns to estimate response times.
+
+|`latency-scorer`
+|Scores replicas based on predicted response latency. Replicas with lower predicted latency score higher. Recommended weight: 3.
+
+|`weighted-random-picker`
+|Selects endpoints with probability proportional to their score, using reservoir sampling. This avoids the hot-spotting behavior of a pure max-score picker while still preferring faster replicas.
+|===
+
+Two structural facts from the documentation are worth committing to memory:
+
+* The `latency-scorer` *requires* the `predicted-latency-producer` plugin to
+  generate its latency predictions, and replaces the default
+  `max-score-picker` with `weighted-random-picker` for final endpoint
+  selection.
+* All three plugins are disconnected-compatible and have no network
+  dependencies, so latency-aware routing works in disconnected environments.
+
+[NOTE]
+====
+The Scheduling layer is always enabled; Flow Control is optional and enabled
+through the `flowControl` feature gate. Flow control complements
+latency-aware routing on the *when* side: it queues latency-sensitive
+interactive requests ahead of sheddable batch traffic under saturation. The
+same inline scheduler configuration controls both layers.
+====
+
+=== Verify
+
+In the RHOAI dashboard, navigate to *Data Science Projects*, select your
+project, and click *Deploy model*. In the wizard, expand *Advanced routing* and
+note that a *Default optimized routing* option is pre-selected — that default
+is the 4-scorer profile, and it is what a latency-aware configuration replaces
+or extends.
+
+== Exercise 3: Confirm your environment is ready
+
+Latency-aware routing rides on the llm-d serving stack, so first confirm the
+stack is present in your working project.
+
+. Confirm that `LLMInferenceService` resources are recognized by the cluster
+and list any deployed models:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llmisvc -n {guid}-{user}
+----
++
+Expected output shows either a list of deployed models with their URL and
+`READY` status, or `No resources found` if you have not deployed a model yet.
+Both are fine for this guided tour.
+
+. List the `LLMInferenceServiceConfig` templates that back the llm-d topology
+and router options in the deployment wizard:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get llminferenceserviceconfig -A
+----
++
+Expected output lists topology presets and, if your administrator created
+them, router configs whose names often contain `router`. Router configurations
+are the dashboard-facing way to attach advanced routing — including
+latency-aware scheduling — to model deployments.
+
+[TIP]
+====
+If `oc get llmisvc` fails with `the server doesn't have a resource type`, the
+Distributed Inference with llm-d component is not enabled in your cluster. Ask
+your workshop facilitator before continuing.
+====
+
+=== Verify
+
+You ran read-only `oc` commands without errors and located the Advanced routing
+section of the model deployment wizard.
+
+== Module summary
+
+**What you accomplished:**
+
+* Explained how per-request TTFT and TPOT targets separate latency-sensitive from throughput-sensitive traffic
+* Mapped the Endpoint Picker's Flow Control and Scheduling layers and the three latency-aware plugins
+* Confirmed the llm-d serving resources and the Advanced routing wizard section exist in your cluster
+
+**Key takeaways:**
+
+* Latency-aware routing predicts TTFT and TPOT per pod and places each request on a pod predicted to meet its target
+* The `latency-scorer` plugin depends on `predicted-latency-producer` and `weighted-random-picker`, and all three work in disconnected environments
+* The default 2:2:3:2 profile is a strong baseline; latency-aware plugins are an optional enhancement for latency-sensitive deployments
+
+**Next steps:**
+
+Continue to the next module, where you explore a latency-aware scheduler
+configuration, attach it to a deployment, and observe the latency metrics that
+show the routing decisions in action.

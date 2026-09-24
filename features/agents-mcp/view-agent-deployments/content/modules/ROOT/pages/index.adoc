@@ -1,0 +1,37 @@
+= Welcome to the View running agent deployments in dashboard Workshop
+:navtitle: Overview
+
+ifeval::["{feature_maturity}" == "TP"]
+WARNING: This feature is a *Technology Preview*. Technology Preview features are
+not supported with Red Hat production service-level agreements (SLAs) and might
+not be functionally complete.
+endif::[]
+
+ifeval::["{feature_maturity}" == "DP"]
+WARNING: This feature is a *Developer Preview*. Developer Preview features are
+provided as-is with no support and no guarantee of future availability.
+endif::[]
+
+This workshop introduces *View running agent deployments in dashboard*.
+
+**What you will learn:**
+
+* What the Agent Ops view shows: running agent deployments listed directly in the RHOAI dashboard, including agents deployed manually as OpenShell-managed Sandbox custom resources
+* Check and enable the `agentOps` dashboard feature flag in the `OdhDashboardConfig` custom resource
+* Tour the list's name and status columns, namespace scoping, and filtering — then trace the Sandbox CRs behind it with the CLI
+
+== Prerequisites
+
+* RHOAI operator installed
+* Agent deployment running
+* An OpenShift cluster with RHOAI 3.5 installed
+
+== Estimated time
+
+About 45 minutes
+
+== Get started
+
+* xref:getting-connected.adoc[Connect to your environment]
+* xref:module-01-hands-on.adoc[Hands-on Exercise]
+* xref:conclusion.adoc[Conclusion]

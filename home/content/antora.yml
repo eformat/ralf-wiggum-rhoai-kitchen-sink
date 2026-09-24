@@ -1,0 +1,13 @@
+name: home
+title: "RHOAI Kitchen Sink"
+version: ~
+nav:
+  - modules/ROOT/nav.adoc
+
+asciidoc:
+  attributes:
+    source-highlighter: highlight.js
+    experimental: true
+    page-pagination: true
+    rhoai_version: "3.5"
+    lab_name: "RHOAI Kitchen Sink Workshops"
