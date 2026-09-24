@@ -19,4 +19,4 @@ asciidoc:
     openshift_console_url: https://console-openshift-console.apps.cluster.example.com
     openshift_cluster_ingress_domain: apps.cluster.example.com
     model_name: "granite-vllm"
-    model_predictor_url: "http://granite-vllm-predictor:8000/v1"
+    model_predictor_url: "http://granite-vllm-predictor:8080/v1"

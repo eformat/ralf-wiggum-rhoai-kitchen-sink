@@ -149,6 +149,8 @@ echo $GUARDRAILS_ROUTE
 `oc get routes/nemo-quickstart` returns a route host. The TrustyAI Operator
 has deployed the server pod, service, and route into `{guid}-{user}`.
 
+image::01-project-topology.png[Project topology showing the deployed guardrails services,link=self,window=blank,width=700]
+
 == Exercise 2: Validate the guardrails
 
 The `/v1/guardrail/checks` endpoint validates messages against your configured
@@ -369,7 +371,7 @@ data:
     - type: main
       engine: openai
       parameters:
-        openai_api_base: "http://granite-vllm-predictor:8000/v1"
+        base_url: "http://granite-vllm-predictor:8080/v1"
         model_name: "granite-vllm"
     rails:
       config:
@@ -392,7 +394,7 @@ data:
 EOF
 ----
 
-`models.engine` — set to `openai` when serving via vLLM; `openai_api_base` is
+`models.engine` — set to `openai` when serving via vLLM; `base_url` is
 the internal predictor service URL and must end in `/v1` (here, the
 `granite-vllm` predictor from the vLLM ServingRuntime workshop — on a GPU
 cluster, substitute your deployed model's predictor service and name).
@@ -461,8 +463,9 @@ curl -k -X POST $NEMO_SIMPLE_ROUTE/v1/chat/completions \
   -d '{"model": "{model_name}", "messages":[{"role":"user","content":"My email is user@example.com"}]}'
 ----
 +
-The request is blocked with a message indicating that sensitive data was
-detected.
+The request is blocked before the LLM is called — NeMo Guardrails returns its
+fallback message ("I don't know the answer to that.") instead of the model's
+answer.
 
 === Verify
 

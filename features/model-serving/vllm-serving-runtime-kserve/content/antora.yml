@@ -18,3 +18,4 @@ asciidoc:
     openshift_api_url: "https://api.cluster.example.com:6443"
     openshift_console_url: https://console-openshift-console.apps.cluster.example.com
     openshift_cluster_ingress_domain: apps.cluster.example.com
+    vllm_cpu_runtime_label: "vLLM CPU (x86) ServingRuntime for KServe - Tech Preview"

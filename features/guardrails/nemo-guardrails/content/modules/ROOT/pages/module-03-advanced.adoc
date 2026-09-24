@@ -35,7 +35,7 @@ data:
     - type: main
       engine: openai
       parameters:
-        openai_api_base: "{model_predictor_url}"
+        base_url: "{model_predictor_url}"
         model_name: "{model_name}"
     rails:
       config:
@@ -68,7 +68,7 @@ data:
     - type: main
       engine: openai
       parameters:
-        openai_api_base: "{model_predictor_url}"
+        base_url: "{model_predictor_url}"
         model_name: "{model_name}"
     rails:
       config:
@@ -179,12 +179,14 @@ addresses.
 * `oc get deploy nemo-policies -n {guid}-{user}` reports `READY` `3/3`, and
   `oc get pods -n {guid}-{user}` lists three `nemo-policies` pods.
 
+image::02-deployments-list.png[Deployments list showing nemo-policies scaled to three replicas,link=self,window=blank,width=700]
+
 == Exercise 2: Mask PII instead of blocking
 
 Blocking is not always the right action. Masking flows replace detected PII
-with `[MASKED]` before the content is sent to the LLM or returned to the user,
-so a request like "My email is user@example.com" still gets an answer — the
-address is just anonymized.
+with `<EMAIL_ADDRESS>` before the content is sent to the LLM or returned to the
+user, so a request like "My email is user@example.com" still gets an answer —
+the address is just anonymized.
 
 [NOTE]
 ====
@@ -208,7 +210,7 @@ data:
     - type: main
       engine: openai
       parameters:
-        openai_api_base: "{model_predictor_url}"
+        base_url: "{model_predictor_url}"
         model_name: "{model_name}"
     rails:
       config:
@@ -230,8 +232,8 @@ EOF
 ----
 +
 *mask sensitive data on input* — instead of the `detect sensitive data`
-flow, this flow replaces detected PII with `[MASKED]` before the content
-reaches the LLM.
+flow, this flow replaces detected PII with `<EMAIL_ADDRESS>` before the
+content reaches the LLM.
 
 . Patch the `nemo-simple` custom resource to use the masking configuration:
 +
@@ -272,9 +274,9 @@ curl -k -X POST $NEMO_SIMPLE_ROUTE/v1/chat/completions \
 === Verify
 
 Instead of a block, the model now receives the anonymized prompt — the request
-succeeds and the detected address is replaced with `[MASKED]` before being
-sent to the LLM or returned to the user. Compare this with the same request in
-module 2, which was blocked outright.
+succeeds and the detected address is replaced with `<EMAIL_ADDRESS>` before
+being sent to the LLM or returned to the user. Compare this with the same
+request in module 2, which was blocked outright.
 
 == Exercise 3: Add custom rails with Python actions
 
@@ -305,7 +307,7 @@ data:
     - type: main
       engine: openai
       parameters:
-        openai_api_base: "{model_predictor_url}"
+        base_url: "{model_predictor_url}"
         model_name: "{model_name}"
     rails:
       input:
@@ -313,18 +315,18 @@ data:
           - check message length
     rails.co: |
       define flow check message length
-      $length_result = execute check_message_length
-      if $length_result == "blocked_too_long"
-        bot inform message too long
-        stop
-      if $length_result == "warning_long"
-        bot warn message long
+        $length_result = execute check_message_length
+        if $length_result == "blocked_too_long"
+          bot inform message too long
+          stop
+        if $length_result == "warning_long"
+          bot warn message long
 
       define bot inform message too long
-      "Please keep your message under 100 words for better assistance."
+        "Please keep your message under 100 words for better assistance."
 
       define bot warn message long
-      "That's quite detailed! I'll help as best I can."
+        "That's quite detailed! I'll help as best I can."
     actions.py: |
       from typing import Optional
       from nemoguardrails.actions import action
@@ -380,7 +382,7 @@ Wait until the `PHASE` column shows `Ready`, then press `Ctrl+C`.
 curl -k -X POST $NEMO_SIMPLE_ROUTE/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(oc whoami -t)" \
-  -d '{"model": "{model_name}", "messages":[{"role":"user","content":"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium."}]}'
+  -d '{"model": "{model_name}", "messages":[{"role":"user","content":"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."}]}'
 ----
 
 === Verify

@@ -60,13 +60,21 @@ vLLM runtime and a modelcar OCI image — the wizard generates the equivalent
 fields on a GPU cluster.
 
 KServe resolves `spec.predictor.runtime` from the deployment's own namespace,
-so first copy the enabled runtime into your project:
+so first instantiate the pre-installed runtime template into your project and
+stamp the template-origin annotations the dashboard expects:
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc get servingruntime vllm-cpu-x86-runtime -n redhat-ods-applications -o yaml \
-  | sed 's/namespace: redhat-ods-applications/namespace: {guid}-{user}/' \
-  | oc replace --force -n {guid}-{user} -f -
+oc process -n redhat-ods-applications vllm-cpu-x86-runtime-template \
+  | oc apply -n {guid}-{user} -f -
+----
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc annotate servingruntime vllm-cpu-x86-runtime -n {guid}-{user} \
+  opendatahub.io/template-name=vllm-cpu-x86-runtime-template \
+  "opendatahub.io/template-display-name={vllm_cpu_runtime_label}" \
+  --overwrite
 ----
 
 Then deploy:
