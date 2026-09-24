@@ -1,12 +1,18 @@
 # cluster/ Makefile — helpers for the RHOAI workshop cluster configuration.
 # The manifests are plain kustomize overlays (base + overlays/); the targets
 # below only cover the imperative steps kustomize cannot express (dashboard
-# flags patch, MaaS DB secrets, runtime enablement, verification).
+# flags patch, MaaS DB secrets, runtime enablement, verification) plus the
+# lab-setup-blocks generator for the home hub.
 
 SHELL := /bin/bash
 CLUSTER_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
-.PHONY: dashboard-flags maas-secrets enable-cpu-runtime enable-serving-runtimes cluster-verify build-check wait-csv gateway-status
+.PHONY: dashboard-flags maas-secrets enable-cpu-runtime enable-serving-runtimes cluster-verify build-check wait-csv gateway-status lab-blocks
+
+# Regenerate the per-lab collapsible setup blocks on the home hub
+# "Cluster setup" page from feature-matrix.yml + feature-overlays.yml.
+lab-blocks:
+	python3 $(CLUSTER_DIR)gen-lab-setups.py
 
 # Patch every workshop dashboard flag onto the OdhDashboardConfig. Run after
 # the rhods-operator CSV reaches Succeeded (the dashboard creates the CR).

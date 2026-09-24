@@ -218,8 +218,9 @@ on": labs assume the state base + their mapped overlays provide.
 - `cluster/feature-overlays.yml` maps every `feature-matrix.yml` slug to the
   overlays beyond base. When scaffolding a NEW feature (Mode 1) or enriching
   (Mode 2), check whether its cluster-side needs are covered: if not, add the
-  feature to `features:` in `feature-overlays.yml` and the home hub
-  `cluster-setup.adoc` mapping table — do not put base config into lab content.
+  feature to `features:` in `feature-overlays.yml`, then run
+  `make -C cluster lab-blocks` to regenerate the home hub
+  `cluster-setup.adoc` per-lab blocks — do not put base config into lab content.
 - `cluster/README.md` documents the apply flow, two-step overlays, and ordering
   constraints; `make -C cluster cluster-verify` checks the state labs assume.
 - Labs must NOT scaffold what `cluster/` already provides (operator, DSC

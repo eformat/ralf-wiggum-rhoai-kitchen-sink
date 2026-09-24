@@ -15,30 +15,58 @@ feature → overlay map.
 
 [source,bash,role="execute"]
 ----
-oc apply -k cluster/base && make -C cluster dashboard-flags
-oc apply -k cluster/overlays/gpu-config   # or cpu-config for a GPU-less cluster
-oc apply -k cluster/overlays/serving
-oc apply -k cluster/overlays/llmd && oc apply -k cluster/overlays/llmd/activation
-oc apply -k cluster/overlays/gateway && oc apply -k cluster/overlays/gateway/activation
-oc apply -k cluster/overlays/monitoring
+oc apply --server-side --force-conflicts --field-manager=kustomize-base -k cluster/base
+make -C cluster wait-csv NS=redhat-ods-operator PREFIX=rhods-operator
+make -C cluster dashboard-flags
+
+oc apply --server-side --force-conflicts --field-manager=kustomize-gpu-config -k cluster/overlays/gpu-config   # or cpu-config for a GPU-less cluster
+make -C cluster wait-csv NS=openshift-nfd PREFIX=nfd
+oc apply -k cluster/overlays/gpu-config/activation
+
+oc apply --server-side --force-conflicts --field-manager=kustomize-serving -k cluster/overlays/serving
+
+export CLUSTER_DOMAIN=$(oc get ingress.config cluster -o jsonpath='{.spec.domain}')
+oc kustomize cluster/overlays/llmd | envsubst '${CLUSTER_DOMAIN}' | oc apply --server-side --force-conflicts --field-manager=kustomize-llmd -f -
+make -C cluster wait-csv NS=openshift-lws-operator PREFIX=leader-worker-set
+make -C cluster wait-csv NS=openshift-jobset-operator PREFIX=jobset
+oc apply -k cluster/overlays/llmd/activation
+
+oc apply --server-side --force-conflicts --field-manager=kustomize-gateway -k cluster/overlays/gateway
+make -C cluster wait-csv NS=openshift-operators PREFIX=rhcl
+oc apply -k cluster/overlays/gateway/activation
+
+oc apply --server-side --force-conflicts --field-manager=kustomize-monitoring -k cluster/overlays/monitoring
+
 make -C cluster maas-secrets
-oc kustomize cluster/overlays/maas | envsubst '${CLUSTER_DOMAIN}' | oc apply -f -
-oc apply -k cluster/overlays/trustyai cluster/overlays/ogx cluster/overlays/mcp \
-         cluster/overlays/registry cluster/overlays/mlflow cluster/overlays/feature-store \
-         cluster/overlays/distributed
+oc kustomize cluster/overlays/maas | envsubst '${CLUSTER_DOMAIN}' | oc apply --server-side --force-conflicts --field-manager=kustomize-maas -f -
+# no-LB clusters (RHDP/bare-metal): make -C cluster gateway-status
+
+for o in trustyai ogx mcp registry mlflow feature-store distributed; do
+  oc apply --server-side --force-conflicts --field-manager=kustomize-$o -k cluster/overlays/$o
+done
+
 make -C cluster cluster-verify
 ----
 
-*Two-step overlays* — `gpu-config`, `llmd`, and `gateway` ship activation CRs
-that must be applied after their operator CSVs reach Succeeded (wait between the
-two applies). The full flow, ordering constraints, and prerequisites are
-documented in `cluster/README.md`.
+*Why server-side apply* — overlays patch the same DataScienceCluster resource;
+client-side `oc apply` prunes components set by previously-applied overlays
+(last-write-wins on `spec.components`). Each overlay's distinct
+`--field-manager` makes it own only its component keys. *Two-step overlays*
+(`gpu-config`, `llmd`, `gateway`) ship activation CRs applied only after their
+operator CSVs reach Succeeded — the `wait-csv` steps above handle that. The
+full flow, ordering constraints, and prerequisites are documented in
+`cluster/README.md`.
 
 == Which overlays does each lab need?
 
 Every lab needs `cluster/base` plus the overlays listed below. Single-lab
-setup: apply only that lab's overlays, in the order shown in
-`cluster/feature-overlays.yml`.
+setup: open the collapsible block for that lab below and run it — it applies
+base, the lab's overlays in dependency order (including two-step activation
+waits, MaaS secrets, and `${CLUSTER_DOMAIN}` rendering), and finishes with
+`make -C cluster cluster-verify`. Blocks are generated from
+`cluster/feature-overlays.yml` — edit that file and run
+`make -C cluster lab-blocks` to update them.
+
 
 |===
 |Overlay |What it provides
@@ -74,7 +102,7 @@ setup: apply only that lab's overlays, in the order shown in
 |base-only no-op (OCP direct-OIDC is install-time config; the GatewayConfig patch is a lab exercise)
 |===
 
-include::partial$mapping-table.adoc[]
+include::partial$lab-setup-blocks.adoc[]
 
 == Verify
 
