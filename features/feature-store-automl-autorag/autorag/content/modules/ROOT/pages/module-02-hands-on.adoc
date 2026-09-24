@@ -63,7 +63,6 @@ actions menu. A chat panel opens where you can ask questions about your
 documents and switch between patterns to compare responses.
 
 // TODO: capture screenshot
-image::02-autorag-leaderboard.png[AutoRAG leaderboard ranking RAG patterns by evaluation metric,link=self,window=blank,width=700]
 
 . After you choose a pattern, get code snippets for integrating it into your
 application by using the Responses API: click *View code* from the actions

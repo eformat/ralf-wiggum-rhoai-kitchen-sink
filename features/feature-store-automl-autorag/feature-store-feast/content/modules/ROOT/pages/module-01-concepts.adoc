@@ -104,7 +104,6 @@ configures the stores and creates a Feature Store instance (Module 02), while ML
 data scientists define features, materialize them, and retrieve them for training and inference.
 
 // TODO: capture screenshot
-image::01-feature-store-workflow.png[Feature Store in the ML workflow,link=self,window=blank,width=700]
 
 == Module summary
 

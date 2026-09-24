@@ -51,7 +51,7 @@ Each model entry in the catalog carries metadata — description, provider, labe
 information, and performance metrics for validated models — plus any custom properties. All of
 this is the data the CSV export packages.
 
-image::01-model-catalog-page.png[Model catalog page in the AI hub,link=self,window=blank,width=700]
+// TODO: capture screenshot (needs AI Hub model catalog page on cluster)
 
 === Verify
 

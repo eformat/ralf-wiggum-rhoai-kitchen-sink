@@ -1,7 +1,7 @@
 # Quality Triage — ralf-wiggum-rhoai-kitchen-sink
 
 Phase 0 triage (`--dry-run --all`) per the `quality-enrichment` skill (zt-rhaibu factory).
-Post-session re-run 2026-09-24 — analysis only. Baseline (pre-fix) snapshot taken same day; this reflects the easy-defect processing session (12 workshops, 4 batches).
+Post-session re-run 2026-09-24 — analysis only. Reflects the easy-defect processing session (12 workshops, 4 batches) plus the screenshot-capture session (4 real UI captures from cluster-44gxc, 6 junk error-page screenshots removed).
 
 - RHOAI version: 3.5
 - Total enriched workshops: **54**
@@ -21,7 +21,12 @@ Scoring: TODO markers +3 · broken heredoc/YAML outside source block +3 · broke
 | genai-studio-saved-agent | agents-mcp | DP | 8 | TODO markers, no screenshots, broken image refs |
 | kale-jupyterlab | agents-mcp | DP | 8 | TODO markers, no screenshots, broken image refs |
 | model-registry-catalog | model-registry | GA | 8 | TODO markers, no screenshots, broken image refs |
+| mcp-catalog-support-tier | agents-mcp | TP | 7 | TODO markers, no screenshots, placeholders |
+| ogx-agentic-api | agents-mcp | TP | 7 | TODO markers, no screenshots, placeholders |
+| csv-export-model-catalog | agents-mcp | DP | 7 | TODO markers, no screenshots, placeholders |
 | kueue | distributed-training | GA | 6 | TODO markers, broken image refs |
+| feature-store-feast | feature-store-automl-autorag | GA | 5 | TODO markers, no screenshots |
+| automl | feature-store-automl-autorag | TP | 5 | TODO markers, no screenshots |
 | automated-tool-calling-eval | agents-mcp | GA | 4 | no screenshots, placeholders |
 | ogx-remote-providers | agents-mcp | DP | 4 | no screenshots, placeholders |
 | automated-red-teaming-garak | evaluation | GA | 4 | no screenshots, placeholders |
@@ -32,20 +37,15 @@ Scoring: TODO markers +3 · broken heredoc/YAML outside source block +3 · broke
 | llmd-core | model-serving | GA | 4 | no screenshots, placeholders |
 | llmd-priority-flow-control | model-serving | GA | 4 | no screenshots, placeholders |
 | kuberay | distributed-training | GA | 3 | no screenshots, vague verify |
-| feature-store-feast | feature-store-automl-autorag | GA | 3 | TODO markers |
-| automl | feature-store-automl-autorag | TP | 3 | TODO markers |
 | autorag | feature-store-automl-autorag | TP | 3 | TODO markers |
 | maas-core | maas | GA | 3 | TODO markers |
 | maas-loki-showback | maas | TP | 3 | TODO markers |
 | maas-vllm-deployment | maas | TP | 3 | TODO markers |
 | opencode-coding-agent | agents-mcp | TP | 2 | no screenshots |
 | validated-tool-calling-config | agents-mcp | TP | 2 | placeholders |
-| mcp-catalog-support-tier | agents-mcp | TP | 2 | placeholders |
 | mcp-lifecycle-operator | agents-mcp | TP | 2 | placeholders |
 | mcp-gateway-operator | agents-mcp | TP | 2 | no screenshots |
-| ogx-agentic-api | agents-mcp | TP | 2 | placeholders |
 | agent-catalog-ai-hub | agents-mcp | DP | 2 | no screenshots |
-| csv-export-model-catalog | agents-mcp | DP | 2 | placeholders |
 | claude-code-starter-kit | agents-mcp | DP | 2 | no screenshots |
 | midojo-adversarial-testing | agents-mcp | DP | 2 | no screenshots |
 | openclaw-starter-kit | agents-mcp | DP | 2 | no screenshots |
@@ -132,11 +132,44 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 - Broken image refs (2 of 2): 02-register-model-dialog.png (module-02-hands-on.adoc); 03-model-transfer-jobs.png (module-03-advanced.adoc)
 - Screenshots on disk: 0
 
+### mcp-catalog-support-tier (agents-mcp) — score 7
+
+- TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
+- Zero screenshots in assets/images/ (0 png/jpg)
+- Placeholder tokens in source blocks: 1 (<service_account_name>)
+- Screenshots on disk: 0
+
+### ogx-agentic-api (agents-mcp) — score 7
+
+- TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
+- Zero screenshots in assets/images/ (0 png/jpg)
+- Placeholder tokens in source blocks: 1 (<model-id>)
+- Screenshots on disk: 0
+
+### csv-export-model-catalog (agents-mcp) — score 7
+
+- TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
+- Zero screenshots in assets/images/ (0 png/jpg)
+- Placeholder tokens in source blocks: 5 (<authorization-header>, <catalog-source>, <count>, <export-script>, <exported-file>)
+- Screenshots on disk: 0
+
 ### kueue (distributed-training) — score 6
 
 - TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
 - Broken image refs (1 of 2): 02-kueue-alerting-rules.png (module-02-hands-on.adoc)
 - Screenshots on disk: 1
+
+### feature-store-feast (feature-store-automl-autorag) — score 5
+
+- TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
+- Zero screenshots in assets/images/ (0 png/jpg)
+- Screenshots on disk: 0
+
+### automl (feature-store-automl-autorag) — score 5
+
+- TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
+- Zero screenshots in assets/images/ (0 png/jpg)
+- Screenshots on disk: 0
 
 ### automated-tool-calling-eval (agents-mcp) — score 4
 
@@ -198,23 +231,11 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 - Screenshots on disk: 0
 - Vague verify sections: module-03-advanced.adoc
 
-### feature-store-feast (feature-store-automl-autorag) — score 3
-
-- TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
-- Image refs: 1, all resolve
-- Screenshots on disk: 1
-
-### automl (feature-store-automl-autorag) — score 3
-
-- TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
-- Image refs: 1, all resolve
-- Screenshots on disk: 1
-
 ### autorag (feature-store-automl-autorag) — score 3
 
 - TODO markers: 2 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
-- Image refs: 2, all resolve
-- Screenshots on disk: 2
+- Image refs: 1, all resolve
+- Screenshots on disk: 1
 
 ### maas-core (maas) — score 3
 
@@ -245,12 +266,6 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 - Placeholder tokens in source blocks: 3 (<model_api_key_1>, <model_api_key_2>, <your_api_key>)
 - Screenshots on disk: 1
 
-### mcp-catalog-support-tier (agents-mcp) — score 2
-
-- Image refs: 1, all resolve
-- Placeholder tokens in source blocks: 1 (<service_account_name>)
-- Screenshots on disk: 1
-
 ### mcp-lifecycle-operator (agents-mcp) — score 2
 
 - Image refs: 2, all resolve
@@ -262,22 +277,10 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 - Zero screenshots in assets/images/ (0 png/jpg)
 - Screenshots on disk: 0
 
-### ogx-agentic-api (agents-mcp) — score 2
-
-- Image refs: 1, all resolve
-- Placeholder tokens in source blocks: 1 (<model-id>)
-- Screenshots on disk: 1
-
 ### agent-catalog-ai-hub (agents-mcp) — score 2
 
 - Zero screenshots in assets/images/ (0 png/jpg)
 - Screenshots on disk: 0
-
-### csv-export-model-catalog (agents-mcp) — score 2
-
-- Image refs: 1, all resolve
-- Placeholder tokens in source blocks: 5 (<authorization-header>, <catalog-source>, <count>, <export-script>, <exported-file>)
-- Screenshots on disk: 1
 
 ### claude-code-starter-kit (agents-mcp) — score 2
 

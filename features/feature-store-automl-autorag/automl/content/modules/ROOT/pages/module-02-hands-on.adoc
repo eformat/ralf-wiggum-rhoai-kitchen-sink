@@ -100,7 +100,6 @@ Default optimization metrics by task type:
 |===
 
 // TODO: capture screenshot
-image::02-leaderboard.png[AutoML leaderboard ranking trained models,link=self,window=blank,width=700]
 
 [start=5]
 . Click *View details* from the actions menu of a model to inspect its metrics,

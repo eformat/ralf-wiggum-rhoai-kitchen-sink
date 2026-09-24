@@ -138,7 +138,7 @@ tier to choose a server, and deploy it into your working project.
 . Browse the available MCP servers. Each card displays the server name, a description,
 the supported tools, and the support tier (`Red Hat`, `Partner`, or `Community`).
 
-image::01-catalog-support-tiers.png[MCP server cards in the AI Hub MCP Catalog showing the support tier badge,link=self,window=blank,width=700]
+// TODO: capture screenshot (needs AI Hub MCP Catalog page on cluster)
 
 . Filter the catalog by deployment mode or supported transport protocols to find a
 server that meets your requirements. For the smoothest start, pick a server labeled
