@@ -76,6 +76,8 @@ You can name the three plugins that make a scheduler configuration
 latency-aware, the plugin the scorer depends on for its predictions, and the
 picker that replaces `max-score-picker`.
 
+Now that you can name the latency-aware plugins, you will attach a router configuration that uses them to a deployment.
+
 == Exercise 2: Apply latency-aware routing to a deployment
 
 With a compatible router configuration available, the advanced routing section
@@ -122,6 +124,8 @@ optimizes.
 Your deployed model's `LLMInferenceService` resource lists the selected router
 configuration in `spec.baseRefs` after the topology preset config.
 
+Now that the router configuration is attached, you will generate inference traffic and observe the latency metrics it produces.
+
 == Exercise 3: Observe latency behavior with metrics
 
 The Endpoint Picker exposes Prometheus service-level metrics at the `/metrics`
@@ -151,22 +155,25 @@ for latency-aware routing are:
 |Total requests processed, labeled by model, target model, fairness ID, and priority — the priority label lets you compare how latency-sensitive tiers are served.
 |===
 
-. Generate inference traffic so the latency histograms have data. Copy the
-*Inference endpoint* URL from your model details page, then send a request —
+. Generate inference traffic so the latency histograms have data. Capture the
+*Inference endpoint* URL from your project — it is also shown in the
+*Inference endpoint* field of the model details page — then send a request,
 with an Authorization header if your deployment has authentication enabled, as
 described in the *Make authenticated inference requests* chapter of the llm-d
 documentation:
 +
 [source,bash,role="execute",subs="attributes"]
 ----
-INFER_URL=<inference-endpoint-url>
+export INFER_URL=$(oc get llmisvc -n {guid}-{user} -o jsonpath='{.items[0].status.url}')
 curl -k $INFER_URL/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{"model": "<model-name>", "messages": [{"role": "user", "content": "What is Red Hat OpenShift AI?"}]}'
+  -d '{"model": "{model_name}", "messages": [{"role": "user", "content": "What is Red Hat OpenShift AI?"}]}'
 ----
 +
-Replace `<inference-endpoint-url>` with the endpoint from your model details
-page and `<model-name>` with the model you deployed in Exercise 2. Send a few
+If you deployed more than one model in your project, adjust the index in
+`.items[0]` so the query points at the deployment from Exercise 2. The model
+name defaults to the llm-d runnable example (`RedHatAI/Qwen3-8B-FP8-dynamic`);
+replace it with the model you deployed in Exercise 2 if it differs. Send a few
 requests, including longer prompts, so the TTFT and TPOT distributions have
 spread.
 

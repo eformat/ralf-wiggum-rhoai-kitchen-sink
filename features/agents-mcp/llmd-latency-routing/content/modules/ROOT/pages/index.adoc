@@ -32,8 +32,8 @@ work.
 
 * RHOAI operator installed
 * Distributed Inference with llm-d enabled (see the prerequisites in the RHOAI
-* Recommended prerequisite: complete the xref:llmd-core::index.adoc[Distributed Inference with llm-d (core)] workshop first
   documentation for Distributed Inference with llm-d)
+* Recommended prerequisite: complete the xref:llmd-core::index.adoc[Distributed Inference with llm-d (core)] workshop first
 * An OpenShift cluster with RHOAI 3.5 installed
 
 == Estimated time

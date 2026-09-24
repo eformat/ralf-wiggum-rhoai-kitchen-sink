@@ -77,7 +77,6 @@ To find the feature in the console, log in as a cluster administrator and click 
 Installed Operators* (on OpenShift 4.19, *Operators → Installed Operators*). The *OGX Operator*
 appears in the `redhat-ods-applications` namespace once it is activated.
 
-// TODO: capture screenshot
 image::01-ogx-operator-installed.png[OGX Operator in the Installed Operators view,link=self,window=blank,width=700]
 
 === Verify

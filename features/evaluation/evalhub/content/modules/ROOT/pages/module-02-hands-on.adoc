@@ -196,7 +196,8 @@ benchmarks scales horizontally across your tenant namespace.
 
 === Verify
 
-Confirm the job is registered and check its state:
+Confirm the job is registered and check its state, replacing `<job_id>` with
+the ID from the `202 Accepted` response:
 +
 [source,bash,role="execute"]
 ----
@@ -211,7 +212,8 @@ results.
 == Exercise 4: Track jobs and results
 
 . Watch the job status in real time. The CLI polls at regular intervals and
-  displays benchmark progress until the job reaches a terminal state:
+   displays benchmark progress until the job reaches a terminal state, replacing
+   `<job_id>` with the job ID from exercise 3:
 +
 [source,bash,role="execute"]
 ----
@@ -289,21 +291,21 @@ scheduler and jobs run immediately — no error occurs.
 . Have a cluster administrator create a ClusterQueue that defines the
    resource pool for evaluation workloads (ClusterQueues are cluster-scoped):
 +
-[source,yaml]
+[source,yaml,subs="callouts"]
 ----
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ClusterQueue
 metadata:
   name: evaluation-workloads
 spec:
-  namespaceSelector: {}
-  resources:
+  namespaceSelector: {} # <1>
+  resources: # <2>
   - name: cpu
     flavors:
     - name: default
       resources:
       - name: cpu
-        nominalQuota: "10"
+        nominalQuota: "10" # <3>
   - name: memory
     flavors:
     - name: default
@@ -315,15 +317,14 @@ spec:
     - name: default
       resources:
       - name: nvidia.com/gpu
-        nominalQuota: "4"
+        nominalQuota: "4" # <4>
 ----
-+
-where:
-
-* `resources[].name` / `nominalQuota` define the CPU, memory, and GPU quota
-  that evaluation workloads may consume.
-* `namespaceSelector: {}` admits workloads from any namespace, so borrowing
-  follows the ClusterQueue policies.
+<1> *Namespace selector* -- an empty selector admits workloads from any
+namespace, so borrowing follows the ClusterQueue policies.
+<2> *Resources* -- the CPU, memory, and GPU quota pools that evaluation
+workloads may consume.
+<3> *CPU quota* -- 10 CPUs reserved for evaluation jobs from this pool.
+<4> *GPU quota* -- 4 NVIDIA GPUs for GPU-backed evaluation jobs.
 +
 Apply it:
 +
@@ -385,8 +386,8 @@ The namespace output must include both `kueue.openshift.io/managed=true` and
 `evalhub.trustyai.opendatahub.io/tenant=`, and the LocalQueue must be listed
 with status `Active`.
 
-. Submit a job with a Kueue queue specified. Add the `--queue` flag in
-   `kind:name` form:
+. Submit a job with a Kueue queue specified, reusing your model endpoint from
+   exercise 3. Add the `--queue` flag in `kind:name` form:
 +
 [source,bash,role="execute",subs="attributes"]
 ----
@@ -407,7 +408,8 @@ parameter is omitted, the job runs with the default Kubernetes scheduler.
 ====
 
 . Watch the job while Kueue admits it, and confirm Kueue created a Workload
-   resource for the queued Job:
+   resource for the queued Job — replace `<job_id>` with the ID of the queued
+   job from the previous step:
 +
 [source,bash,role="execute",subs="attributes"]
 ----

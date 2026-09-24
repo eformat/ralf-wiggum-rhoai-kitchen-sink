@@ -140,7 +140,7 @@ Poll `GET /api/v1/evaluations/jobs/\{job_id\}` or use
 == Results
 
 Benchmark results are returned per benchmark with the metric values the
-provider reported:
+provider reported — replace `<job_id>` with the ID of a completed job:
 
 [source,bash,role="execute",subs="attributes"]
 ----

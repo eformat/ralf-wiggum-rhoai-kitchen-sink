@@ -107,7 +107,7 @@ registered, and any servers exist in your project.
 [source,bash,role="execute",subs="attributes"]
 ----
 oc get datasciencecluster
-oc get datasciencecluster <dsc-name> -o jsonpath='{.spec.components.ogx.managementState}'
+oc get datasciencecluster {dsc_name} -o jsonpath='{.spec.components.ogx.managementState}'
 ----
 
 The second command prints `Managed`, which is the value that enables the OGX
@@ -127,7 +127,8 @@ oc get crd ogxservers.ogx.io
 oc get ogxserver -n {guid}-{user}
 ----
 
-Expected output:
+Expected output — with no OGXServer resources in your project yet, the list
+shows only the column headers:
 
 ----
 NAME         PHASE      AGE
@@ -135,7 +136,7 @@ NAME         PHASE      AGE
 
 === Verify
 
-* `oc get datasciencecluster <dsc-name> -o jsonpath='{.spec.components.ogx.managementState}'` prints `Managed`.
+* `oc get datasciencecluster {dsc_name} -o jsonpath='{.spec.components.ogx.managementState}'` prints `Managed`.
 * `oc get crd ogxservers.ogx.io` returns the registered CRD.
 * `oc get ogxserver -n {guid}-{user}` lists the OGX servers in your project (an
   empty list means no server has been created in this project yet).

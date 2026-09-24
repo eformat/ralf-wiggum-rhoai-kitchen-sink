@@ -53,7 +53,7 @@ Replace `<epp_pod_name>` with the pod name from the previous step.
 
 The EPP pod is in the `Running` state, and the logs show scheduler initialization messages confirming which plugins and profiles are loaded. Without flow control enabled, you see the default four-scorer configuration (`queue-scorer`, `kv-cache-utilization-scorer`, `prefix-cache-scorer`, `no-hit-lru-scorer` with weights 2:2:3:2) and no flow control configuration.
 
-Your model deployment is serving traffic and the Endpoint Picker is running. You are ready to enable flow control on it.
+Your model deployment is serving traffic and the Endpoint Picker is running. Now that you have a healthy deployment with the Endpoint Picker running, you will enable flow control and saturation detection on it.
 
 == Exercise 2: Enable flow control and saturation detection
 

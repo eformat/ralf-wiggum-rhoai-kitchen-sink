@@ -86,7 +86,21 @@ sample-llm-inference-service        True    5m
 ----
 
 The `READY` column shows `True` when all replicas are serving. This can take several
-minutes while the model weights download.
+minutes while the model weights download. You can wait for the condition instead of
+polling:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc wait --for=condition=Ready llminferenceservice/sample-llm-inference-service \
+  -n {guid}-{user} --timeout=600s
+----
+
+Expected output: `condition met`.
+
+The *Deployed models* page in the RHOAI dashboard shows the deployment with a
+*Ready* status badge alongside its endpoint URL:
+
+image::02-deployed-models-llminferenceservice.png[Deployed models page showing the LLMInferenceService with a Ready status badge,link=self,window=blank,width=700]
 
 Now that the service is running, validate its status details and test the endpoint.
 
@@ -119,12 +133,13 @@ oc get llmisvc -n {guid}-{user} -o jsonpath='{.items[*].status.addresses}'
 Look for entries with `origin.kind: Route` — the controller discovered OpenShift Routes
 and uses them to provide external URLs. Copy the URL of your service.
 
-. Store the endpoint URL and token as shell variables, replacing the placeholder with
-the URL you copied:
+. Store the endpoint URL in a shell variable, capturing the controller-discovered
+route URL directly from the service status:
 
 [source,bash,role="execute",subs="attributes"]
 ----
-ENDPOINT=https://<inference-endpoint-url>
+export ENDPOINT=$(oc get llmisvc sample-llm-inference-service -n {guid}-{user} \
+  -o jsonpath='{.status.url}')
 ----
 
 . Next, complete the authenticated request flow from
@@ -136,7 +151,9 @@ llmd-core workshop: create a ServiceAccount, a Role granting `get` on the
 
 === Verify
 
-* The authenticated request returns HTTP `200` with a chat-completion response body.
+* The authenticated request returns HTTP `200` with a chat-completion response body —
+JSON with `"object": "chat.completion"` and the generated answer in
+`choices[0].message.content`.
 * A request without the `Authorization` header returns `401 Unauthorized` with a message
 that authentication is required (when platform authentication is enabled on the service).
 * A request with an invalid or expired token also returns `401 Unauthorized`.

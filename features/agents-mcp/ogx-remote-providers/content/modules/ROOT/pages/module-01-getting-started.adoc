@@ -78,6 +78,9 @@ OGXServer exists in your working project.
 oc get crd ogxservers.ogx.io
 ----
 
+You should see `ogxservers.ogx.io` listed with a `CREATED AT` timestamp. If
+the CRD is missing, the OGX Operator is not activated on your cluster.
+
 . List the OGXServer resources in your project:
 
 [source,bash,role="execute",subs="attributes"]

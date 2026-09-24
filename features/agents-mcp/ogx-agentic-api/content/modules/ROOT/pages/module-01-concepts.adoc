@@ -62,7 +62,6 @@ enabled components.
 . In the console, navigate to *Administrator -> CustomResourceDefinitions* and search for
 `ogxservers`.
 
-// TODO: capture screenshot
 image::01-ogx-crd-search.png[Searching for the OGXServer CRD in the OpenShift console,link=self,window=blank,width=700]
 
 === Verify
@@ -84,7 +83,7 @@ the name of your DataScienceCluster resource, then inspect the `ogx` component:
 [source,bash,role="execute",subs="attributes"]
 ----
 oc get datasciencecluster
-oc get datasciencecluster <dsc-name> -o jsonpath='{.spec.components.ogx.managementState}'
+oc get datasciencecluster {dsc_name} -o jsonpath='{.spec.components.ogx.managementState}'
 ----
 
 The second command prints `Managed`, which is the value the migration procedure sets with

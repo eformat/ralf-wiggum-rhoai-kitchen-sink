@@ -99,7 +99,8 @@ oc get trainingruntime -n {guid}-{user}
 `custom-torch-runtime` appears in the list. In the console, *Home → Search* with
 the `TrainingRuntime` resource type selected also lists it.
 
-With a custom runtime in place, switch to programmatic submission with the
+Now that you have created the `custom-torch-runtime` and confirmed it from the
+CLI and the console, you will submit a `TrainJob` programmatically with the
 Kubeflow SDK.
 
 == Exercise 2: Submit a TrainJob by using the Kubeflow SDK
@@ -279,17 +280,20 @@ job = trainer_client.get_job(job_name)
 print("Status: " + str(job.status))
 ----
 
-Then confirm the training pods are running from the CLI:
+Then confirm the training pods are running from the CLI, using the job name
+printed when you submitted the job:
 
 [source,bash,role="execute",subs="attributes"]
 ----
 oc get pods -n {guid}-{user} -l job-name=<job-name>
 ----
 
-(Optional) Open the OpenShift AI dashboard and click *TrainingJobs* to see the
-real-time progress metrics for your training job.
+One pod per training node is listed, each in `Running` state. (Optional) Open
+the OpenShift AI dashboard and click *TrainingJobs* to see the real-time
+progress metrics for your training job.
 
-With the SDK workflow proven, apply it to LLM fine-tuning with Training Hub.
+Now that you have submitted and verified a `TrainJob` with the SDK, you will
+apply the same workflow to LLM fine-tuning with Training Hub.
 
 == Exercise 3: Fine-tune an LLM by using Training Hub
 
@@ -448,7 +452,8 @@ for logline in client.get_job_logs(job_name, follow=True):
     print(logline, end="")
 ----
 
-Then check the final job status:
+When training finishes, the job reaches `Completed` status on 2 nodes with the
+`training-hub` runtime:
 
 [source,python]
 ----
@@ -459,8 +464,9 @@ print("Nodes: " + str(job.num_nodes))
 print("Runtime: " + str(job.runtime.name))
 ----
 
-In the OpenShift console, Administrator perspective, click *Workloads → Jobs*,
-select your project, and confirm the job no longer appears after deletion.
+After you delete the job, in the OpenShift console, Administrator perspective,
+click *Workloads → Jobs*, select your project, and confirm the job no longer
+appears in the job list.
 
 == Module summary
 

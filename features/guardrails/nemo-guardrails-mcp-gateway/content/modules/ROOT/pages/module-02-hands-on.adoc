@@ -60,17 +60,17 @@ spec:
         namespace: mcp-gateway-system <5>
 ----
 
-`namespace`:: Your personal workshop project, where the NeMo Guardrails
+<1> *namespace* -- Your personal workshop project, where the NeMo Guardrails
 deployment runs.
-`security.opendatahub.io/enable-auth`:: Enables OpenShift AI authentication on
-the guardrails service route.
-`nemoConfigs[].name`:: Reuses the rails configuration you deployed in Module 01,
-so the same built-in detectors enforce policy on tool-call traffic.
-`mcpGateway.name`:: The Kubernetes `Gateway` resource that the
+<2> *security.opendatahub.io/enable-auth* -- Enables OpenShift AI authentication
+on the guardrails service route.
+<3> *nemoConfigs[].name* -- Reuses the rails configuration you deployed in
+Module 01, so the same built-in detectors enforce policy on tool-call traffic.
+<4> *mcpGateway.name* -- The Kubernetes `Gateway` resource that the
 `MCPGatewayExtension` references in its `targetRef.name` field; the operator
 searches for an `MCPGatewayExtension` matching this value.
-`mcpGateway.namespace`:: The namespace where the `MCPGatewayExtension` resource
-is deployed.
+<5> *mcpGateway.namespace* -- The namespace where the `MCPGatewayExtension`
+resource is deployed.
 
 TIP: Omit the `name` field under `mcpGateway` to use zero-config
 auto-discovery, which selects the first `MCPGatewayExtension` in the specified
@@ -121,6 +121,12 @@ namespace:
 [source,bash,role="execute",subs="attributes"]
 ----
 oc get envoyfilters mcp-sse-strip -n mcp-gateway-system
+----
+
+.Example output
+----
+NAME            CREATED AT
+mcp-sse-strip   2026-09-24T10:15:00Z
 ----
 
 The command returns the `EnvoyFilter` resource details if it was successfully
@@ -229,6 +235,8 @@ Review the `status.mcpGateway` and `status.bbrPlugin` sections. Common issues:
   seconds and completes the integration automatically on the next
   reconciliation cycle.
 
+Now that you have verified the enforcement plumbing and its automatic lifecycle, you will send a real MCP tool call through the guarded gateway.
+
 == Exercise 3: Send an MCP tool call through the guarded gateway
 
 With the enforcement plumbing active, drive a real MCP session through the
@@ -247,11 +255,12 @@ documentation with the documented guardrails response schema from the AI
 safety documentation.
 
 . Ask your facilitator for the external URL of the MCP gateway. These steps
-  reference it as `$MCP_GATEWAY_URL`.
+  reference it as `$MCP_GATEWAY_URL`; the example below uses the default
+  `{mcp_gateway_url}` value, so replace it with your facilitator's URL.
 
 [source,bash,role="execute",subs="attributes"]
 ----
-export MCP_GATEWAY_URL=https://<gateway-url>
+export MCP_GATEWAY_URL={mcp_gateway_url}
 ----
 
 . Connect to the MCP gateway and initialize a session, dumping the response
@@ -291,6 +300,11 @@ response arrives as JSON because the `mcp-sse-strip` EnvoyFilter converts MCP
 server responses from server-sent events (SSE) to JSON, which NeMo Guardrails
 requires for guardrail processing.
 
+.Example output
+----
+{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"serverone_example_tool","description":"..."}]}}
+----
+
 . Call one of the listed tools by using the `tools/call` method with the
 prefixed name and the session ID. Replace `<prefixed_tool_name>` with a tool
 name from the `tools/list` response:
@@ -300,11 +314,16 @@ name from the `tools/list` response:
 curl -X POST $MCP_GATEWAY_URL/mcp \
   -H "Content-Type: application/json" \
   -H "mcp-session-id: $SESSION_ID" \
-  -d '{"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "<prefixed_tool_name>", "arguments": {}}}'
+  -d '{"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "<prefixed_tool_name>", "arguments": {}}}'  # replace <prefixed_tool_name> with a tool name from the tools/list output
 ----
 
 A benign tool call passes through the `nemo-request-guard` plugin and returns
 a normal JSON-RPC result.
+
+.Example output
+----
+{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"..."}]}}
+----
 
 . Set the route of your guarded guardrails deployment as an environment
 variable — the verification steps below use it:

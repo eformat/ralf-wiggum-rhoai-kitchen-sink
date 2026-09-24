@@ -148,21 +148,21 @@ dictionary with the candidate models to score:
 [source,python,subs="attributes"]
 ----
 MODEL_CONFIGS = {
-    "<model_name_1>": {
-        "api_base": "<model_endpoint_url_1>",
+    "{model_name_1}": {
+        "api_base": "{model_endpoint_url_1}",
         "api_key": "<model_api_key_1>"
     },
-    "<model_name_2>": {
-        "api_base": "<model_endpoint_url_2>",
+    "{model_name_2}": {
+        "api_base": "{model_endpoint_url_2}",
         "api_key": "<model_api_key_2>"
     }
 }
 ----
 where:
 +
-* *model_name_1, model_name_2* — name of each candidate model.
-* *model_endpoint_url_1, model_endpoint_url_2* — OpenAI API-compatible endpoint URL for each model.
-* *model_api_key_1, model_api_key_2* — API key for each model endpoint.
+* *model_name_1, model_name_2* — name of each candidate model; the defaults are models with confirmed tool-calling support from the Red Hat AI validated models catalog.
+* *model_endpoint_url_1, model_endpoint_url_2* — OpenAI API-compatible endpoint URL for each model; the defaults point at in-cluster vLLM services in your working project, so replace them if your candidates are served elsewhere.
+* *model_api_key_1, model_api_key_2* — API key for each model endpoint; replace the placeholders with your endpoint keys.
 +
 Each candidate is scored through the same LangGraph agent harness used for data
 generation; the underlying LLM is swapped while the agent stack stays identical.
@@ -199,13 +199,18 @@ LLM inference cost and time.
 
 . Confirm every configured model has scores in the results file:
 +
-[source,bash,role="execute"]
+[source,bash,role="execute",subs="attributes"]
 ----
-grep -c "<model_name>" evaluation_results.jsonl
+grep -c "{model_name_1}" evaluation_results.jsonl
 ----
 +
-Replace `<model_name>` with each candidate model name; the count must be
-non-zero for every model.
+Example output (count of result records for the model):
++
+----
+7
+----
++
+Repeat the count for {model_name_2}; the count must be non-zero for every model.
 
 . Check the evaluation results summary for `ZERO_JUDGE` and `ZERO_METRICS`
 failure indicators. These constants mark tasks where a model produced no valid

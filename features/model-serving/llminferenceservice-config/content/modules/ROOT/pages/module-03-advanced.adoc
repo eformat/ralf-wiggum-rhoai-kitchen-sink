@@ -71,6 +71,10 @@ data-parallel* topology radio button is now enabled instead of grayed out.
 * The single-node topology has a built-in default (`single-node-default`) and is always
 available.
 
+image::03-llmd-topology-settings.png[The llm-d topology configurations page listing the enabled Multi-node data-parallel configuration,link=self,window=blank,width=700]
+
+image::03-deploy-wizard-llmd-multinode.png[The Deploy model wizard with the Multi-node topology option enabled after the configuration exists,link=self,window=blank,width=700]
+
 With templates in place, add the optional router layer that the wizard exposes.
 
 == Exercise 2: Router configurations and baseRefs merge behavior (admin)
@@ -121,16 +125,16 @@ with inline or ConfigMap-based scheduler settings.
 apiVersion: serving.kserve.io/v1alpha2
 kind: LLMInferenceService
 metadata:
-  name: <llm-service-name>
+  name: {llm_service_name}
   namespace: {guid}-{user}
 spec:
   model:
-    uri: hf://<model-uri>
-    name: <model-name>
-  prefill:
+    uri: {model_uri}
+    name: {model_name}
+  prefill:                                  # <1>
     minReplicas: 2
     maxReplicas: 4
-    resources:
+    resources:                              # <2>
       requests:
         nvidia.com/gpu: "1"
         cpu: "4"
@@ -139,7 +143,7 @@ spec:
         nvidia.com/gpu: "1"
         cpu: "8"
         memory: "32Gi"
-  resources:
+  resources:                                # <3>
     requests:
       nvidia.com/gpu: "1"
       cpu: "2"
@@ -150,18 +154,16 @@ spec:
       memory: "64Gi"
 ----
 
-*`spec.prefill`*:: Its presence alone activates the disaggregated prefill/decode topology; the Operator processes these values into preset templates.
-
-*`spec.prefill.resources`*:: Prefill pods — allocate more CPU and compute-optimized GPUs for prompt processing.
-
-*`spec.resources`*:: Decode pods (the default replica set) — allocate more memory and memory-optimized GPUs for token generation.
+<1> *`spec.prefill`* -- Its presence alone activates the disaggregated prefill/decode topology; the controller processes these values into preset templates.
+<2> *`spec.prefill.resources`* -- Prefill pods: allocate more CPU and compute-optimized resources for prompt processing.
+<3> *`spec.resources`* -- Decode pods (the default replica set): allocate more memory and memory-optimized resources for token generation.
 
 . Apply the configuration and check that both replica sets start:
 
 [source,bash,role="execute",subs="attributes"]
 ----
 oc apply -f disaggregated-llm.yaml
-oc get pods -n {guid}-{user} | grep <llm-service-name>
+oc get pods -n {guid}-{user} | grep {llm_service_name}
 ----
 
 === Verify
@@ -171,10 +173,19 @@ Verify that the disaggregated topology is active — the Operator normalizes
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc get llminferenceservice <llm-service-name> -n {guid}-{user} -o jsonpath={.spec.prefill}
+oc get llminferenceservice {llm_service_name} -n {guid}-{user} -o jsonpath={.spec.prefill}
 ----
 
-Expected output: `{}` — an empty object confirms disaggregated mode is enabled.
+Expected output: `{}` — an empty object confirms disaggregated mode is enabled. You can
+also wait for both replica sets to become ready:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc wait --for=condition=Ready llminferenceservice/{llm_service_name} \
+  -n {guid}-{user} --timeout=900s
+----
+
+Expected output: `condition met`.
 
 Confirm the scheduler picked up the separate profiles (the EPP pod follows the pattern
 `<service-name>-kserve-router-scheduler<random-suffix>`):
@@ -185,8 +196,11 @@ oc get pods -n {guid}-{user} | grep router-scheduler
 oc logs <epp-pod-name> -n {guid}-{user} | grep -i "profile\|disagg"
 ----
 
-The EPP pod logs show initialization messages for the disaggregated profile handler and
-separate prefill/decode scheduler profiles.
+Replace `<epp-pod-name>` with the pod name from the previous step.
+
+The `grep` output includes initialization lines for the disaggregated profile handler and
+lists separate `prefill` and `decode` scheduler profiles by name — the automatic
+scheduler configuration the controller applied.
 
 If you have not completed the xref:llmd-core::index.adoc[Distributed Inference with llm-d (core)] workshop, the summary below covers what you need.
 

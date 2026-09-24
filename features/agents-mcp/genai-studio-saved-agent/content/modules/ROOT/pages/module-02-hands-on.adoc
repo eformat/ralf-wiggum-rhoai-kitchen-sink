@@ -78,7 +78,7 @@ agent with your changes instead of overwriting.
 The agent name is displayed in the playground header, and the agent is listed
 on the *Agents* tab under *Gen AI studio → AI asset endpoints*.
 
-With your baseline agent saved, the next step is to load it into a fresh
+Now that you have saved a playground agent, you will load it into a fresh
 playground session.
 
 == Exercise 2: Load a saved agent
@@ -126,8 +126,8 @@ The agent name is displayed in the playground header, and the model, inference
 parameters, prompt, knowledge source, and MCP server settings match the saved
 agent.
 
-You now have a working baseline agent. The final exercise covers managing
-agents as you iterate.
+Now that you have loaded a saved agent, you will manage saved agents as you
+iterate.
 
 == Exercise 3: Manage saved agents
 

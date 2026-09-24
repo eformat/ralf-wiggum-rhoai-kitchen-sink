@@ -157,6 +157,9 @@ TIP: The support tier tells you who backs the server *before* you deploy: Red
 Hat servers carry Red Hat support commitments, Partner servers are supported by
 the ISV, and Community entries have no official support commitment.
 
+Now that you have browsed the catalog and chosen a server, you will deploy it
+into your working project.
+
 == Exercise 3: Deploy an MCP server from a catalog entry
 
 Deploying from the catalog requires no Kubernetes manifests or manual container

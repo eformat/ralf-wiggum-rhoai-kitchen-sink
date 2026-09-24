@@ -102,7 +102,6 @@ needed, then click *Next*.
 . Review the advanced settings — for example, enable *Model access* for an external route or
 *Require token authentication* — then click *Deploy*.
 
-// TODO: capture screenshot
 image::02-wizard-fast-runtime.png[Model deployment wizard showing the fast-1 runtime selected,link=self,window=blank,width=700]
 
 === Verify
@@ -114,23 +113,26 @@ image::02-wizard-fast-runtime.png[Model deployment wizard showing the fast-1 run
 ----
 oc get pods -n {guid}-{user}
 ----
-The model pod transitions from *Pending* to *Running*.
+The model pod transitions from *Pending* to *Running*, showing `1/1` in the `READY` column and
+`Running` in the `STATUS` column.
 . Collect the values you need to query the model:
 * *Token*: *Projects* -> your project -> *Deployments* tab -> expand your model -> the token is
 shown in the *Token secret* field.
 * *Endpoint*: *AI hub* -> *Deployments* — the inference endpoint is shown in the *Inference
-endpoints* field.
+endpoints* field. Copy the endpoint host without the `https://` prefix.
 . The vLLM runtime is compatible with the OpenAI REST API. Send a chat completion to the
 deployed model:
 +
-[source,bash]
+[source,bash,role="execute",subs="attributes"]
 ----
-curl -v https://<inference_endpoint_url>:443/v1/chat/completions \
+curl -v https://{inference_endpoint_url}:443/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H 'Authorization: Bearer <token>' \
+  -H 'Authorization: Bearer {token}' \
   -d '{ "messages": [{ "role": "user", "content": "Give one advantage of monthly fast builds." }] }'
 ----
-A JSON response with a `choices` object confirms the model is serving on the fast-release image.
+An HTTP 200 response containing a `choices` array — whose `message.content` field holds the
+model's answer — confirms the model is serving on the fast-release image. An unexpected `401`
+usually means the `Authorization: Bearer {token}` header is missing or the token has expired.
 
 == Manage the support window
 
@@ -144,7 +146,7 @@ To revoke acceptance and hide the runtime from data scientists, remove the annot
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc annotate servingruntime <runtime-name> \
+oc annotate servingruntime vllm-fast-1 \
   opendatahub.io/unsupported-status-accepted-
 ----
 

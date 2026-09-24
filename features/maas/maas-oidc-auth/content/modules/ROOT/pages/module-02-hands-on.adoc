@@ -75,7 +75,8 @@ oc get maassubscription -n models-as-a-service -o yaml
 The output includes the subscription with your OIDC group names under
 `spec.owner.groups`.
 
-With the subscription in place, verify that an OIDC user can authenticate.
+Now that you have created the subscription and matching authorization policy,
+you will verify that an OIDC user can authenticate.
 
 == Exercise 2: Verify external OIDC authentication
 
@@ -86,6 +87,7 @@ through the MaaS management API:
 
 [source,bash,role="execute",subs="attributes"]
 ----
+# Paste the access token you obtained from your OIDC provider
 export OIDC_TOKEN=<user-access-token-from-your-oidc-provider>
 export MAAS_GATEWAY_URL=https://$(oc get route -n openshift-ingress \
   -l gateway.networking.k8s.io/gateway-name=maas-default-gateway \

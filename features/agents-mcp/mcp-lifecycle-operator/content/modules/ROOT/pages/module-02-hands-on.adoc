@@ -89,6 +89,9 @@ Expect the table from Module 01 with `READY True` and `ACCEPTED True` for your
 server. The `ADDRESS` column shows the cluster-internal URL the operator
 provisioned for service discovery.
 
+Now that you have discovered and inspected the `MCPServer` custom resource, you
+will monitor its health and scale it.
+
 == Exercise 2: Monitor health and scale the server
 
 Health and scaling are day-2 operations on the `MCPServer` CR. The operator
@@ -163,6 +166,9 @@ oc get mcpserver my-mcp-server -n {guid}-{user}
 ----
 
 Expect `READY` as `True`.
+
+Now that you have confirmed the scaled server is still healthy, you will
+upgrade it, compare support tiers, and remove it.
 
 == Exercise 3: Upgrade, compare support tiers, and remove the server
 

@@ -33,7 +33,7 @@ YAML] with these workshop values). The Module 01 wizard-published model is
 `maas-llmd-demo`; on a CPU-only cluster use the published
 `granite-vllm-maas`:
 +
-[source,bash,role="execute"]
+[source,bash,role="execute",subs="attributes"]
 ----
 cat > maas-subscription.yaml <<EOF
 apiVersion: maas.opendatahub.io/v1alpha1
@@ -83,8 +83,8 @@ oc get maassubscription -n models-as-a-service
 oc get maasauthpolicy -n models-as-a-service
 ----
 
-You should see the `MaaSModelRef` from Module 01 plus your new subscription
-and authorization policy.
+The output lists `workshop-models-subscription` and `workshop-models-access`
+in the NAME column, alongside the `MaaSModelRef` from Module 01.
 
 . Verify that the MaaS controller generated the gateway authentication and
 rate-limit policies for the model:
@@ -141,7 +141,7 @@ variables:
 
 [source,bash,role="execute",subs="attributes"]
 ----
-export MAAS_API_KEY="<your_api_key>"
+export MAAS_API_KEY="{maas_api_key}"
 export MAAS_URL="https://maas.{openshift_cluster_ingress_domain}"
 ----
 

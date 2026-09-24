@@ -71,7 +71,8 @@ You know the current state of both the `agentConfigManagement` and
 `genAiStudio` dashboard flags and whether the Gen AI Studio menu should already
 be visible in the dashboard.
 
-With the current state observed, the next step is to enable the feature flag.
+Now that you have checked the current dashboard configuration, you will enable
+the `agentConfigManagement` feature flag.
 
 == Exercise 2: Enable the agentConfigManagement feature flag
 
@@ -110,7 +111,8 @@ oc get odhdashboardconfig odh-dashboard-config -n redhat-ods-applications -o jso
 
 The expected output is `true`.
 
-The flag is set. Next, you locate the saved-agent UI in the dashboard.
+Now that you have enabled the `agentConfigManagement` feature flag and confirmed
+it reads `true`, you will locate the saved-agent UI in the dashboard.
 
 == Exercise 3: Locate the saved-agent UI
 

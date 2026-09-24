@@ -71,6 +71,8 @@ shows the Connectivity Link CR that activates the control plane.
 You can describe what each of the four Connectivity Link Operators does, and you found the
 *Red Hat Connectivity Link* Operator in *Ecosystem > Installed Operators* in the console.
 
+Now that you know how Connectivity Link fits together, you will inspect the installation in your cluster.
+
 == Exercise 2: Inspect the installation
 
 Your facilitator installed Connectivity Link as `cluster-admin`. Inspect what was installed
@@ -86,7 +88,7 @@ echo $KUADRANT_SYSTEM_NS
 
 . Confirm the Connectivity Link CR is ready:
 
-[source,bash,role="execute",subs="attributes"]
+[source,bash,role="execute"]
 ----
 oc wait kuadrant/kuadrant --for="condition=Ready=true" -n ${KUADRANT_SYSTEM_NS} --timeout=300s
 ----
@@ -97,7 +99,7 @@ kuadrant.kuadrant.io/kuadrant Ready
 
 . Verify that all component Operator pods are running:
 
-[source,bash,role="execute",subs="attributes"]
+[source,bash,role="execute"]
 ----
 oc get pods -n ${KUADRANT_SYSTEM_NS}
 ----
@@ -129,8 +131,8 @@ spec:
   source: redhat-operators
   sourceNamespace: openshift-marketplace
 ----
-<1> *name: rhcl-operator* — the Connectivity Link Operator package from the Red Hat Operator catalog.
-<2> *channel: stable* — the supported update channel for Connectivity Link 1.4.
+*name: rhcl-operator* — the Connectivity Link Operator package from the Red Hat Operator catalog.
+*channel: stable* — the supported update channel for Connectivity Link 1.4.
 
 [source,yaml]
 ----
@@ -141,7 +143,7 @@ metadata:
   namespace: kuadrant-system
 spec: {}
 ----
-<3> *spec: {}* — an empty spec activates the Connectivity Link control plane with defaults; the Operator installs Authorino, Limitador, and DNS automatically.
+*spec: {}* — an empty spec activates the Connectivity Link control plane with defaults; the Operator installs Authorino, Limitador, and DNS automatically.
 
 If you install Connectivity Link yourself in another cluster, the console flow is
 *Ecosystem > Software Catalog*, filter by `Connectivity`, install with update channel

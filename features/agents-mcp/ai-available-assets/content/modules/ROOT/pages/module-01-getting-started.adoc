@@ -33,7 +33,6 @@ IMPORTANT: Assets listed on the AI asset endpoints page are scoped to your
 currently selected project. You only see models and servers that are deployed
 and available within that specific project.
 
-// TODO: capture screenshot
 image::01-ai-asset-endpoints-page.png[AI asset endpoints page in the RHOAI dashboard,link=self,window=blank,width=700]
 
 === Verify
@@ -73,7 +72,6 @@ data:
       "description": "The GitHub MCP server enables exploration and interaction with repositories, code, and developer resources on GitHub. It provides programmatic access to repositories, issues, pull requests, and related project data, allowing automation and integration within development workflows."
     }
 EOF
-oc apply -f gen-ai-aa-mcp-servers.yaml -n redhat-ods-applications
 ----
 
 *name:* The dashboard only reads the MCP server list from this exact ConfigMap name.

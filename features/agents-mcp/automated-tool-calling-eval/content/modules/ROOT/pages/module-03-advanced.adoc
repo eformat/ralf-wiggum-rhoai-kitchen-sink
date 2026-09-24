@@ -76,9 +76,12 @@ uv run ~/.claude/skills/evalhub/scripts/evalhub_providers.py --agent 2>/dev/null
 ----
 +
 The command returns JSON output listing all registered evaluation providers with
-their agent metadata. If the command returns an error, verify that your
-environment variables are set correctly and that you have network access to the
-EvalHub service.
+their agent metadata — for example `garak`, with `evaluates`, `target_type`, and
+`result_interpretation` keys inside its `agent` object. If the command returns an
+error, verify that your environment variables are set correctly and that you have
+network access to the EvalHub service.
+
+Now that agent skills can connect to your EvalHub instance, you will add agent metadata to a custom provider.
 
 == Exercise 2: Add agent metadata to a custom provider
 
@@ -126,7 +129,9 @@ curl -X PATCH \
   -d '[{"op": "replace", "path": "/agent", "value": { "evaluates": ["safety"], "target_type": "model", "summary": "Updated provider description for agents" }}]'
 ----
 +
-Replace `<provider_id>` with the ID of your custom provider.
+Replace `<provider_id>` with the ID of your custom provider. Run
+`curl -s "$EVALHUB_BASE_URL/api/v1/evaluations/providers" | python3 -m json.tool`
+to list registered providers and their IDs.
 
 === Verify
 
@@ -144,6 +149,8 @@ curl -s \
 The response includes an `agent` object with the metadata fields you defined. If
 you installed agent skills in Exercise 1, the provider also appears in agent
 discovery results from `evalhub_providers.py --agent`.
+
+Now that your custom provider is agent-discoverable, you will generate an auditable evaluation card.
 
 == Exercise 3: Generate evaluation cards
 

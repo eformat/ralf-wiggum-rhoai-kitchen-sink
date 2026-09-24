@@ -58,8 +58,11 @@ continuing.
 
 === Verify
 
-You have confirmed that a Data Science Pipelines Application is deployed in
-your project and that your workbench image ships the Kale extension.
+The `oc get dspa -n {guid}-{user}` output lists the Data Science Pipelines
+Application with a `NAME` entry (for example `data-science-pipelines`) and a
+non-empty `AGE` value — not `No resources found in ... namespace`. On the
+*Workbenches* tab, your workbench runs one of the default data science notebook
+images that ship Kale.
 
 With the prerequisites observed, the next step is to switch the extension on.
 

@@ -68,12 +68,12 @@ Exact resource names of pre-installed runtimes can vary between releases. Find t
 vLLM CPU runtime by its `vllm-cpu` name in the list.
 ====
 
-. Inspect the container image that the vLLM CPU runtime uses, replacing `<runtime-name>`
-with the name you found in the previous step:
+. Inspect the container image that the vLLM CPU runtime uses. The default resource
+name is `vllm-cpu-runtime`; adjust it if the name you found in the previous step differs:
 +
 [source,bash,role="execute",subs="attributes"]
 ----
-oc get servingruntime <runtime-name> -n redhat-ods-applications -o jsonpath='{.spec.containers[0].image}'
+oc get servingruntime {vllm_cpu_runtime_name} -n redhat-ods-applications -o jsonpath='{.spec.containers[0].image}'
 ----
 +
 The output shows the Red Hat-provided vLLM CPU container image from `registry.redhat.io`.
@@ -132,8 +132,9 @@ including custom ones* and choose the vLLM CPU ServingRuntime for KServe.
 . In the *Advanced settings* section, configure the remaining options:
 .. Optional: Select the *Model access* checkbox to make your model deployment available
 through an external route. Keep this selected for the inference exercises in Module 02.
-.. Select *Require token authentication* and enter a *Service account name* that the token
-will be generated for.
+.. Select *Require token authentication* and enter `{token_service_account}` as the
+*Service account name* that the token will be generated for. Use this same service
+account name in the inference exercises in Module 02.
 .. Optional: Select *Add custom runtime arguments* or *Add custom runtime environment
 variables* to add configuration parameters to your deployment.
 .. In the *Deployment strategy* section, select *Rolling update* or *Recreate*.

@@ -27,10 +27,10 @@ The controller creates two Roles for each `AITenant` but does *not* create
 RoleBindings. You must create RoleBindings to grant users, groups, or service
 accounts access to manage tenant resources:
 
-* `aitenant-<tenant_name>-tenant-admin` in the tenant namespace: manages
+* `aitenant-{tenant_name}-tenant-admin` in the tenant namespace: manages
   tenant-scoped MaaS resources — subscriptions, authorization policies,
   tenant configuration, and model references.
-* `aitenant-<tenant_name>-object-admin` in the `ai-tenants` namespace: reads
+* `aitenant-{tenant_name}-object-admin` in the `ai-tenants` namespace: reads
   the specific `AITenant` object to view tenant bootstrap status.
 
 For long tenant names, the controller truncates the Role name and appends a
@@ -39,11 +39,12 @@ names by tenant label before creating bindings:
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc get roles -n ai-tenant-<tenant_name> \
-  -l ai-gateway.opendatahub.io/tenant=<tenant_name>
+oc get roles -n ai-tenant-{tenant_name} \
+  -l ai-gateway.opendatahub.io/tenant={tenant_name}
 ----
 
-Replace `<tenant_name>` with your tenant name, for example `red-team`.
+The commands use the example tenant `{tenant_name}`; substitute your own
+tenant name if you chose a different one in module 2.
 
 [IMPORTANT]
 ====
@@ -56,40 +57,46 @@ Create a RoleBinding to grant tenant-admin access to a group:
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc create rolebinding <tenant_name>-tenant-admins \
-  --role=aitenant-<tenant_name>-tenant-admin \
-  --group=<group_name> \
-  -n ai-tenant-<tenant_name>
+oc create rolebinding {tenant_name}-tenant-admins \
+  --role=aitenant-{tenant_name}-tenant-admin \
+  --group={tenant_group} \
+  -n ai-tenant-{tenant_name}
 ----
 
-Replace `<group_name>` with the OpenShift group or OIDC group to grant access.
+The example grants access to the `{tenant_group}` group — use your OpenShift
+group or OIDC group instead.
 To grant access to an individual user instead, apply this RoleBinding:
 
-[source,yaml]
+[source,yaml,subs="attributes,callouts"]
 ----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: <tenant_name>-tenant-admin
-  namespace: ai-tenant-<tenant_name>
+  name: {tenant_name}-tenant-admin
+  namespace: ai-tenant-{tenant_name} <1>
 subjects:
-- kind: User
+- kind: User <2>
   apiGroup: rbac.authorization.k8s.io
-  name: <username>
-roleRef:
+  name: {user}
+roleRef: <3>
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: aitenant-<tenant_name>-tenant-admin
+  name: aitenant-{tenant_name}-tenant-admin
 ----
+<1> *namespace*: the tenant namespace where the controller created the
+tenant-admin Role.
+<2> *subjects*: the user granted tenant-admin access — here the workshop user.
+<3> *roleRef*: references the `aitenant-{tenant_name}-tenant-admin` Role the
+controller created during `AITenant` reconciliation.
 
 Optional: create an object-admin RoleBinding in the `ai-tenants` namespace to
 let tenant administrators or dashboards view the `AITenant` bootstrap status:
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc create rolebinding <tenant_name>-aitenant-reader \
-  --role=aitenant-<tenant_name>-object-admin \
-  --group=<group_name> \
+oc create rolebinding {tenant_name}-aitenant-reader \
+  --role=aitenant-{tenant_name}-object-admin \
+  --group={tenant_group} \
   -n ai-tenants
 ----
 
@@ -97,7 +104,7 @@ oc create rolebinding <tenant_name>-aitenant-reader \
 ====
 When creating `MaaSModelRef`, `MaaSSubscription`, and `MaaSAuthPolicy`
 resources for a non-default tenant, use the tenant namespace
-`ai-tenant-<tenant_name>` instead of `models-as-a-service`. The admission
+`ai-tenant-{tenant_name}` instead of `models-as-a-service`. The admission
 webhook requires a `MaasTenantConfig` resource in the namespace, which the
 controller creates automatically when the `AITenant` reaches Ready status.
 ====
@@ -109,8 +116,8 @@ Verify the tenant namespace permissions. For a granted user:
 [source,bash,role="execute",subs="attributes"]
 ----
 oc auth can-i create maassubscriptions.maas.opendatahub.io \
-  --as=<username> \
-  -n ai-tenant-<tenant_name>
+  --as={user} \
+  -n ai-tenant-{tenant_name}
 ----
 
 For a granted group, add the `--as-group` flag:
@@ -118,8 +125,8 @@ For a granted group, add the `--as-group` flag:
 [source,bash,role="execute",subs="attributes"]
 ----
 oc auth can-i create maassubscriptions.maas.opendatahub.io \
-  --as=<username> --as-group=<group_name> \
-  -n ai-tenant-<tenant_name>
+  --as={user} --as-group={tenant_group} \
+  -n ai-tenant-{tenant_name}
 ----
 
 ----
@@ -128,7 +135,7 @@ yes
 
 Expected output: `yes`. Also verify `AITenant` read access in the
 `ai-tenants` namespace with
-`oc auth can-i get aitenants.maas.opendatahub.io/<tenant_name> --as=<username> -n ai-tenants`,
+`oc auth can-i get aitenants.maas.opendatahub.io/{tenant_name} --as={user} -n ai-tenants`,
 which also returns `yes` when the object-admin binding is in place.
 
 Access is granted. Next, tune the tenant's runtime configuration.
@@ -146,7 +153,7 @@ settings:
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc edit maastenantconfig default-tenant -n ai-tenant-<tenant_name>
+oc edit maastenantconfig default-tenant -n ai-tenant-{tenant_name}
 ----
 
 [source,yaml,subs="attributes,callouts"]
@@ -191,15 +198,15 @@ resources in the tenant namespace:
 [source,bash,role="execute",subs="attributes"]
 ----
 oc get aitenant -n ai-tenants
-oc get maassubscription,maasauthpolicy,maasmodelref -n ai-tenant-<tenant_name>
+oc get maassubscription,maasauthpolicy,maasmodelref -n ai-tenant-{tenant_name}
 ----
 
 Then delete the `AITenant` and monitor the deletion progress:
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc delete aitenant <tenant_name> -n ai-tenants
-oc get aitenant <tenant_name> -n ai-tenants -w
+oc delete aitenant {tenant_name} -n ai-tenants
+oc get aitenant {tenant_name} -n ai-tenants -w
 ----
 
 The `AITenant` shows a `Terminating` phase during cleanup. Deletion might take
@@ -210,7 +217,7 @@ Verify that controller-managed resources were cleaned up:
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc get aitenant <tenant_name> -n ai-tenants
+oc get aitenant {tenant_name} -n ai-tenants
 ----
 
 ----
@@ -219,7 +226,7 @@ Error from server (NotFound): aitenants.maas.opendatahub.io "<tenant_name>" not 
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc get maastenantconfig default-tenant -n ai-tenant-<tenant_name>
+oc get maastenantconfig default-tenant -n ai-tenant-{tenant_name}
 ----
 
 Expected output: `Error from server (NotFound)` confirming the
@@ -231,8 +238,8 @@ User-created RoleBindings are preserved when the `AITenant` is deleted. If you
 re-create a tenant with the same name, stale RoleBindings that reference the
 recreated Roles can silently re-enable access for former authorized users.
 Always review and remove stale RoleBindings before or after deleting a tenant:
-`oc get rolebindings -n ai-tenant-<tenant_name>`, then
-`oc delete rolebinding <rolebinding_name> -n ai-tenant-<tenant_name>` for each
+`oc get rolebindings -n ai-tenant-{tenant_name}`, then
+`oc delete rolebinding <rolebinding_name> -n ai-tenant-{tenant_name}` for each
 stale binding.
 ====
 
@@ -242,9 +249,9 @@ Route because they are external prerequisites:
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc delete gateway <gateway_name> -n openshift-ingress
-oc delete route <gateway_name> -n openshift-ingress
-oc delete namespace ai-tenant-<tenant_name>
+oc delete gateway {tenant_name} -n openshift-ingress
+oc delete route {tenant_name}-route -n openshift-ingress
+oc delete namespace ai-tenant-{tenant_name}
 ----
 
 Only delete the namespace after confirming no user data needs to be retained.
@@ -294,7 +301,7 @@ The following table summarizes the cleanup behavior for tenant resources:
 
 === Verify
 
-* `oc auth can-i create maassubscriptions.maas.opendatahub.io --as=<username>`
+* `oc auth can-i create maassubscriptions.maas.opendatahub.io --as={user}`
   in the tenant namespace returns `yes` after you create the RoleBinding.
 * After deletion, both `oc get aitenant` and
   `oc get maastenantconfig default-tenant` return

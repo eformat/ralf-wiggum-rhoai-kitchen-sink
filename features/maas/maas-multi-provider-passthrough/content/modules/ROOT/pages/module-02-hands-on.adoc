@@ -114,6 +114,10 @@ automatically creates an `HTTPRoute` with per-provider routing rules. The
 ----
 oc get httproute -n {guid}-llm
 ----
++
+Expected output lists the `HTTPRoute` that the `ExternalModel` controller
+created for `claude-sonnet`, carrying the per-provider routing rules from the
+`externalProviderRefs` list.
 
 . Create a `MaaSModelRef` custom resource in the same namespace as the
 `ExternalModel` to publish the external model to MaaS:
@@ -138,6 +142,13 @@ EOF
 [source,bash,role="execute",subs="attributes"]
 ----
 oc get maasmodelref claude-sonnet -n {guid}-llm
+----
++
+Expected output shows the `MaaSModelRef` in a Ready phase:
++
+----
+NAME            PHASE   AGE
+claude-sonnet   Ready   10s
 ----
 +
 If the resource is missing, the external model does not appear in MaaS
@@ -198,7 +209,6 @@ manage consumption for passthrough models.
 details — provider URL, authentication method, and target model ID — are
 correct.
 
-// TODO: capture screenshot
 image::02-external-models-tab.png[External models tab showing claude-sonnet with Ready status,link=self,window=blank,width=700]
 
 === Verify

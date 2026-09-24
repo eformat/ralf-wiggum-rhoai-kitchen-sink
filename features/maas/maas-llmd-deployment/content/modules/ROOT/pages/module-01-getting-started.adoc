@@ -79,7 +79,7 @@ oc get gatewayclass openshift-ai-inference
 oc get gateway openshift-ai-inference -n openshift-ingress -o wide
 ----
 
-Both commands should return the `openshift-ai-inference` resources. The
+Both commands return resources named `openshift-ai-inference`. The
 Gateway uses `type: LoadBalancer` by default; on bare-metal clusters an
 external entry point must be configured for this Gateway service.
 
@@ -112,7 +112,6 @@ lowercase letters, numbers, and hyphens, for example `maas-llmd-demo`, select
 an appropriate hardware profile, and select *Distributed inference with llm-d*
 as the deployment resource.
 
-// TODO: capture screenshot
 image::01-deploy-wizard-llmd.png[Model deployment section with the Distributed inference with llm-d deployment resource selected,link=self,window=blank,width=700]
 
 . In the *Number of replicas* field, enter the number of replicas to deploy.
@@ -144,7 +143,7 @@ the *Status* column.
 oc get maasmodelref -n {guid}-{user}
 ----
 
-You should see a `MaaSModelRef` object for your deployed model.
+The output lists your deployed model (`maas-llmd-demo`) in the NAME column.
 
 . Verify that the model uses the LLMInferenceService architecture:
 +

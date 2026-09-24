@@ -52,6 +52,9 @@ path. The credit check also keeps metering latency out of the request path: when
 exhausted, only the next request is blocked rather than every in-flight request waiting on
 the metering system.
 
+Now that you have traced a metered request end to end, you will inspect the quota
+enforcement layer the plugins run alongside.
+
 == Exercise 2: Observe the quota enforcement layer
 
 The MaaS controller generates gateway authentication and rate limit policies for each
@@ -62,14 +65,23 @@ list the generated policies in that namespace:
 [source,bash,role="execute",subs="attributes"]
 ----
 oc get maasmodelref --all-namespaces
-oc get authpolicy -n <model_namespace>
-oc get tokenratelimitpolicy -n <model_namespace>
+oc get authpolicy -n {guid}-{user}
+oc get tokenratelimitpolicy -n {guid}-{user}
 ----
 
-where `<model_namespace>` is the project namespace where the model is deployed. Each
-published model should have a corresponding AuthPolicy and TokenRateLimitPolicy
-created by the controller. If these policies are missing, check the MaaS controller logs
-for errors.
+where `{guid}-{user}` is your working project — the namespace where a model you publish
+is deployed. If your facilitator pre-created the demo model in a different namespace,
+substitute the NAMESPACE value from the `maasmodelref` listing above. Each published
+model should have a `TokenRateLimitPolicy` carrying its token limits, created by the
+controller. In OpenShift AI 3.5 the controller aggregates authentication into a single
+gateway-scoped `AuthPolicy` (`maas-gateway-auth`) per gateway rather than one policy per
+model, so the policy list may show the aggregated resource instead of per-model entries.
+If these policies are missing, check the MaaS controller logs for errors:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc logs -n redhat-ai-gateway-infra -l app=maas-controller --tail=50
+----
 
 === Verify
 

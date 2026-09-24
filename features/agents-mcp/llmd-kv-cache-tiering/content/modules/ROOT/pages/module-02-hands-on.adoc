@@ -82,6 +82,8 @@ You can name the label that marks a router configuration, the annotation that
 filters it by topology, and the scorer that gets the heaviest weight in a
 cache-reuse-focused profile.
 
+Now that you can recognize a KV-cache-aware router configuration, you will attach one to a new model deployment.
+
 == Exercise 2: Apply KV-cache-aware routing to a deployment
 
 With a compatible router configuration available, the advanced routing section
@@ -127,6 +129,8 @@ KV-cache-utilization and prefix-cache scorers you read about in module 01.
 Your deployed model's `LLMInferenceService` resource lists the selected router
 configuration in `spec.baseRefs` after the topology preset config.
 
+Now that your deployment carries the router configuration, you will observe the KV cache metrics it produces.
+
 == Exercise 3: Observe KV cache behavior with metrics
 
 The Endpoint Picker (EPP), or inference scheduler, exposes Prometheus metrics at
@@ -154,22 +158,27 @@ the `/metrics` endpoint on the metrics service port. Metrics use the
 |===
 
 . Send the same conversational request several times so a prompt prefix becomes
-cached. Copy the *Inference endpoint* URL from your model details page, then
-send the request — with an Authorization header if your deployment has
-authentication enabled, as described in the
+cached. Store the endpoint URL in a shell variable, capturing the inference URL
+directly from the `LLMInferenceService` status (or copy the *Inference endpoint*
+URL from your model details page) — with an Authorization header if your
+deployment has authentication enabled, as described in the
 *Make authenticated inference requests* chapter of the llm-d documentation:
 +
 [source,bash,role="execute",subs="attributes"]
 ----
-INFER_URL=<inference-endpoint-url>
+export INFER_URL=$(oc get llmisvc -n {guid}-{user} -o jsonpath='{.items[0].status.url}')
 curl -k $INFER_URL/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{"model": "<model-name>", "messages": [{"role": "user", "content": "What is Red Hat OpenShift AI?"}]}'
+  -d '{"model": "{model_name}", "messages": [{"role": "user", "content": "What is Red Hat OpenShift AI?"}]}'
 ----
 +
-Replace `<inference-endpoint-url>` with the endpoint from your model details
-page and `<model-name>` with the model you deployed in Exercise 2. Repeat the
-request three or four times without changing the message.
+The `model` field is pre-filled with the `model_name` attribute, which defaults
+to `RedHatAI/Qwen3-8B-FP8-dynamic`; if you deployed a different model in
+Exercise 2, replace it with that model's serving name. A successful response
+returns HTTP `200` with a chat-completion body — JSON with
+`"object": "chat.completion"` and the generated answer in
+`choices[0].message.content`. Repeat the request three or four times without
+changing the message.
 
 . Observe the cache metrics while the requests are being processed. Query the
 EPP metrics endpoint, or view the metrics through your cluster's monitoring

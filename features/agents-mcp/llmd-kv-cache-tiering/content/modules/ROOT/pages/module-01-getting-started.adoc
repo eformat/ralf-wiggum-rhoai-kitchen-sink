@@ -41,6 +41,8 @@ You can answer, without looking back:
 * Who configures the cache tiers, and who places cache entries on them?
 * Which RHOAI serving stack hosts the cache-aware routing layer?
 
+Now that you understand what hierarchical KV cache tiering does, you will see where it fits in the llm-d serving stack.
+
 == Exercise 2: Where the feature fits in the llm-d serving stack
 
 The Endpoint Picker (EPP) is the request orchestration component of Distributed
@@ -100,6 +102,8 @@ configurations* and *llm-d topology configurations* pages. If you have
 administrator access, open both pages now and note the columns shown — you will
 work with router configurations in the next module.
 
+Now that you have mapped the Endpoint Picker layers and scorer profile, you will confirm the llm-d serving stack is present in your cluster.
+
 == Exercise 3: Confirm your environment is ready
 
 Hierarchical KV Cache Tiering and its cache-aware routing ride on the llm-d
@@ -113,9 +117,9 @@ and list any deployed models:
 oc get llmisvc -n {guid}-{user}
 ----
 +
-Expected output shows either a list of deployed models with their URL and
-`READY` status, or `No resources found` if you have not deployed a model yet.
-Both are fine for this guided tour.
+Expected output shows the table columns `NAME`, `URL`, and `READY` with one row
+per deployed model, or `No resources found` if you have not deployed a model
+yet. Both are fine for this guided tour.
 
 . List the `LLMInferenceServiceConfig` templates that back the llm-d topology
 and router options in the deployment wizard:
@@ -127,7 +131,10 @@ oc get llminferenceserviceconfig -A
 +
 Expected output lists configurations such as topology presets and, if your
 administrator created them, router configs whose names often contain `router`.
-Note the namespaces they live in.
+Each configuration carries an `opendatahub.io/config-type` label — topology
+templates are labeled with their topology type (for example
+`workload-single-node`), router templates with the value `router`. Note the
+namespaces they live in.
 
 . Open the RHOAI dashboard, navigate to *Data Science Projects*, select your
 project, and click *Deploy model*. In the wizard, expand *Advanced routing* and

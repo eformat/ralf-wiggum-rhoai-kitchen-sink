@@ -12,6 +12,8 @@ asciidoc:
     rhoai_version: "3.5"
     feature_maturity: "GA"
     lab_name: "vLLM CPU ServingRuntime on IBM Z / Power Workshop"
+    vllm_cpu_runtime_name: "vllm-cpu-runtime"
+    token_service_account: "vllm-demo-sa"
     guid: abc123
     user: user1
     password: "%password%"

@@ -56,6 +56,9 @@ You can answer, without looking back:
 * What happens when no pod with the target adapter is available?
 * Which RHOAI serving stack owns the routing decision?
 
+Now that you understand the cold-load latency problem, you will map where the
+routing decision happens in the llm-d serving stack.
+
 == Exercise 2: Where the feature fits in the llm-d serving stack
 
 The Endpoint Picker (EPP), or inference scheduler, is the request orchestration
@@ -102,6 +105,9 @@ In the RHOAI dashboard, under *Settings*, an administrator sees *llm-d routing
 configurations* and *llm-d topology configurations* pages. If you have
 administrator access, open both pages now and note the columns shown — you
 will walk the advanced routing workflow in the next module.
+
+Now that you know where adapter-aware routing decisions happen, you will confirm
+the llm-d serving stack is ready in your cluster.
 
 == Exercise 3: Confirm your environment is ready
 

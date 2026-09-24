@@ -164,14 +164,16 @@ The `pytorch-ddp` job is listed. Then check the pod logs:
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc logs <pod-name> -n {guid}-{user}
+oc logs {pod_name} -n {guid}-{user}
 ----
 
-The logs show each rank's tensor value. In the console, click *Workloads* → *Pods*
-and verify that the requested head pod and worker pods are running.
+The logs show each rank's tensor value, for example `Rank 0: Tensor value 1.0 on cpu`.
+The worker pod is named `pytorch-ddp-worker-0`; check its logs the same way. In the
+console, click *Workloads* → *Pods* and verify that the head pod and the worker pod are
+running.
 
-Your job ran through the queue. Now submit a second job that exceeds the quota to see
-how Kueue holds work.
+Now that you have submitted a queued training job, you will watch Kueue make
+scheduling decisions by submitting a second job that exceeds the quota.
 
 == Exercise 2: Watch Kueue make scheduling decisions
 
@@ -233,8 +235,7 @@ status:
       for nvidia.com/gpu in flavor default-flavor in ClusterQueue
 ----
 
-[// TODO: capture screenshot
-image::02-workload-conditions.png[Workload YAML status conditions in the OpenShift console,link=self,window=blank,width=700]]
+image::02-workload-conditions.png[Workload YAML status conditions in the OpenShift console,link=self,window=blank,width=700]
 
 === Verify
 
@@ -247,8 +248,8 @@ The `pytorch-ddp-xl` Workload shows `ADMITTED False` and its
 `status.conditions.message` explains the insufficient quota for `cpu` in flavor
 `default-flavor` in ClusterQueue.
 
-You have seen Kueue hold work that exceeds quota. Next, monitor Kueue health with
-alerts and the documented error messages.
+Now that you have watched Kueue make scheduling decisions, you will monitor Kueue
+with alerts and the documented error messages.
 
 == Exercise 3: Monitor Kueue with alerts and error messages
 
@@ -318,7 +319,8 @@ When you troubleshoot queueing problems, these documented errors are the most co
 
 === Verify
 
-After you resolve the cause of any firing alert, the alerting rule stops firing.
+The alert's Status changes from *Firing* to *Resolved* in *Observe* → *Alerting*
+→ *Alerts*, and the alerting rule no longer lists a firing alert.
 
 == Clean up
 
@@ -336,6 +338,8 @@ Confirm that the Workloads are gone:
 ----
 oc get workloads -n {guid}-{user}
 ----
+
+The output shows `No resources found in {guid}-{user} namespace.`
 
 == Module summary
 

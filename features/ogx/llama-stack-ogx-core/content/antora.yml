@@ -18,3 +18,8 @@ asciidoc:
     openshift_api_url: "https://api.cluster.example.com:6443"
     openshift_console_url: https://console-openshift-console.apps.cluster.example.com
     openshift_cluster_ingress_domain: apps.cluster.example.com
+    pgvector_host: postgres.{guid}-{user}.svc.cluster.local
+    pgvector_database: ogx_metadata
+    pgvector_username: ogx
+    embedding_endpoint: https://nomic-embed-text-v1-5-predictor:8443
+    keycloak_host: keycloak.{guid}-{user}.svc.cluster.local

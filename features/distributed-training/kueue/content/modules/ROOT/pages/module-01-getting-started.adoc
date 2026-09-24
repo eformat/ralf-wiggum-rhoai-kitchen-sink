@@ -88,8 +88,8 @@ oc get namespace {guid}-{user} --show-labels | grep kueue
 
 The output shows the `kueue.openshift.io/managed=true` label on your namespace.
 
-Your project is now under Kueue management. Next, create the queue objects that
-define the quota and the queue that your workloads will use.
+Now that you have enabled your project for Kueue management, you will create the
+Kueue queue objects that define the quota and the queue that your workloads use.
 
 == Exercise 3: Create the Kueue queue objects
 

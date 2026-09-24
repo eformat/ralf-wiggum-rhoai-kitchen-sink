@@ -88,7 +88,8 @@ you granted access to. Check the registry from the CLI:
 oc get modelregistries
 ----
 +
-Expected output lists the registry resource with the name you configured. If
+Expected output lists `workshop-registry`, whose resource name matches the
+registry name by default. If
 this resource type is not available in your deployment, verify the registry
 from the dashboard's *Model registry settings* page instead.
 
@@ -204,7 +205,8 @@ oc get inferenceservices -n {guid}-{user}
 ----
 +
 Expected output shows an inference service named after the *Model deployment
-name* you configured in the wizard.
+name* you configured in the wizard, with `READY` `True` and `STATUS`
+`Successful` once the deployment finishes rolling out.
 
 == Module summary
 

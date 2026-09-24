@@ -22,6 +22,9 @@ oc whoami
 
 You should see your workshop username.
 
+Now that you have logged in to the OpenShift cluster, you will create your own
+working project for the workshop.
+
 == Exercise 2: Create your working project
 
 [source,bash,role="execute",subs="attributes"]
@@ -37,6 +40,9 @@ oc project
 ----
 
 The output shows your new project as the current namespace.
+
+Now that you have a working project, you will open the OpenShift console and
+confirm the RHOAI dashboard is reachable.
 
 == Exercise 3: Open the OpenShift console
 

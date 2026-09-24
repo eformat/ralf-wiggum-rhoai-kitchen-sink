@@ -20,7 +20,9 @@ oc login {openshift_api_url} --username {user} --password {password}
 oc whoami
 ----
 
-You should see your workshop username.
+You should see your workshop username (`{user}`).
+
+Now that you have logged in to the cluster, you will create your own working project.
 
 == Exercise 2: Create your working project
 
@@ -36,7 +38,14 @@ oc new-project {guid}-{user}
 oc project
 ----
 
-The output shows your new project as the current namespace.
+The output shows your new project as the current namespace, for example:
+
+[source,text,subs="attributes"]
+----
+Using project "{guid}-{user}" on server "{openshift_api_url}".
+----
+
+Now that you have a working project, you will open the OpenShift console and reach the RHOAI dashboard.
 
 == Exercise 3: Open the OpenShift console
 

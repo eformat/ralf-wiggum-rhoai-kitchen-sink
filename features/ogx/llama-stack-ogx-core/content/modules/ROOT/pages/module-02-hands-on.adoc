@@ -111,7 +111,6 @@ spec:
         name: ogx-postgres-conn
         key: connection
 EOF
-oc apply -f ogxserver.yamlEOF
 ----
 
 The fields map to the RHOAI documentation (OGXServer v1beta1):
@@ -180,7 +179,7 @@ IMPORTANT: For RAG you need a remote embedding model reachable from the cluster,
 `nomic-embed-text-v1-5` served through a vLLM embedding endpoint. RAG queries without ingested
 content return empty or non-contextual responses.
 
-. Create a secret that contains the inference model and remote embedding environment variables:
+. Create a secret that contains the inference model and remote embedding environment variables, replacing `<token-identifier>` and `<embedding-token>` with your workshop's token and embedding values:
 +
 
 [source,bash,role="execute",subs="attributes"]
@@ -192,7 +191,7 @@ export VLLM_API_TOKEN="<token-identifier>"
 export VLLM_MAX_TOKENS=16384
 export EMBEDDING_MODEL="nomic-embed-text-v1-5"
 export EMBEDDING_PROVIDER_MODEL_ID="nomic-embed-text-v1-5"
-export VLLM_EMBEDDING_URL="<embedding-endpoint>/v1"
+export VLLM_EMBEDDING_URL="{embedding_endpoint}/v1"
 export VLLM_EMBEDDING_API_TOKEN="<embedding-token>"
 export VLLM_EMBEDDING_MAX_TOKENS=8192
 export VLLM_EMBEDDING_TLS_VERIFY="true"
@@ -210,16 +209,16 @@ oc create secret generic ogx-secret -n {guid}-{user} \
   --from-literal=VLLM_EMBEDDING_MAX_TOKENS="$VLLM_EMBEDDING_MAX_TOKENS"
 ----
 
-. Create a secret with the pgvector connection values:
+. Create a secret with the pgvector connection values, replacing `<pgvector-password>` with your pgvector user's password:
 +
 
 [source,bash,role="execute",subs="attributes"]
 ----
 oc create secret generic pgvector-connection -n {guid}-{user} \
-  --from-literal=PGVECTOR_HOST="<pgvector-hostname>" \
+  --from-literal=PGVECTOR_HOST="{pgvector_host}" \
   --from-literal=PGVECTOR_PORT="5432" \
-  --from-literal=PGVECTOR_DB="<pgvector-database>" \
-  --from-literal=PGVECTOR_USER="<pgvector-username>" \
+  --from-literal=PGVECTOR_DB="{pgvector_database}" \
+  --from-literal=PGVECTOR_USER="{pgvector_username}" \
   --from-literal=PGVECTOR_PASSWORD="<pgvector-password>"
 ----
 
@@ -243,7 +242,7 @@ spec:
   overrides:
     env:
       - name: POSTGRES_HOST <1>
-        value: <postgres-host>
+        value: postgres.{guid}-{user}.svc.cluster.local
       - name: POSTGRES_PORT
         value: "5432"
       - name: POSTGRES_DB
@@ -253,7 +252,7 @@ spec:
       - name: POSTGRES_PASSWORD
         valueFrom:
           secretKeyRef:
-            name: <postgres-secret-name>
+            name: postgres-secret
             key: password
       - name: INFERENCE_MODEL <2>
         valueFrom:

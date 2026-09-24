@@ -239,7 +239,7 @@ metadata:
     inference.llm-d.ai/ipp-managed: "true"  # <2>
 type: Opaque
 data:
-  api-key: <base64-encoded-api-key>  # <3>
+  api-key: {base64_encoded_api_key}  # <3>
 ----
 <1> *Secret name* — the `ExternalProvider` `secretRef` references this name in
 the next exercise.

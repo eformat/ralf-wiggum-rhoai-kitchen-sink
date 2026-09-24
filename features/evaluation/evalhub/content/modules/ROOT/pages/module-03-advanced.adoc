@@ -65,7 +65,8 @@ On the *Evaluations* page, locate your job. The *Status* column shows
 Click the evaluation name to view benchmark scores and the pass or fail
 status if you set a threshold.
 
-Having submitted from the console, compare runs side by side.
+Now that you have submitted an evaluation from the dashboard, you will compare
+completed runs side by side.
 
 == Exercise 2: Compare evaluation runs
 
@@ -99,7 +100,8 @@ changes based on your knowledge of each benchmark.
 The MLflow comparison view displays parameters and metrics for every selected
 run in aligned columns.
 
-From the console, move to the CLI to build a reusable evaluation suite.
+Now that you have compared evaluation runs in the comparison view, you will
+build a reusable evaluation suite from the CLI.
 
 == Exercise 3: Create a custom collection
 
@@ -132,7 +134,9 @@ where:
 evalhub collections create --file my-safety-suite.yaml
 ----
 
-. Submit a job that references the collection by ID:
+. Submit a job that references the collection by ID, pointing at your deployed
+   model service — replace `<model-svc>` with the service name of your model
+   from module 2:
 +
 [source,bash,role="execute",subs="attributes"]
 ----
@@ -164,6 +168,14 @@ Confirm the collection was created:
 evalhub collections describe <collection_id>
 ----
 +
+----
+Collection: my-safety-suite
+Category:    safety
+Benchmarks (2):
+  lm_evaluation_harness/truthfulqa_mc2
+  garak/owasp_llm_top_10
+----
++
 The output shows the collection name, category, and benchmark list.
 
 With suites in place, wire the results into MLflow and lock down access.
@@ -182,7 +194,7 @@ env:
 ----
 
 Include an `experiment` block in your YAML config file when you submit the
-job:
+job — replace `<model-svc>` with the service name of your deployed model:
 
 [source,yaml,subs="attributes"]
 ----
@@ -202,7 +214,8 @@ experiment:
 evalhub eval run --config eval-with-mlflow.yaml
 ----
 
-When the job completes, the results include an MLflow experiment URL:
+When the job completes, the results include an MLflow experiment URL — replace
+`<job_id>` with the ID of the completed job:
 
 [source,bash,role="execute",subs="attributes"]
 ----
@@ -220,7 +233,7 @@ Role and RoleBinding:
 
 . Create a Role in the tenant namespace:
 +
-[source,yaml,subs="attributes"]
+[source,yaml,subs="attributes,callouts"]
 ----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -228,18 +241,16 @@ metadata:
   name: evalhub-evaluator
   namespace: {guid}-{user}
 rules:
-- apiGroups: ["trustyai.opendatahub.io"]
+- apiGroups: ["trustyai.opendatahub.io"] # <1>
   resources: ["evaluations", "collections", "providers"]
   verbs: ["get", "list", "create", "update", "delete"]
-- apiGroups: ["mlflow.kubeflow.org"]
+- apiGroups: ["mlflow.kubeflow.org"] # <2>
   resources: ["experiments"]
   verbs: ["create", "get"]
 ----
-+
-where:
-
-* `trustyai.opendatahub.io` virtual resources control job, collection, and provider operations.
-* `mlflow.kubeflow.org` experiments govern MLflow experiment creation and reads.
+<1> *EvalHub virtual resources* -- controls job, collection, and provider
+operations checked in the tenant namespace.
+<2> *MLflow experiments* -- governs MLflow experiment creation and reads.
 . Apply the Role and bind it to a principal:
 +
 [source,bash,role="execute",subs="attributes"]
@@ -249,7 +260,7 @@ oc apply -f evalhub-evaluator-role.yaml -n {guid}-{user}
 +
 For an OpenShift user, the RoleBinding looks like:
 
-[source,yaml,subs="attributes"]
+[source,yaml,subs="attributes,callouts"]
 ----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -258,12 +269,16 @@ metadata:
   namespace: {guid}-{user}
 subjects:
 - kind: User
-  name: <user_name>
+  name: <user_name> # <1>
 roleRef:
   kind: Role
-  name: evalhub-evaluator
+  name: evalhub-evaluator # <2>
   apiGroup: rbac.authorization.k8s.io
 ----
+<1> *Subject* -- the OpenShift user receiving the EvalHub evaluator
+permissions; replace `<user_name>` with your teammate's username.
+<2> *Role reference* -- binds the subject to the `evalhub-evaluator` Role
+created in the previous step.
 
 . Verify the permissions with an impersonation check:
 +

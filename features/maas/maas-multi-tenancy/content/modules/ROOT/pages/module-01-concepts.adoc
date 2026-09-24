@@ -40,7 +40,7 @@ Two tenant flavors exist:
 * *Additional tenants*: provisioned by creating `AITenant` custom resources in
   the management namespace, which is `ai-tenants` by default. For each
   additional tenant, the controller creates a namespace named
-  `ai-tenant-<aitenant_name>`, deploys a per-tenant `maas-api` instance, and
+  `ai-tenant-{tenant_name}`, deploys a per-tenant `maas-api` instance, and
   configures gateway-scoped authentication policies.
 
 === Tenant isolation boundaries

@@ -51,6 +51,8 @@ xref:getting-connected.adoc[Getting Connected]. Keep this namespace in mind: age
 deployed manually in a namespace surface as *OpenShell-managed Sandbox custom
 resources (CRs)*, which is how OpenShell keeps track of agent instances.
 
+Now that you have confirmed your connection to the workshop environment, you will tour what the included OpenShell guide covers.
+
 == Exercise 2: What the guide covers
 
 Per the RHOAI 3.5 release notes, OpenShell ships as a Developer Preview for secure

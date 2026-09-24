@@ -76,8 +76,8 @@ Search*, select your project, type `TrainJob` in the Resources search field, and
 confirm the `TrainJob` resource type is offered. This confirms the Kubeflow
 Trainer v2 CRDs are installed on your cluster.
 
-With the architecture clear, inspect the actual runtime resources in your
-cluster.
+Now that you have confirmed the TrainJob resource type in the console, you will
+inspect the pre-built runtime resources in your cluster.
 
 == Exercise 2: Inspect the pre-built training runtimes
 

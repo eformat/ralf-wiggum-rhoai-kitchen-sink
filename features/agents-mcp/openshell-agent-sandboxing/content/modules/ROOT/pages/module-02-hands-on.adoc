@@ -40,6 +40,8 @@ Explore how these pieces interact:
   restrict system calls and tools, but the agent could reach any network destination —
   which is exactly what controlled network egress closes off.
 
+Now that you have seen how the platform onboards a sandboxed agent, you will look at the core of the sandbox itself: isolation and egress control.
+
 == Exercise 2: Isolated sandboxes and controlled network egress
 
 The last two areas of the guide are the core of the sandbox itself:
@@ -62,6 +64,8 @@ IMPORTANT: Loosening egress rules to make an agent easier to reach defeats the
 containment the sandbox is designed to provide. Any provider or tool the agent needs
 should be an explicit, allow-listed destination.
 
+Now that you have reviewed isolation and egress, you will observe OpenShell-managed agents in your environment.
+
 == Exercise 3: Observe OpenShell-managed agents
 
 OpenShell keeps track of agent instances as *OpenShell-managed Sandbox custom
@@ -74,7 +78,6 @@ namespace, and filtering capabilities to help manage deployed agents.
   your namespace. Agents that were deployed manually appear there as
   OpenShell-managed Sandbox CRs.
 
-// TODO: capture screenshot
 image::02-agent-deployments-dashboard.png[Running agent deployments in the RHOAI dashboard,link=self,window=blank,width=700]
 
 . If your facilitator has deployed an agent into your workshop namespace, observe the

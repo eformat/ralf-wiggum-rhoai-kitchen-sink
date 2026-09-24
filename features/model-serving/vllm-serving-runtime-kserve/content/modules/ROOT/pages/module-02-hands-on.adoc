@@ -138,9 +138,10 @@ oc get inferenceservice -n {guid}-{user}
 The output should show the `granite-vllm` inference service with `READY` set
 to `True`:
 
+[subs="attributes"]
 ----
 NAME           URL                                        READY   AGE
-granite-vllm   https://granite-vllm-<project>.<domain>   True    5m
+granite-vllm   https://granite-vllm-{guid}-{user}.{openshift_cluster_ingress_domain}   True    5m
 ----
 
 The wizard generated a `InferenceService` CR from your choices. Inspect it:

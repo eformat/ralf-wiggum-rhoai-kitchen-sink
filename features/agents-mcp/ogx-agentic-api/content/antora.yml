@@ -12,6 +12,7 @@ asciidoc:
     rhoai_version: "3.5"
     feature_maturity: "TP"
     lab_name: "OGX-native agentic API surface (Tool Runtime, Responses, Conversations) Workshop"
+    dsc_name: default-dsc
     guid: abc123
     user: user1
     password: "%password%"

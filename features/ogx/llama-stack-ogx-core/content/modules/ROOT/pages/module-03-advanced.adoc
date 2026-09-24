@@ -167,8 +167,8 @@ oc get hpa -n {guid}-{user}
 oc get pods -n {guid}-{user} -l app=ogx
 ----
 
-Expected output: an HPA targeting your OGX server with the configured minimum and maximum
-replicas, and a running pod count within those bounds.
+Expected output: an HPA targeting your OGX server with `TARGETS` below the configured CPU and
+memory thresholds, `MINPODS` 1, `MAXPODS` 5, and a running pod count within those bounds.
 
 With availability configured, offload file storage so uploaded documents survive pod restarts and
 rescheduling.
@@ -180,7 +180,7 @@ file system of the OGX pod. The `remote::s3` provider stores file content in an 
 S3-compatible object storage service — Amazon S3, MinIO, Ceph Object Gateway, or any storage
 system that implements the S3 API — while file metadata stays in the PostgreSQL metadata store.
 
-. Create a secret that contains the S3 credentials:
+. Create a secret that contains the S3 credentials, replacing `<access_key_id>` and `<secret_access_key>` with your object store credentials:
 +
 
 [source,bash,role="execute",subs="attributes"]
@@ -193,7 +193,8 @@ oc create secret generic s3-files-credentials \
 
 . Update your OGXServer CR to enable the `remote::s3` files provider. Click *Home → Search*, search
 for `OGXServer` (not the internal `OGXOperator` resource), select your instance, click the *YAML*
-tab, and add the following environment entries:
+tab, and add the following environment entries, replacing `<bucket_name>` and `<s3_endpoint_url>`
+with your object store values:
 +
 [source,yaml,subs="attributes,callouts"]
 ----
@@ -206,7 +207,7 @@ spec:
         - name: S3_BUCKET_NAME <2>
           value: "<bucket_name>"
         - name: AWS_DEFAULT_REGION <3>
-          value: "<region>"
+          value: "us-east-1"
         - name: S3_ENDPOINT_URL <4>
           value: "<s3_endpoint_url>"
         - name: S3_AUTO_CREATE_BUCKET <5>
@@ -225,7 +226,7 @@ spec:
 
 <1> *ENABLE_S3* — enables the `remote::s3` files provider.
 <2> *S3_BUCKET_NAME* — the S3 bucket where files are stored; bucket names must be globally unique.
-<3> *AWS_DEFAULT_REGION* — the region for the bucket, for example `us-east-1`; the default is appropriate for many S3-compatible backends, including MinIO.
+<3> *AWS_DEFAULT_REGION* — the region for the bucket; `us-east-1` is appropriate for many S3-compatible backends, including MinIO.
 <4> *S3_ENDPOINT_URL* — optional; required for S3-compatible backends other than AWS S3 (MinIO, Ceph Object Gateway, OCI Object Storage). Omit when using AWS S3.
 <5> *S3_AUTO_CREATE_BUCKET* — when `"true"`, allows the provider to create the bucket if it does not exist; leave `"false"` in production.
 
@@ -297,7 +298,8 @@ access grants enabled), a role `inference_max`, a protocol mapper that adds real
 access token under the `ogx_roles` claim, and two test users: `user1` with no assigned roles and
 `user2` assigned the `inference_max` role.
 
-. Request an access token for the non-privileged user with an OAuth password grant:
+. Request an access token for the non-privileged user with an OAuth password grant, replacing
+`<client_secret>` and `<user1-password>` with your Keycloak values:
 +
 [source,bash,role="execute",subs="attributes"]
 ----
@@ -306,11 +308,12 @@ curl -d client_id=ogx \
   -d username=user1 \
   -d password="<user1-password>" \
   -d grant_type=password \
-  "https://<keycloak-host>/realms/ogx-demo/protocol/openid-connect/token" \
+  "https://{keycloak_host}/realms/ogx-demo/protocol/openid-connect/token" \
   | jq -r .access_token > user1.token
 ----
 
-. Request a token for the privileged user and inspect the token claims:
+. Request a token for the privileged user, replacing `<client_secret>` and `<user2-password>` with
+your Keycloak values, and inspect the token claims:
 +
 [source,bash,role="execute",subs="attributes"]
 ----
@@ -319,7 +322,7 @@ curl -d client_id=ogx \
   -d username=user2 \
   -d password="<user2-password>" \
   -d grant_type=password \
-  "https://<keycloak-host>/realms/ogx-demo/protocol/openid-connect/token" \
+  "https://{keycloak_host}/realms/ogx-demo/protocol/openid-connect/token" \
   | jq -r .access_token > user2.token
 cat user2.token | cut -d . -f 2 | base64 -d 2>/dev/null | jq .
 ----
@@ -349,9 +352,9 @@ server:
     provider_config:
       type: "oauth2_token" <1>
       jwks:
-        uri: "https://<keycloak-host>/realms/ogx-demo/protocol/openid-connect/certs" <2>
+        uri: "https://{keycloak_host}/realms/ogx-demo/protocol/openid-connect/certs" <2>
         key_recheck_period: 3600
-      issuer: "https://<keycloak-host>/realms/ogx-demo" <3>
+      issuer: "https://{keycloak_host}/realms/ogx-demo" <3>
       audience: "account"
       verify_tls: true
       claims_mapping:

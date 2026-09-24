@@ -15,6 +15,7 @@ asciidoc:
     guid: abc123
     user: user1
     password: "%password%"
+    pod_name: pytorch-ddp-master-0
     openshift_api_url: "https://api.cluster.example.com:6443"
     openshift_console_url: https://console-openshift-console.apps.cluster.example.com
     openshift_cluster_ingress_domain: apps.cluster.example.com

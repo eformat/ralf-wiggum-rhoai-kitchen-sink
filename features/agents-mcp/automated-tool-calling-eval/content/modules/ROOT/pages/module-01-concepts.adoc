@@ -84,6 +84,8 @@ MCP server running on the cluster.
 You can name the four MCP tool names, the three agent workflow steps, and the two
 transport modes without looking back.
 
+Now that you can name the core concepts, you will inspect the cluster resources that back this workshop.
+
 == Exercise 2: Inspect the cluster
 
 An administrator deploys EvalHub through the TrustyAI Operator as part of OpenShift
@@ -119,14 +121,18 @@ EOF
 oc get evalhub -n $EVALHUB_NS
 ----
 +
-Expected output lists the `evalhub` instance with an `AGE` value.
+Expected output lists the `evalhub` instance with an `AGE` value:
+----
+NAME      AGE
+evalhub   3m
+----
 
 . List the EvalHub pods and show each container's readiness. The MCP server runs
 as a container alongside the EvalHub server when `spec.mcp.enabled` is `true`:
 +
 [source,bash,role="execute",subs="attributes"]
 ----
-oc get pods -n $EVALHUB_NS -l app=eval-hub -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .status.containerStatuses[*]}{.name}={.ready}{" "}{end}{"\n"}{end}'
+oc get pods -n $EVALHUB_NS -l app=eval-hub -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .status.containerStatuses[*]}{.name}={.ready}{" "}\{end}{"\n"}\{end}'
 ----
 +
 Expected output shows a `Running` pod with its containers set to `true`, including
@@ -142,7 +148,13 @@ evalhub-7b9f4c6d88-x2k4p  server=true mcp=true
 oc get routes -n $EVALHUB_NS
 ----
 +
-Expected output shows `evalhub` and `evalhub-mcp` routes.
+Expected output shows `evalhub` and `evalhub-mcp` routes, each with a
+`HOST/PORT` ending in `apps.cluster.example.com` and a `TERMINATION` value:
+----
+NAME          HOST/PORT                                           SERVICES   PORT   TERMINATION
+evalhub       evalhub-evalhub.apps.cluster.example.com            evalhub    8080   edge
+evalhub-mcp   evalhub-mcp-evalhub.apps.cluster.example.com        evalhub    3001   edge
+----
 
 === Verify
 

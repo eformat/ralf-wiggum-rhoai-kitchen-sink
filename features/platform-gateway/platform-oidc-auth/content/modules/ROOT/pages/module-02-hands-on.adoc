@@ -40,7 +40,6 @@ console   https://console-openshift-console.apps.cluster.example.com
 * Your OpenShift AI components are accessible — for example, the Dashboard and
   Notebooks.
 +
-// TODO: capture screenshot
 image::02-oidc-console-login.png[OIDC provider login page redirecting back to the OpenShift console,link=self,window=blank,width=700]
 
 . Check the GatewayConfig status to verify that the OIDC configuration was
@@ -51,9 +50,18 @@ image::02-oidc-console-login.png[OIDC provider login page redirecting back to th
 oc get gatewayconfig default-gateway -o yaml
 ----
 The expected output is the full YAML of the `GatewayConfig` resource, showing
-the OIDC configuration details under `spec.oidc` and confirming successful
-deployment by displaying both the `Ready` and `ProvisioningSucceeded`
-conditions with `status: "True"`.
+the OIDC configuration details under `spec.oidc`. An excerpt of the status
+confirms successful provisioning — both conditions report `True`:
++
+[source,yaml]
+----
+status:
+  conditions:
+  - type: Ready
+    status: "True"
+  - type: ProvisioningSucceeded
+    status: "True"
+----
 
 . Verify the `kube-auth-proxy` deployment is running in the
   `openshift-ingress` namespace:
@@ -80,6 +88,9 @@ NAME                    CLASS                        ADDRESS                    
 data-science-gateway    data-science-gateway-class   <gateway-elb-address>                  True         5m
 ----
 
+The `ADDRESS` column shows the environment-specific load balancer address that
+the gateway's ingress controller assigns; its value differs per cluster.
+
 . Test the OIDC discovery endpoint:
 +
 [source,bash,role="execute"]
@@ -90,8 +101,18 @@ NOTE: Re-export the `IDP_*` environment variables from Module 01 if this is a
 new terminal session.
 +
 The expected output is a JSON object containing the OIDC configuration
-endpoints (`issuer`, `authorization_endpoint`, `token_endpoint`, and so on),
-which confirms the OIDC provider is publicly discoverable.
+endpoints, which confirms the OIDC provider is publicly discoverable:
++
+[source,json,subs="attributes"]
+----
+{
+  "issuer": "https://{idp_domain}/realms/{idp_realm}",
+  "authorization_endpoint": "https://{idp_domain}/realms/{idp_realm}/protocol/openid-connect/auth",
+  "token_endpoint": "https://{idp_domain}/realms/{idp_realm}/protocol/openid-connect/token",
+  "jwks_uri": "https://{idp_domain}/realms/{idp_realm}/protocol/openid-connect/certs",
+  ...
+}
+----
 
 === Verify
 
@@ -277,6 +298,10 @@ The `Ready` and `ProvisioningSucceeded` conditions report `True`, the
 `kube-auth-proxy` deployment reports `1/1` ready, and dashboard login succeeds
 without TLS certificate errors.
 
+Now that the success path and the failure mode are both rehearsed, the final
+exercise covers the gateway's second authentication method: programmatic access
+with a service account token.
+
 == Exercise 4: Access the gateway programmatically with a service account token
 
 The centralized authentication service supports two authentication methods to
@@ -293,10 +318,9 @@ browser, use OIDC authentication as in the previous exercises.
 . Define the namespace where your application or CLI tool runs, replacing the
   placeholder with your actual application namespace:
 +
-[source,bash,role="execute"]
+[source,bash,role="execute",subs="attributes"]
 ----
-# Replace with your application namespace, for example redhat-ods-applications
-SA_NAMESPACE="<your-namespace>"
+SA_NAMESPACE="{app_namespace}"
 ----
 
 . Create a ServiceAccount for your application or CLI tool:
@@ -376,7 +400,7 @@ permissions it needs — never `cluster-admin` or overly broad permissions.
 Test authentication with your service account token — a successful
 authentication returns HTTP 200:
 
-[source,bash,role="execute",subs="attributes"]
+[source,bash,role="execute"]
 ----
 curl -k -i -H "Authorization: Bearer ${TOKEN}" \
   "https://${GATEWAY_URL}/your-service-path"
@@ -391,7 +415,7 @@ HTTP/2 200
 Requests with invalid or missing tokens return HTTP 403 or redirect to
 authentication:
 
-[source,bash,role="execute",subs="attributes"]
+[source,bash,role="execute"]
 ----
 curl -k -i "https://${GATEWAY_URL}/your-service-path"
 ----

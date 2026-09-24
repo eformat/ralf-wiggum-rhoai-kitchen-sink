@@ -138,7 +138,6 @@ tier to choose a server, and deploy it into your working project.
 . Browse the available MCP servers. Each card displays the server name, a description,
 the supported tools, and the support tier (`Red Hat`, `Partner`, or `Community`).
 
-// TODO: capture screenshot
 image::01-catalog-support-tiers.png[MCP server cards in the AI Hub MCP Catalog showing the support tier badge,link=self,window=blank,width=700]
 
 . Filter the catalog by deployment mode or supported transport protocols to find a
@@ -177,7 +176,7 @@ custom resource in your namespace and provisions the required `Deployment` and
 === Verify
 
 Confirm that the `MCPServer` custom resource shows a `READY` status of `True`. Replace
-`<mcp_server_name>` with the server you deployed:
+`{mcp_server_name}` with the name of the server you deployed:
 
 [source,bash,role="execute",subs="attributes"]
 ----
@@ -186,9 +185,10 @@ oc get mcpservers -n {guid}-{user}
 
 The output shows your MCP server with `READY` status as `True`, for example:
 
+[subs="attributes"]
 ----
 NAME                READY   ACCEPTED   IMAGE   PORT   ADDRESS   AGE
-<mcp_server_name>   True    True       ...     ...    ...       2m
+{mcp_server_name}   True    True       ...     ...    ...       2m
 ----
 
 [TIP]
@@ -215,12 +215,12 @@ delete it and confirm the operator cleans up after it.
 oc get mcpservers -n {guid}-{user}
 ----
 
-. Review the status conditions for your server. Replace `<mcp_server_name>` with your
+. Review the status conditions for your server. Replace `{mcp_server_name}` with your
 server name:
 +
 [source,bash,role="execute",subs="attributes"]
 ----
-oc describe mcpserver <mcp_server_name> -n {guid}-{user}
+oc describe mcpserver {mcp_server_name} -n {guid}-{user}
 ----
 +
 Look for a condition with `type: Ready` and `status: True` to confirm the server is
@@ -237,7 +237,7 @@ resources, and the server is no longer available to your agents.
 +
 [source,bash,role="execute",subs="attributes"]
 ----
-oc delete mcpserver <mcp_server_name> -n {guid}-{user}
+oc delete mcpserver {mcp_server_name} -n {guid}-{user}
 ----
 
 === Verify
@@ -249,7 +249,8 @@ Confirm no `MCPServer` resources remain in your project:
 oc get mcpservers -n {guid}-{user}
 ----
 
-The expected output is `No resources found` or an empty list.
+The expected output is `No resources found in {guid}-{user} namespace.` — an empty
+`MCPServer` list confirms the operator cleaned up the workload.
 
 == Module summary
 

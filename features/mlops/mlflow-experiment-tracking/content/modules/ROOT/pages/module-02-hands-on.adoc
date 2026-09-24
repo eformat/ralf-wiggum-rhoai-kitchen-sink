@@ -51,27 +51,28 @@ store and a PVC for file-based artifact storage:
 [source,bash]
 ----
 cat > mlflow.yaml <<'EOF'
-EOF
-----
 apiVersion: mlflow.opendatahub.io/v1
 kind: MLflow
 metadata:
-  name: mlflow <1>
+  name: mlflow
   namespace: redhat-ods-applications
 spec:
-  storage: <2>
+  storage:
     accessModes:
     - ReadWriteOnce
     resources:
       requests:
         storage: 10Gi
-  backendStoreUri: "sqlite:////mlflow/mlflow.db" <3>
-  artifactsDestination: "file:///mlflow/artifacts" <4>
+  backendStoreUri: "sqlite:////mlflow/mlflow.db"
+  artifactsDestination: "file:///mlflow/artifacts"
+  serveArtifacts: true
+EOF
 ----
 *`name: mlflow`* — the resource is cluster-scoped and must be named `mlflow`; only one instance is allowed per cluster.
 *`spec.storage`* — provisions a PVC for file-based development or test deployments.
 *`backendStoreUri`* — the tracking metadata database URI; `sqlite://` for development, `postgresql://` for production.
 *`artifactsDestination`* — the base URI where artifacts are stored for new experiments. Artifact serving is *not* supported when this uses a `file://` path together with `spec.storage`.
+*`serveArtifacts`* — required by validation whenever `artifactsDestination` uses a `file://` path; the resource is rejected without it.
 
 . For a production-oriented deployment, use PostgreSQL for metadata and
 S3-compatible object storage for artifacts instead:
@@ -126,6 +127,29 @@ oc get datasciencecluster default-dsc -o jsonpath='{.status.installedComponents.
 ----
 +
 The expected output is `true`.
+
+. Confirm that the `MLflow` instance reports `Available`:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc wait --for=condition=Available mlflow/mlflow -n redhat-ods-applications --timeout=120s
+----
++
+Expected output:
++
+----
+mlflow.mlflow.opendatahub.io/mlflow condition met
+----
+
+. Confirm the in-cluster tracking endpoint is published:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get mlflow mlflow -n redhat-ods-applications -o jsonpath='{.status.address.url}'
+----
++
+Expected output shows the in-cluster HTTPS URL of the MLflow service, of the
+form `https://<service>.redhat-ods-applications.svc:<port>`.
 
 . Confirm the MLflow UI is available in the RHOAI dashboard: open
 {openshift_console_url} and launch the RHOAI dashboard, then in the dashboard
@@ -202,14 +226,20 @@ oc exec -n {guid}-{user} my-workbench -c my-workbench -- env | grep MLFLOW
 +
 Expected output shows the three injected variables:
 +
+[subs="attributes"]
 ----
-MLFLOW_TRACKING_URI=https://<gateway_hostname>/mlflow
+MLFLOW_TRACKING_URI=https://{gateway_hostname}/mlflow
 MLFLOW_K8S_INTEGRATION=true
 MLFLOW_TRACKING_AUTH=kubernetes-namespaced
 ----
 +
-The `<gateway_hostname>` value is cluster-specific and matches the GatewayAPI
-public endpoint for your cluster.
+The gateway hostname value is cluster-specific and matches the GatewayAPI
+public endpoint for your cluster. To fetch it, run:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get route data-science-gateway -n openshift-ingress -o jsonpath='{.spec.host}'
+----
 
 . Verify that the RoleBinding was created. The notebook controller creates a
 namespace-scoped RoleBinding named `<notebook_name>-mlflow` that grants the

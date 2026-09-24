@@ -97,6 +97,8 @@ dashboard page for red teaming.
 You can name the two phases of the assessment, the four judge classifications,
 and the five attack strategies without consulting the table.
 
+Now that you understand how the assessment works, you will inspect the cluster components that back it.
+
 == Exercise 2: Inspect the cluster
 
 The assessment runs as a KFP pipeline, driven by EvalHub when it is deployed.
@@ -128,11 +130,19 @@ evalhub-7b9f4c6d88-x2k4p     1/1     Running   0          2m
 +
 [source,bash,role="execute",subs="attributes"]
 ----
-oc get routes ds-pipeline-dspa -n <pipeline-namespace>
+oc get routes ds-pipeline-dspa -n {guid}-{user}
 ----
 +
-Replace `<pipeline-namespace>` with the namespace where your pipeline server is
-configured. The route host is the Kubeflow Pipelines endpoint you reference in
+Expected output (relevant columns shown):
++
+----
+NAME              HOST/PORT
+ds-pipeline-dspa  ds-pipeline-dspa-abc123-user1.apps.cluster.example.com
+----
++
+This workshop assumes the pipeline server is configured in your `{guid}-{user}`
+project. If your facilitator configured it elsewhere, use that namespace
+instead. The route host is the Kubeflow Pipelines endpoint you reference in
 your scan requests.
 
 === Verify

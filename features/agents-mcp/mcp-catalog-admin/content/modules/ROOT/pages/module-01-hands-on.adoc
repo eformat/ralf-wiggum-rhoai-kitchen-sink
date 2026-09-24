@@ -114,7 +114,6 @@ catalog source management sits in the Settings area, mirroring the Model Catalog
 administrative interface, which lives under *Settings* → *Model resources and
 operations* → *Model catalog settings*.
 
-// TODO: capture screenshot
 image::01-mcp-catalog-settings.png[Settings page in the RHOAI dashboard showing MCP catalog source management,link=self,window=blank,width=700]
 
 . Observe the list of configured MCP catalog source entries. Each entry represents a

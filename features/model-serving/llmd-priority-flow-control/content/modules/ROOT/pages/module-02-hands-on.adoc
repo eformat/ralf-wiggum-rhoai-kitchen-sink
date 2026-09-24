@@ -279,6 +279,8 @@ oc delete pod load-test -n {guid}-{user}
 oc delete configmap load-test-script -n {guid}-{user}
 ----
 
+Now that you have generated sustained load with the in-cluster load generator, you will validate priority queuing and rejection behavior under load.
+
 == Exercise 3: Validate priority queuing and rejection behavior under load
 
 With the load generator from Exercise 2 driving the pool toward saturation, you confirm that requests queue at the Endpoint Picker and dispatch by policy, and that rejections carry observable reason headers.

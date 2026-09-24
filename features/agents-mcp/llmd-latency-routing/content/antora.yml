@@ -12,6 +12,7 @@ asciidoc:
     rhoai_version: "3.5"
     feature_maturity: "DP"
     lab_name: "Latency-aware routing for llm-d Workshop"
+    model_name: "RedHatAI/Qwen3-8B-FP8-dynamic"
     guid: abc123
     user: user1
     password: "%password%"

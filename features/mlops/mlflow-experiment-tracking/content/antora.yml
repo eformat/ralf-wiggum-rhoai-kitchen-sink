@@ -18,3 +18,9 @@ asciidoc:
     openshift_api_url: "https://api.cluster.example.com:6443"
     openshift_console_url: https://console-openshift-console.apps.cluster.example.com
     openshift_cluster_ingress_domain: apps.cluster.example.com
+    gateway_hostname: data-science-gateway.apps.cluster.example.com
+    s3_access_key: "REPLACE_WITH_ACCESS_KEY"
+    s3_secret_key: "REPLACE_WITH_SECRET_ACCESS_KEY"
+    s3_bucket: "my-mlflow-bucket"
+    s3_endpoint: "https://s3.amazonaws.com"
+    s3_region: "us-east-1"

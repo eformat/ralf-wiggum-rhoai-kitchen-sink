@@ -12,6 +12,7 @@ asciidoc:
     rhoai_version: "3.5"
     feature_maturity: "DP"
     lab_name: "OGX File Processors API Workshop"
+    dsc_name: default-dsc
     guid: abc123
     user: user1
     password: "%password%"

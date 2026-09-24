@@ -41,6 +41,8 @@ You can answer, without looking back:
 * Where do latency-sensitive requests get routed, and where does throughput-sensitive traffic go?
 * Which RHOAI serving stack hosts the latency-aware routing layer?
 
+Now that you can explain what latency-aware routing does, you will map where it fits in the llm-d serving stack.
+
 == Exercise 2: Where the feature fits in the llm-d serving stack
 
 The Endpoint Picker (EPP) is the request orchestration component of Distributed
@@ -104,6 +106,8 @@ note that a *Default optimized routing* option is pre-selected — that default
 is the 4-scorer profile, and it is what a latency-aware configuration replaces
 or extends.
 
+Now that you know which routing option the wizard pre-selects, you will confirm the llm-d serving resources exist in your cluster.
+
 == Exercise 3: Confirm your environment is ready
 
 Latency-aware routing rides on the llm-d serving stack, so first confirm the
@@ -117,9 +121,9 @@ and list any deployed models:
 oc get llmisvc -n {guid}-{user}
 ----
 +
-Expected output shows either a list of deployed models with their URL and
-`READY` status, or `No resources found` if you have not deployed a model yet.
-Both are fine for this guided tour.
+Expected output shows the `NAME`, `URL`, and `READY` columns for each deployed
+model, with `READY` showing `True` once a model is serving — or `No resources
+found` if you have not deployed a model yet. Both are fine for this guided tour.
 
 . List the `LLMInferenceServiceConfig` templates that back the llm-d topology
 and router options in the deployment wizard:
@@ -129,10 +133,12 @@ and router options in the deployment wizard:
 oc get llminferenceserviceconfig -A
 ----
 +
-Expected output lists topology presets and, if your administrator created
-them, router configs whose names often contain `router`. Router configurations
-are the dashboard-facing way to attach advanced routing — including
-latency-aware scheduling — to model deployments.
+Expected output lists one `LLMInferenceServiceConfig` per row, including the
+built-in topology presets that carry `opendatahub.io/config-type` values such
+as `workload-single-node` and `workload-multi-node-data-parallel` and, if your
+administrator created them, router configs with the config type `router`.
+Router configurations are the dashboard-facing way to attach advanced routing —
+including latency-aware scheduling — to model deployments.
 
 [TIP]
 ====

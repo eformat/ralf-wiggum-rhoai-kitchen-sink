@@ -28,7 +28,7 @@ startup.
 
 . Create a file named `anthropic-creds.yaml`:
 
-[source,yaml,subs="attributes"]
+[source,yaml,subs="attributes,callouts"]
 ----
 apiVersion: v1
 kind: Secret
@@ -47,7 +47,9 @@ data:
 <3> **ogx.io/watch** — required for operator cache detection; Secrets with this
 label trigger an immediate pod roll on rotation.
 <4> **type** — must be `Opaque`.
-<5> **data.api-key** — the base64-encoded Anthropic API key.
+<5> **data.api-key** — the base64-encoded Anthropic API key. Replace
+`<base64-encoded-key>` with the base64 encoding of your key, for example
+`echo -n 'sk-ant-...' | base64`.
 
 . Apply the Secret to your project:
 
@@ -64,6 +66,13 @@ namespace can decode it. Scope RBAC on the namespace accordingly.
 [source,bash,role="execute",subs="attributes"]
 ----
 oc get secret anthropic-creds -n {guid}-{user}
+----
+
+Expected output:
+
+----
+NAME             TYPE     DATA   AGE
+anthropic-creds  Opaque   1      2s
 ----
 
 The output shows the Secret with `DATA` count `1`. With the credential stored,

@@ -52,11 +52,11 @@ oc patch OdhDashboardConfig odh-dashboard-config -n redhat-ods-applications --ty
 
 The patch sets the following fragment in the `OdhDashboardConfig` custom resource:
 
-[source,yaml]
+[source,yaml,subs="callouts"]
 ----
 spec:
   dashboardConfig:
-    toolCalling: true
+    toolCalling: true  # <1>
 ----
 <1> *toolCalling* — enables the Validated Arguments section and filter for models with confirmed tool-calling support in the model catalog.
 
@@ -102,7 +102,6 @@ and copy the exact `vllm serve` arguments required for tool calling, including
 `--tool-call-parser`, `--reasoning-parser`, `--chat-template`, and
 `--enable-auto-tool-choice`.
 
-// TODO: capture screenshot
 image::01-validated-arguments-panel.png[Validated Arguments section with the Tool Calling panel on a model details page,link=self,window=blank,width=700]
 
 TIP: The same copy-and-run pattern applies to the *Runtime command* column on

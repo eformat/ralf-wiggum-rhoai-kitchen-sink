@@ -266,7 +266,7 @@
             set -a
             [ -f "{{ logdir }}/env" ] && . "{{ logdir }}/env"
             set +a
-            oc get pipelineruns -n abc123-user1
+            oc get workflows -n abc123-user1
           args:
             executable: /bin/bash
             chdir: "{{ workdir }}"

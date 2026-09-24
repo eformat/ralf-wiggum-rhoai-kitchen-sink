@@ -152,7 +152,8 @@ oc get inferenceservices -n {guid}-{user}
 ----
 +
 Expected output shows an inference service named after the *Model deployment
-name* you configured in the wizard.
+name* you configured in the wizard, with `READY` `True` and `STATUS`
+`Successful` once the deployment finishes rolling out.
 
 TIP: The *Deploy a model* wizard shares its serving-runtime machinery with the
 deployment wizard used for registered models. To go deeper on serving runtimes
@@ -241,7 +242,7 @@ Registry API call:
 +
 [source,bash,role="execute",subs="attributes"]
 ----
-oc logs job/<job-resource-name> -n {guid}-{user}
+oc logs job/{job_resource_name} -n {guid}-{user}
 ----
 
 You can also monitor jobs from the dashboard: click the action menu (⋮) beside
@@ -348,6 +349,10 @@ models* or the `<label>` category. Check the ConfigMap from the CLI:
 ----
 oc get configmap model-catalog-sources -n rhoai-model-registries
 ----
++
+Expected output shows the `model-catalog-sources` ConfigMap in the
+`rhoai-model-registries` namespace with `DATA: 2` — the `sources.yaml` key and
+your catalog file key.
 
 Finally, manage the lifecycle of your registry assets:
 

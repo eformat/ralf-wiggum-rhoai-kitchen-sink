@@ -96,24 +96,27 @@ within Gen AI Studio can change between releases. If you do not see an Agent
 Ops entry, confirm the flag is set (Exercise 1) and check for a related item
 under *Gen AI studio*.
 
-// TODO: capture screenshot
 image::01-agent-ops-list.png[Running agent deployments list in the dashboard,link=self,window=blank,width=700]
 
 . Observe the list of running agent deployments. For each deployed agent
-instance, the view shows its *name* and *status*. This is the fast answer to
+instance, the view shows its *Name* and *Status*, along with the *Framework*
+it runs on and the *Sandbox* workload behind it; the *Status* value is one of
+*Ready*, *Pending*, or *Failed*. This is the fast answer to
 "which of my agents are actually running?" without leaving the dashboard.
 
 . Switch between namespaces using the project selector. The list is scoped to
 each namespace, so what you see depends on the project you have selected.
 Agents deployed by other projects do not appear here.
 
-. Try the filtering capabilities on the list. Filter by name or status to
-narrow the view — for example, isolate the running agent instances in a busy
-namespace, or find a specific agent by the first letters of its name.
+. Try the filtering capabilities on the list. The toolbar offers *Name* and
+*Status* filters: filter by name to find a specific agent by the first letters
+of its name, or by status — *Ready*, *Pending*, or *Failed* — to isolate, for
+example, the running agent instances in a busy namespace.
 
-. If your project has no deployed agents, the list is empty — that is expected.
-Deploying an agent (for example, as an OpenShell-managed Sandbox CR as covered
-in the secure agent sandboxing preview) makes it appear in this list.
+. If your project has no deployed agents, the view shows its *No agent
+deployments found* empty state — that is expected. Deploying an agent (for
+example, as an OpenShell-managed Sandbox CR as covered in the secure agent
+sandboxing preview) makes it appear in this list.
 
 === Verify
 
@@ -156,7 +159,8 @@ Observe the namespaces and names in the output. Every running Sandbox CR
 corresponds to an agent instance entry in the dashboard view from Exercise 2.
 
 . Compare the CLI output with the dashboard list: the same namespaces and agent
-names appear in both, with the dashboard adding the status summary and
+names appear in both — the list's *Sandbox* column identifies the Sandbox
+workload behind each entry — with the dashboard adding the status summary and
 filtering on top.
 
 === Verify

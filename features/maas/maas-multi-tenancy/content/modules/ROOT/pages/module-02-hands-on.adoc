@@ -72,7 +72,7 @@ those namespaces as well:
 +
 [source,bash,role="execute",subs="attributes"]
 ----
-oc label namespace <model_namespace> \
+oc label namespace {model_namespace} \
   "maas.opendatahub.io/gateway-access-${TENANT_NAME}=true" --overwrite
 ----
 
@@ -183,23 +183,6 @@ oc patch service ${TENANT_NAME}-data-science-gateway-class -n ${GATEWAY_NAMESPAC
   --subresource=status --type merge \
   -p "{\"status\":{\"loadBalancer\":{\"ingress\":[{\"hostname\":\"${GATEWAY_HOSTNAME}\"}]}}}"
 ----
-<1> *opendatahub.io/managed*: `false` prevents the ODH Model Controller from
-overriding MaaS-managed authorization policies.
-<2> *security.opendatahub.io/authorino-tls-bootstrap*: `true` enables TLS
-communication between the Gateway and Authorino.
-<3> *gatewayClassName*: the tenant Gateway must use the
-`openshift-default` GatewayClass.
-<4> *hostname*: a unique tenant hostname on port 443 with HTTPS protocol.
-<5> *allowedRoutes*: only namespaces labeled with this tenant's
-`gateway-access` label can attach routes, which keeps HTTPRoutes
-tenant-scoped.
-
-. Apply the Gateway manifest:
-+
-[source,bash,role="execute",subs="attributes"]
-----
-oc apply -f tenant-gateway.yaml
-----
 
 [NOTE]
 ====
@@ -207,9 +190,9 @@ If your cluster does not support LoadBalancer services, such as bare metal or
 restricted environments, the Gateway controller might not auto-provision an
 OpenShift Route for external access. Check for an auto-provisioned Route
 before creating one manually:
-`oc get route -n openshift-ingress -l gateway.networking.k8s.io/gateway-name=<tenant_name>`.
+`oc get route -n openshift-ingress -l gateway.networking.k8s.io/gateway-name={tenant_name}`.
 If no Route exists, verify the Gateway service name with
-`oc get svc -n openshift-ingress -l gateway.networking.k8s.io/gateway-name=<tenant_name>`
+`oc get svc -n openshift-ingress -l gateway.networking.k8s.io/gateway-name={tenant_name}`
 and create a Route that points to it with `termination: reencrypt`.
 ====
 
@@ -242,7 +225,7 @@ EOF
 ----
 
 `name`: the tenant name — the controller derives the tenant namespace from it
-using the pattern `ai-tenant-<aitenant_name>`. `namespace`: `AITenant`
+using the pattern `ai-tenant-{tenant_name}`. `namespace`: `AITenant`
 resources must be created in the management namespace, which is `ai-tenants`
 by default. `spec.gateway.name`: the dedicated Gateway you created in the
 previous step; if omitted, the Gateway name defaults to the `AITenant` name.
@@ -272,7 +255,7 @@ oc get aitenant ${TENANT_NAME} -n ai-tenants -w
 +
 The `READY` column shows `True` when the controller has bootstrapped all
 tenant resources. When the `AITenant` reaches Active status, the controller
-has created the tenant namespace `ai-tenant-<tenant_name>`, the
+has created the tenant namespace `ai-tenant-{tenant_name}`, the
 `MaasTenantConfig` CR, the per-tenant `maas-api` Deployment, the Gateway
 AuthPolicy, and the tenant-admin and object-admin Roles.
 
@@ -286,7 +269,7 @@ oc get namespace ai-tenant-${TENANT_NAME} --show-labels
 ----
 
 The output includes the labels
-`ai-gateway.opendatahub.io/tenant=<tenant_name>` and
+`ai-gateway.opendatahub.io/tenant={tenant_name}` and
 `maas.opendatahub.io/managed-by-aitenant=true`.
 
 Confirm that the `MaasTenantConfig` CR exists in the tenant namespace:
@@ -319,7 +302,7 @@ tenant's models.
 +
 [source,bash,role="execute",subs="attributes"]
 ----
-export TENANT_NAME=<tenant_name>
+export TENANT_NAME={tenant_name}
 export TENANT_NS="ai-tenant-${TENANT_NAME}"
 ----
 

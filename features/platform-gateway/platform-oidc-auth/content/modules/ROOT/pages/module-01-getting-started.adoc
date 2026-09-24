@@ -96,14 +96,14 @@ the `openshift-ingress` namespace, and the `GatewayConfig` CR references it.
 . Define environment variables from your IdP details, replacing the
   placeholder values with your actual values:
 +
-[source,bash,role="execute"]
+[source,bash,role="execute",subs="attributes"]
 ----
-# Replace with your actual values
-IDP_DOMAIN="<keycloak.example.com>"
-IDP_REALM="<your-realm>"
-IDP_CLIENT_ID="<your-client-id>"
+# Replace with your actual IdP values
+IDP_DOMAIN="{idp_domain}"
+IDP_REALM="{idp_realm}"
+IDP_CLIENT_ID="{idp_client_id}"
 IDP_CLIENT_SECRET="<your-client-secret>"
-IDP_ISSUER_URL="https://keycloak.example.com/realms/your-realm"
+IDP_ISSUER_URL="https://{idp_domain}/realms/{idp_realm}"
 ----
 
 NOTE: Store OIDC client secrets securely and rotate them regularly. Never
@@ -125,17 +125,17 @@ oc create secret generic idp-client-secret \
 oc patch gatewayconfig default-gateway --type='merge' -p='{
   "spec": {
     "oidc": {
-      "issuerURL": "'$IDP_ISSUER_URL'" <1>,
-      "clientID": "'$IDP_CLIENT_ID'" <2>,
+      "issuerURL": "'$IDP_ISSUER_URL'", <1>
+      "clientID": "'$IDP_CLIENT_ID'", <2>
       "clientSecretRef": {
-        "name": "idp-client-secret" <3>,
+        "name": "idp-client-secret", <3>
         "key": "clientSecret" <4>
       }
     }
   }
 }'
 ----
-<1> *issuerURL:* The OIDC issuer URL from your external IdP — for Keycloak, `https://<idp-domain>/realms/<realm>`.
+<1> *issuerURL:* The OIDC issuer URL from your external IdP — for Keycloak, `https://{idp_domain}/realms/{idp_realm}`.
 <2> *clientID:* The OIDC client ID that the gateway presents to the IdP.
 <3> *name:* The Secret in the `openshift-ingress` namespace that holds the client secret.
 <4> *key:* The key inside that Secret which contains the secret value.
@@ -164,7 +164,7 @@ idp-client-secret   Opaque    1      2m
 Expected output for the GatewayConfig:
 
 ----
-{"clientID":"your-client-id","clientSecretRef":{"key":"clientSecret","name":"idp-client-secret"},"issuerURL":"https://keycloak.example.com/realms/your-realm"}
+{"clientID":"rhoai-gateway","clientSecretRef":{"key":"clientSecret","name":"idp-client-secret"},"issuerURL":"https://keycloak.example.com/realms/my-realm"}
 ----
 
 The `.spec.oidc` block matches your IdP values. In the next module you watch

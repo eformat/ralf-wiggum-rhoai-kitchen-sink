@@ -92,6 +92,13 @@ embedding_model_id = embedding_model.identifier
 embedding_dimension = int(embedding_model.metadata.get("embedding_dimension", 768))
 ----
 
+NOTE: `client.models.list()` returns `Model` resources carrying `model_type`,
+`identifier`, and `metadata` fields. A typical OGX project lists one LLM plus
+one embedding model (the verified GPU-run cluster returned
+`identifier='nomic-embed-text-v1-5', model_type='embedding'` with
+`metadata: {'embedding_dimension': 768}`). Model identifiers vary by cluster,
+so select by `model_type` as shown.
+
 . Upload a document through the Files API:
 
 [source,python]
@@ -104,6 +111,21 @@ with open(filename, "rb") as f:
         purpose="assistants",
     )
 print(file_info)
+----
+
+Expected output — a file object whose `id` is the identifier used in the
+indexing step:
+
+----
+{
+  "object": "file",
+  "id": "file-53b3fd75ca2c421c9a292ac63ff924ce",
+  "bytes": 184213,
+  "created_at": 1778608944,
+  "expires_at": null,
+  "filename": "sample-document.pdf",
+  "purpose": "assistants"
+}
 ----
 
 . Create a vector store and add the uploaded file with a chunking strategy:

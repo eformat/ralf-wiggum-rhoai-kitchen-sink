@@ -60,14 +60,14 @@ against a held-out test split.
 
 On the AutoML page, verify that your optimization run appears in the list with a
 status of *Running* or *Completed*. You can also watch the underlying pipeline
-run from the CLI:
+run from the CLI — RHOAI 3.5 pipelines are backed by Argo Workflows:
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc get pipelineruns -n {guid}-{user}
+oc get workflows -n {guid}-{user}
 ----
 
-A pipeline run appears for your optimization run. Wait for the run status to
+A workflow run appears for your optimization run. Wait for the run status to
 show *Completed* on the AutoML page before continuing.
 
 A completed run gives you a leaderboard; the next exercise turns those rankings

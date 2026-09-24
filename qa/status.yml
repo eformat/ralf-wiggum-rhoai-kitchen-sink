@@ -37,7 +37,7 @@
   midojo-adversarial-testing: pass
   mlflow-experiment-tracking: pass
   model-registry-catalog: pass
-  nemo-guardrails-mcp-gateway: observe-only
+  nemo-guardrails-mcp-gateway: fail
   nemo-guardrails: pass
   ogx-agentic-api: observe-only
   ogx-file-processors: pass

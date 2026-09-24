@@ -23,7 +23,7 @@ export KUADRANT_ZONE_ROOT_DOMAIN=example.com
 export KUADRANT_SYSTEM_NS=$(oc get kuadrant -A -o jsonpath="{.items[0].metadata.namespace}")
 # --resolve needs an IP: on clusters where the gateway status address is a
 # hostname (no LoadBalancer provider), use the gateway Service ClusterIP
-export GATEWAY_ADDRESS=$(oc get svc ${KUADRANT_GATEWAY_NAME}-openshift-default -n ${KUADRANT_GATEWAY_NS} -o jsonpath='{.spec.clusterIP}')
+export GATEWAY_ADDRESS=$(oc get svc $\{KUADRANT_GATEWAY_NAME\}-openshift-default -n $\{KUADRANT_GATEWAY_NS\} -o jsonpath='{.spec.clusterIP}')
 ----
 
 == Exercise 1: Add rate-limit headers to an API response
@@ -40,14 +40,14 @@ oc get limitador -A
 
 . Patch the Limitador CR to emit draft-version rate-limit headers:
 
-[source,bash,role="execute",subs="attributes"]
+[source,bash,role="execute"]
 ----
 oc patch limitador limitador -n ${KUADRANT_SYSTEM_NS} --type=merge -p '{"spec": {"rateLimitHeaders": "DRAFT_VERSION_03"}}'
 ----
 
 . Test for the presence of the headers:
 
-[source,bash,role="execute",subs="attributes"]
+[source,bash,role="execute"]
 ----
 curl -i -k --resolve "api.${KUADRANT_ZONE_ROOT_DOMAIN}:443:${GATEWAY_ADDRESS}" -H 'Authorization: APIKEY IAMALICE' "https://api.${KUADRANT_ZONE_ROOT_DOMAIN}/cars"
 ----
@@ -64,6 +64,8 @@ x-ratelimit-reset: 58
 
 The response now includes `x-ratelimit-limit`, `x-ratelimit-remaining`, and
 `x-ratelimit-reset` headers, so clients can time their retries without guessing.
+
+Now that clients can read rate-limit headers, you will enforce token-based limits for LLM inference traffic.
 
 == Exercise 2: Token-based rate limiting for LLM inference APIs
 
@@ -105,14 +107,14 @@ spec:
         - expression: auth.identity.userid
 EOF
 ----
-<1> *targetRef* — attaches the policy to the Gateway so it applies to inference traffic routed through it.
-<2> *limit: 10000* — ten thousand tokens per 24-hour window per counter bucket.
-<3> *predicate* — matches inference traffic only, the OpenAI-compatible chat completions path.
-<4> *counters* — one token counter per authenticated user; the userid comes from the API-key identity injected in Module 02.
+*targetRef* — attaches the policy to the Gateway so it applies to inference traffic routed through it.
+*limit: 10000* — ten thousand tokens per 24-hour window per counter bucket.
+*predicate* — matches inference traffic only, the OpenAI-compatible chat completions path.
+*counters* — one token counter per authenticated user; the userid comes from the API-key identity injected in Module 02.
 
 . Check the policy status for `Accepted` and `Enforced` conditions:
 
-[source,bash,role="execute",subs="attributes"]
+[source,bash,role="execute"]
 ----
 oc get tokenratelimitpolicy llm-protection -n ${KUADRANT_GATEWAY_NS} -o jsonpath='{.status.conditions}'
 ----
@@ -151,7 +153,7 @@ the trusted CA bundle into your Connectivity Link installation.
 Module 02 Exercise 5 is still attached, remove it first. You can re-create it from Module
 02 afterwards:
 
-[source,bash,role="execute",subs="attributes"]
+[source,bash,role="execute"]
 ----
 oc delete authpolicy toystore-auth -n ${KUADRANT_DEVELOPER_NS}
 ----
@@ -159,7 +161,7 @@ oc delete authpolicy toystore-auth -n ${KUADRANT_DEVELOPER_NS}
 . Create an AuthPolicy CR that targets the Toystore HTTPRoute and configures OIDC
 authentication:
 
-[source,bash,role="execute",subs="attributes"]
+[source,bash,role="execute"]
 ----
 cat <<EOF | oc apply -f -
 apiVersion: kuadrant.io/v1
@@ -179,14 +181,14 @@ spec:
           issuerUrl: "http://keycloak.keycloak.svc.cluster.local:8080/realms/kuadrant"
 EOF
 ----
-<1> *toystore-oidc-auth* — the AuthPolicy must exist in the same namespace where the HTTPRoute object is applied.
-<2> *targetRef* — must match the name of your HTTPRoute object; this route-level policy takes precedence over the gateway-level deny-all defaults from Module 02.
-<3> *oidc-idp-auth* — the authentication rule that validates JWT bearer tokens.
-<4> *issuerUrl* — the base URL of your OIDC issuer, for example, Red Hat build of Keycloak. The hostname set in the OIDC issuer endpoint must match the one used to get the token and be reachable from within the cluster.
+*toystore-oidc-auth* — the AuthPolicy must exist in the same namespace where the HTTPRoute object is applied.
+*targetRef* — must match the name of your HTTPRoute object; this route-level policy takes precedence over the gateway-level deny-all defaults from Module 02.
+*oidc-idp-auth* — the authentication rule that validates JWT bearer tokens.
+*issuerUrl* — the base URL of your OIDC issuer, for example, Red Hat build of Keycloak. The hostname set in the OIDC issuer endpoint must match the one used to get the token and be reachable from within the cluster.
 
 . Check that the AuthPolicy is Accepted and Enforced:
 
-[source,bash,role="execute",subs="attributes"]
+[source,bash,role="execute"]
 ----
 oc get authpolicy toystore-oidc-auth -n ${KUADRANT_DEVELOPER_NS} -o=jsonpath='{.status.conditions[?(@.type=="Accepted")].message}{"\n"}{.status.conditions[?(@.type=="Enforced")].message}{"\n"}'
 ----
@@ -207,7 +209,7 @@ from within the cluster.
 
 . Send an unauthenticated request to your route and verify that it is blocked:
 
-[source,bash,role="execute",subs="attributes"]
+[source,bash,role="execute"]
 ----
 curl -k --resolve "api.${KUADRANT_ZONE_ROOT_DOMAIN}:443:${GATEWAY_ADDRESS}" -s -o /dev/null -w "%{http_code}\n" "https://api.${KUADRANT_ZONE_ROOT_DOMAIN}/cars"
 ----
@@ -215,7 +217,7 @@ curl -k --resolve "api.${KUADRANT_ZONE_ROOT_DOMAIN}:443:${GATEWAY_ADDRESS}" -s -
 . Send an authenticated request containing a valid OIDC access token to verify that access
 is granted:
 
-[source,bash,role="execute",subs="attributes"]
+[source,bash,role="execute"]
 ----
 curl -k --resolve "api.${KUADRANT_ZONE_ROOT_DOMAIN}:443:${GATEWAY_ADDRESS}" -H "Authorization: Bearer $ACCESS_TOKEN" -s -o /dev/null -w "%{http_code}\n" "https://api.${KUADRANT_ZONE_ROOT_DOMAIN}/cars"
 ----
@@ -237,6 +239,8 @@ entries that select `auth.identity.realm_access.roles` with the `incl` operator 
 example, requiring the `member` or `admin` role) and `authorization` rules keyed on CEL
 path matches, so requests to different paths require different roles.
 
+Now that the gateway policies are in place, you will enable Connectivity Link observability and explore the metrics, dashboards, logs, and tracing options.
+
 == Exercise 4: Observe gateways, policies, and requests
 
 Connectivity Link combines state metrics, component metrics, and standard Envoy metrics to
@@ -247,7 +251,7 @@ with Red Hat build of OpenTelemetry, Envoy access logs, and pre-built Grafana da
 PodMonitor resources for the Connectivity Link components and a set of monitors in each
 gateway namespace:
 
-[source,bash,role="execute",subs="attributes"]
+[source,bash,role="execute"]
 ----
 oc patch kuadrant kuadrant -n ${KUADRANT_SYSTEM_NS} --type=merge -p '{"spec": {"observability": {"enable": true}}}'
 ----
@@ -291,7 +295,7 @@ spec:
           filter:
             expression: "response.code >= 400"
 ----
-<1> *filter* — a CEL expression that keeps the log volume low by logging only failed requests.
+*filter* — a CEL expression that keeps the log volume low by logging only failed requests.
 
 Access logs expose `x-request-id`, which Envoy generates per request; traces include the
 same ID as a span attribute, so you can jump between logs and traces in a dashboard. For

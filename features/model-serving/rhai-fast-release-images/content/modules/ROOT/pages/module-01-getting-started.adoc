@@ -47,7 +47,6 @@ badges in the dashboard so you can identify each level at a glance.
 |Unsupported (custom) — user-created, no Red Hat support coverage
 |===
 
-// TODO: capture screenshot
 image::01-serving-runtime-badges.png[Serving runtimes page showing badge combinations,link=self,window=blank,width=700]
 
 TIP: The same badges appear in the model deployment wizard *Serving runtime template* dropdown,
@@ -84,7 +83,7 @@ referenced in supported configs live in `registry.redhat.io/rhaiis`.
 +
 [source,bash,role="execute",subs="attributes"]
 ----
-oc get template <runtime-name> -o yaml | grep unsupported-status-accepted
+oc get template {runtime_name} -o yaml | grep unsupported-status-accepted
 ----
 
 === Verify

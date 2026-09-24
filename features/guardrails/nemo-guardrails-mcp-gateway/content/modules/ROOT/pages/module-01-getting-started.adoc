@@ -83,7 +83,7 @@ installed.
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc get envoyfilters -n ${MCP_GATEWAY_NS:-mcp-gateway-system} -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
+oc get envoyfilters -n ${MCP_GATEWAY_NS:-mcp-gateway-system} -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}\{end}'
 ----
 
 . Confirm that at least one `EnvoyFilter` contains the BBR ext_proc sub-filter:

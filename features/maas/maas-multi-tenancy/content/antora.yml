@@ -15,6 +15,9 @@ asciidoc:
     guid: abc123
     user: user1
     password: "%password%"
+    tenant_name: "red-team"
+    tenant_group: "red-team"
+    model_namespace: "red-team-models"
     openshift_api_url: "https://api.cluster.example.com:6443"
     openshift_console_url: https://console-openshift-console.apps.cluster.example.com
     openshift_cluster_ingress_domain: apps.cluster.example.com

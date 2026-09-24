@@ -53,6 +53,9 @@ IMPORTANT: This feature provides raw usage event emission to any HTTP endpoint. 
 generation, cost attribution, and rate calculation are the responsibility of the external
 metering system.
 
+Now that you know which BBR plugins power external metering, you will verify the MaaS
+foundation they build on in your cluster.
+
 == Exercise 2: Verify the MaaS foundation in your cluster
 
 External metering builds on the MaaS governance layer: published models registered as
@@ -68,7 +71,9 @@ oc get maasmodelref --all-namespaces
 ----
 
 You should see a MaaSModelRef object for each model that was published with *Publish as
-MaaS*. Published models live in the model's project namespace, not in `models-as-a-service`.
+MaaS*. The NAMESPACE column of each row is the project namespace where the model is
+published — published models live in the model's project namespace, not in
+`models-as-a-service`.
 
 === Verify
 

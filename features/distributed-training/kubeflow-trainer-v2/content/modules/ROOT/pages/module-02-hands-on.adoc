@@ -67,16 +67,9 @@ oc apply -f minimal-train-configmap.yaml
 The ConfigMap name `minimal-train-script` is what the TrainJob references; the
 `train.py` key is mounted as a file named `train.py`.
 
-Apply the TrainJob (first, the TrainJob manifest):
-
-[source,bash,role="execute",subs="attributes"]
-----
-oc apply -f minimal-train-configmap.yaml
-----
-
 Create a file named `trainjob.yaml`:
 
-[source,bash,role="execute"]
+[source,bash,role="execute",subs="attributes"]
 ----
 cat > trainjob.yaml <<'EOF'
 apiVersion: trainer.kubeflow.org/v1alpha1
@@ -110,7 +103,6 @@ spec:
         - name: script-volume
           mountPath: /workspace
 EOF
-oc apply -f trainjob.yaml
 ----
 
 `kind: ClusterTrainingRuntime` references the pre-built cluster-scoped
@@ -156,12 +148,13 @@ List the pods created by the job using the `job-name` label:
 oc get pods -n {guid}-{user} -l job-name=pytorch-minimal-example
 ----
 
-You should see one pod per training node in `Running` state. Read the logs of a
-training pod to see the distributed process group come up:
+One pod per training node appears in `Running` state — for example,
+`pytorch-minimal-example-node-0-0` and `pytorch-minimal-example-node-1-0`. Read
+the logs of a training pod to see the distributed process group come up:
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc logs <pod-name> -n {guid}-{user}
+oc logs {trainjob_pod_name} -n {guid}-{user}
 ----
 
 .Example output
@@ -181,7 +174,6 @@ Cross-check in the OpenShift console, Administrator perspective:
 * Click *Home → Search*, select your project, and find `pytorch-minimal-example` under `TrainJob`.
 * Click *Workloads → Pods* and confirm the requested training node pods are running.
 
-// TODO: capture screenshot
 image::02-trainjob-console-search.png[TrainJob resource listed on the console Search page,link=self,window=blank,width=700]
 
 TIP: To follow real-time progress metrics in the OpenShift AI dashboard (*Model
@@ -195,8 +187,8 @@ The pod logs on each node show `Rank 0/2` (and `Rank 1/2` on the other pod) with
 a matching `all_reduce result = 1.0`, and the console lists the TrainJob and its
 running pods.
 
-You have a healthy distributed job. Now exercise the lifecycle: suspend, resume,
-and clean up.
+Now that you have verified the distributed job through pod logs and the console,
+you will exercise its lifecycle: suspend, resume, and delete the TrainJob.
 
 == Exercise 3: Suspend, resume, and delete the TrainJob
 
@@ -242,8 +234,9 @@ oc delete trainjob/pytorch-minimal-example -n {guid}-{user}
 
 === Verify
 
-Running `oc get trainjob -n {guid}-{user}` again shows the job is gone, and `oc
-get pods -n {guid}-{user}` shows no training pods remaining.
+`oc get trainjob -n {guid}-{user}` prints `No resources found in {guid}-{user}
+namespace.`, and `oc get pods -n {guid}-{user} -l
+job-name=pytorch-minimal-example` lists no training pods.
 
 == Module summary
 
