@@ -57,7 +57,6 @@ example `support-triage-baseline`.
 
 The agent is created and the agent name is displayed in the playground header.
 
-// TODO: capture screenshot
 image::02-save-agent-dialog.png[The Save agent dialog showing a summary of the captured playground configuration,link=self,window=blank,width=700]
 
 .To save updates to a loaded agent, complete the following steps:

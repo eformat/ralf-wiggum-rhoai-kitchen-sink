@@ -95,6 +95,8 @@ With the feature flag enabled, the Agent Catalog is reachable from the AI Hub
 section of the OpenShift AI dashboard.
 
 . From the OpenShift AI dashboard, click *AI hub → Agents*.
++
+image::01-model-catalog-page.png[OpenShift AI dashboard with the AI hub section expanded, showing the Agents menu item with its Developer Preview badge; the Models catalog page is open in the main panel,link=self,window=blank,width=700]
 
 . Observe the list of agent starter kits that the catalog ships pre-loaded
 with. Each entry is an agent starter kit built on an agentic framework such as

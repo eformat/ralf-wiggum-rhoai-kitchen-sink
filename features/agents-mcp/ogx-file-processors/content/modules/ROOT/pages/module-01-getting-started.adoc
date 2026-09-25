@@ -114,11 +114,13 @@ The second command prints `Managed`, which is the value that enables the OGX
 Operator.
 
 . Check that the OGXServer CRD is registered:
-
++
 [source,bash,role="execute"]
 ----
 oc get crd ogxservers.ogx.io
 ----
++
+image::01-ogx-crd-search.png[OpenShift console CustomResourceDefinitions page filtered by ogxservers showing the registered ogxservers.ogx.io CRD,link=self,window=blank,width=700]
 
 . List any OGXServer resources in your project and their status:
 

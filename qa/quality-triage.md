@@ -1,12 +1,12 @@
 # Quality Triage — ralf-wiggum-rhoai-kitchen-sink
 
 Phase 0 triage (`--dry-run --all`) per the `quality-enrichment` skill (zt-rhaibu factory).
-Post-session re-run 2026-09-24 — analysis only. Reflects the easy-defect processing session (12 workshops), screenshot-capture session, and the Phase C deployment session (model registry deployed, kueue operator installed, 4 llmd-* workshops cleaned, model-registry-catalog 8→3). Remaining high scores are documented cluster/exercise-gated gaps — see qa/gap-analysis.md section 6.
+Post-session re-run 2026-09-24 — analysis only. Reflects the easy-defect processing session (12 workshops), screenshot-capture session, and the Phase C deployment session (model registry deployed, kueue operator installed, 4 llmd-* workshops cleaned, model-registry-catalog 8→3). C5 follow-up: GenAI playground enabled (OGX backend per the gold-standard 3.5 flow), CPU qwen25-05b model deployed, save-agent dialog captured — genai-studio-saved-agent 8→0. OGX CRD shot captured for ogx-agentic-api (7→2, ref restored). Remaining work evaluated in qa/gap-analysis.md section 7.
 
 - RHOAI version: 3.5
 - Total enriched workshops: **54**
-- Scored > 0 (need processing): **37**
-- Score == 0 (skip — idempotent): **17**
+- Scored > 0 (need processing): **34**
+- Score == 0 (skip — idempotent): **20**
 - Processing order: **easy content-context defects first** (placeholders, vague verify, YAML callouts), then
   screenshot/image-ref gaps when a live cluster is available for capture.
 - Tools: `decided` 0.27.0, `rg` 15.2.0 available. Enrichment source repos: all 8 present.
@@ -18,14 +18,11 @@ Scoring: TODO markers +3 · broken heredoc/YAML outside source block +3 · broke
 
 | Slug | Category | Maturity | Score | Top Issues |
 |------|----------|----------|-------|------------|
-| genai-studio-saved-agent | agents-mcp | DP | 8 | TODO markers, no screenshots, broken image refs |
 | kale-jupyterlab | agents-mcp | DP | 8 | TODO markers, no screenshots, broken image refs |
-| ogx-agentic-api | agents-mcp | TP | 7 | TODO markers, no screenshots, placeholders |
 | kueue | distributed-training | GA | 6 | TODO markers, broken image refs |
 | feature-store-feast | feature-store-automl-autorag | GA | 5 | TODO markers, no screenshots |
 | automl | feature-store-automl-autorag | TP | 5 | TODO markers, no screenshots |
 | automated-tool-calling-eval | agents-mcp | GA | 4 | no screenshots, placeholders |
-| ogx-remote-providers | agents-mcp | DP | 4 | no screenshots, placeholders |
 | automated-red-teaming-garak | evaluation | GA | 4 | no screenshots, placeholders |
 | evalhub | evaluation | GA | 4 | no screenshots, placeholders |
 | nemo-guardrails-mcp-gateway | guardrails | TP | 4 | no screenshots, placeholders |
@@ -41,13 +38,13 @@ Scoring: TODO markers +3 · broken heredoc/YAML outside source block +3 · broke
 | mcp-catalog-support-tier | agents-mcp | TP | 2 | placeholders |
 | mcp-lifecycle-operator | agents-mcp | TP | 2 | placeholders |
 | mcp-gateway-operator | agents-mcp | TP | 2 | no screenshots |
-| agent-catalog-ai-hub | agents-mcp | DP | 2 | no screenshots |
+| ogx-agentic-api | agents-mcp | TP | 2 | placeholders |
 | csv-export-model-catalog | agents-mcp | DP | 2 | placeholders |
 | claude-code-starter-kit | agents-mcp | DP | 2 | no screenshots |
 | midojo-adversarial-testing | agents-mcp | DP | 2 | no screenshots |
 | openclaw-starter-kit | agents-mcp | DP | 2 | no screenshots |
 | text-mode-multimodal-training | agents-mcp | DP | 2 | no screenshots |
-| ogx-file-processors | agents-mcp | DP | 2 | no screenshots |
+| ogx-remote-providers | agents-mcp | DP | 2 | placeholders |
 | external-metering-maas | agents-mcp | DP | 2 | no screenshots |
 | external-metering-per-user | agents-mcp | DP | 2 | no screenshots |
 | mlflow-experiment-tracking | mlops | GA | 2 | placeholders |
@@ -56,9 +53,12 @@ Scoring: TODO markers +3 · broken heredoc/YAML outside source block +3 · broke
 | llama-stack-ogx-core | ogx | GA | 2 | placeholders |
 | platform-oidc-auth | platform-gateway | GA | 2 | placeholders |
 | ai-available-assets | agents-mcp | GA | 0 | clean |
+| agent-catalog-ai-hub | agents-mcp | DP | 0 | clean |
+| genai-studio-saved-agent | agents-mcp | DP | 0 | clean |
 | openshell-agent-sandboxing | agents-mcp | DP | 0 | clean |
 | view-agent-deployments | agents-mcp | DP | 0 | clean |
 | mcp-catalog-admin | agents-mcp | DP | 0 | clean |
+| ogx-file-processors | agents-mcp | DP | 0 | clean |
 | llmd-kv-cache-tiering | agents-mcp | DP | 0 | clean |
 | llmd-latency-routing | agents-mcp | DP | 0 | clean |
 | llmd-lora-routing | agents-mcp | DP | 0 | clean |
@@ -111,25 +111,11 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 
 ## Signal detail (workshops with score > 0)
 
-### genai-studio-saved-agent (agents-mcp) — score 8
-
-- TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
-- Zero screenshots in assets/images/ (0 png/jpg)
-- Broken image refs (1 of 1): 02-save-agent-dialog.png (module-02-hands-on.adoc)
-- Screenshots on disk: 0
-
 ### kale-jupyterlab (agents-mcp) — score 8
 
 - TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
 - Zero screenshots in assets/images/ (0 png/jpg)
 - Broken image refs (1 of 1): 02-kale-enable-toggle.png (module-02-hands-on.adoc)
-- Screenshots on disk: 0
-
-### ogx-agentic-api (agents-mcp) — score 7
-
-- TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
-- Zero screenshots in assets/images/ (0 png/jpg)
-- Placeholder tokens in source blocks: 1 (<model-id>)
 - Screenshots on disk: 0
 
 ### kueue (distributed-training) — score 6
@@ -154,12 +140,6 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 
 - Zero screenshots in assets/images/ (0 png/jpg)
 - Placeholder tokens in source blocks: 6 (<job_id>, <provider_id>, <service_account>)
-- Screenshots on disk: 0
-
-### ogx-remote-providers (agents-mcp) — score 4
-
-- Zero screenshots in assets/images/ (0 png/jpg)
-- Placeholder tokens in source blocks: 3 (<base64-encoded-key>, <model_id>, <name>)
 - Screenshots on disk: 0
 
 ### automated-red-teaming-garak (evaluation) — score 4
@@ -250,10 +230,11 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 - Zero screenshots in assets/images/ (0 png/jpg)
 - Screenshots on disk: 0
 
-### agent-catalog-ai-hub (agents-mcp) — score 2
+### ogx-agentic-api (agents-mcp) — score 2
 
-- Zero screenshots in assets/images/ (0 png/jpg)
-- Screenshots on disk: 0
+- Image refs: 1, all resolve
+- Placeholder tokens in source blocks: 1 (<model-id>)
+- Screenshots on disk: 1
 
 ### csv-export-model-catalog (agents-mcp) — score 2
 
@@ -281,10 +262,11 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 - Zero screenshots in assets/images/ (0 png/jpg)
 - Screenshots on disk: 0
 
-### ogx-file-processors (agents-mcp) — score 2
+### ogx-remote-providers (agents-mcp) — score 2
 
-- Zero screenshots in assets/images/ (0 png/jpg)
-- Screenshots on disk: 0
+- Image refs: 1, all resolve
+- Placeholder tokens in source blocks: 3 (<base64-encoded-key>, <model_id>, <name>)
+- Screenshots on disk: 1
 
 ### external-metering-maas (agents-mcp) — score 2
 

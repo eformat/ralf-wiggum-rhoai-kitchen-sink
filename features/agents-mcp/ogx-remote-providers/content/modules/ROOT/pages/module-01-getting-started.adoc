@@ -72,14 +72,16 @@ touching provider configuration, confirm the operator is installed and an
 OGXServer exists in your working project.
 
 . Confirm the OGXServer custom resource definition is registered:
-
++
 [source,bash,role="execute"]
 ----
 oc get crd ogxservers.ogx.io
 ----
-
++
 You should see `ogxservers.ogx.io` listed with a `CREATED AT` timestamp. If
 the CRD is missing, the OGX Operator is not activated on your cluster.
++
+image::01-ogx-crd-search.png[OpenShift console CustomResourceDefinitions page filtered by ogxservers showing the registered ogxservers.ogx.io CRD,link=self,window=blank,width=700]
 
 . List the OGXServer resources in your project:
 

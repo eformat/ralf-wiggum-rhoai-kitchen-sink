@@ -143,11 +143,19 @@ browser refresh) does not produce the Kale UI on the 3.5 runtime-datascience ima
 content correction (different image or enablement path) or an image fix. Flagged for human
 attention. Workbench deleted after the test.
 
-### C5 — GenAI playground: NOT AVAILABLE IN THIS BUILD
+### C5 — GenAI playground: FIXED (2026-09-24, follow-up session)
 
-The 3.5 dashboard's Gen AI studio exposes only AutoRAG / AI asset endpoints / Prompts — no
-Playground entry, so the save-agent dialog flow (02-save-agent-dialog.png) is unreachable.
-Flagged as a gap.
+The playground backend is powered by the **OGX operator** in 3.5 (not llamastackoperator —
+the gold-standard flow at `~/git/ph-deploy-configure-rhoai/manifests/05-maas/enable/
+dsc-genai-patch-35.yaml` documents the correct 3.5 path). Applied:
+DSC `ogx: Managed` + `llamastackoperator: Removed`; deployed the CPU model
+(`qwen25-05b` InferenceService, vLLM CPU runtime, `genai-asset` label) per
+`manifests/04-vllm/qwen25-05b/`; created the playground via the dashboard
+(provisions `lsd-genai-playground` OGX server + genai-pgvector DB); exercised the
+save-agent flow. **02-save-agent-dialog.png captured** (Save agent dialog with
+model/prompt/agent-name summary) and the stale TODO removed. RAC evidence:
+`rac/genai-studio-saved-agent/assets/screenshot-evidence-genai-studio-saved-agent.md`.
+Note: this also enabled the OGX component, which unblocks ogx-* workshop CRDs.
 
 ### RAC spot-checks: DONE
 
@@ -162,3 +170,68 @@ genuine RAC mismatch — 15/16 criteria mis-scoped from the mcp-gateway-operator
 - RAC observe-only; content fixes only inside a workshop's own content dir
 - Cluster changes only via documented `cluster/` overlays with ordering constraints
 - No secrets committed; playwright auth state kept in session only
+
+## 7. Evaluation of the 36 remaining (2026-09-24, end of session)
+
+After C1-C5 + the OGX follow-up: **36/54 score > 0, 18 clean.** Evaluation by defect class:
+
+### Class A — effectively clean (9 workshops, scanner false positives)
+
+`validated-tool-calling-config`, `mcp-catalog-support-tier`, `mcp-lifecycle-operator`,
+`ogx-agentic-api`, `csv-export-model-catalog`, `mlflow-experiment-tracking`,
+`vllm-cpu-ibm-z-power`, `llama-stack-ogx-core`, `platform-oidc-auth` — score 2 each for
+`<placeholder>` tokens that the batch subagents documented as **by-design learner-supplied
+values** (API keys/secrets) with explicit prose per skill 4b case 3 (see each
+`qa/runs/<slug>/quality.md`). No action needed. Real residual: 27.
+
+### Class B — capturable now without cluster changes (~6 workshops, ~8-10 shots)
+
+Embed newly-possible dashboard shots via subagent embeds (same pattern as the llmd-* batch):
+`agent-catalog-ai-hub` (AI hub Models/Agents pages live), `mcp-gateway-operator` (MCP pages
+surfaced), `ogx-remote-providers` + `ogx-file-processors` (OGX now enabled), `opencode-coding-agent`
+/ `claude-code-starter-kit` (workbench running — kale-workbench deleted; needs a new workbench).
+
+### Class C — needs exercise execution (~12 workshops, ~15 shots)
+
+- **Leaderboards/runs:** `automl` (02-leaderboard TODO), `autorag` (02-autorag-leaderboard TODO),
+  `evalhub`, `automated-red-teaming-garak`, `kuberay` (+ vague verify)
+- **Populated registry dialogs:** `model-registry-catalog` (2 TODOs — registration exercise
+  with stored artifacts creates transfer jobs)
+- **MaaS-gated:** `maas-core` (02-endpoints-dialog TODO), `maas-loki-showback` (02-usage-dashboard
+  TODO), `maas-oidc-auth`, `maas-multi-tenancy`, `external-metering-maas`, `external-metering-per-user`
+  — the `maas` overlay (flip last per cluster/README.md) + Loki + MaaS deployments required
+- `text-mode-multimodal-training`, `midojo-adversarial-testing`, `openclaw-starter-kit`,
+  `nemo-guardrails-mcp-gateway`, `automated-tool-calling-eval` — mixed: some surfaces now
+  available (eval/MCP), some need exercise runs
+
+### Class D — content decisions needed (2 workshops, findings already flagged)
+
+- `kale-jupyterlab` (8): Kale enable step broken on runtime-datascience 3.5 (C4 finding) —
+  needs content correction or an image fix
+- `kueue` (6): alerting rules don't ship with RHBoK 1.3.2 (C3 finding) — correct content or
+  create PrometheusRules
+- `feature-store-feast` (5): the one TODO is a conceptual workflow diagram — not screenshottable;
+  replace with a drawn diagram or drop the ref
+
+### Recommended next batches
+
+1. **Batch E1 (free):** Class B embeds — 3 parallel subagents, ~6 workshops, no cluster changes
+2. **Batch E2 (MaaS):** apply `cluster/overlays/maas` + Loki → capture the 6 MaaS-gated shots
+3. **Batch E3 (exercise execution):** leaderboards + registry registration exercises — heaviest
+4. **Batch E4 (human):** Class D content decisions
+
+### E2 result (2026-09-24): MaaS platform DEPLOYED; MaaS-gated captures → E3
+
+Executed the documented MaaS flow: `gateway` overlay (cert-manager, RHCL 1.4.3 Succeeded,
+Kuadrant CR activated), `monitoring` overlay (opentelemetry), `make maas-secrets`,
+`maas` overlay with CLUSTER_DOMAIN rendered. **AIGatewayReady = True**; maas-default-gateway
++ maas-gateway-route live. Capture status:
+
+- `maas-core` 02-endpoints-dialog.png: Endpoints dialog opens for qwen25-05b but **without
+  the MaaS badge** — publishing to MaaS requires an HTTPRoute attached to maas-default-gateway
+  (the wizard's "Publish as MaaS" path); MaaSModelRef + MaaSSubscription stay Pending
+  without it → E3 exercise execution
+- `maas-loki-showback` 02-usage-dashboard.png: observability dashboard shows "Unable to reach
+  observability dashboards" — the Loki backend (the lab's setup) is not deployed → E3
+- `maas-oidc-auth`, `maas-multi-tenancy`, `external-metering-maas`, `external-metering-per-user`:
+  need MaaS exercise execution (subscriptions, auth policies, traffic) → E3

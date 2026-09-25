@@ -62,7 +62,7 @@ enabled components.
 . In the console, navigate to *Administrator -> CustomResourceDefinitions* and search for
 `ogxservers`.
 
-// TODO: capture screenshot (needs OGXServer CRD on cluster)
+image::01-ogx-crd-search.png[Searching for the OGXServer CRD in the OpenShift console,link=self,window=blank,width=700]
 
 === Verify
 
