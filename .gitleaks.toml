@@ -1,0 +1,30 @@
+title = "ralf-wiggum-rhoai-kitchen-sink allowlist for documentation placeholders"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = """
+Placeholder values shared across feature antora.yml files and lab content.
+These are documentation dummies, never real credentials:
+- YW50aHJvcGljLWFwaS1rZXk=  base64("antroplic-api-key")  (RHOAI docs example key)
+- abc123                    dummy GUID
+- %password%                literal password template token
+- invalid-key               deliberate bad-credential example in lab exercises
+- test-key-1234567890abcdef upstream sdg_hub test fixture key
+- 6443/api/v1/health        URL fragment false positive in QA run logs
+"""
+regexTarget = "match"
+regexes = [
+  '''YW50aHJvcGljLWFwaS1rZXk=''',
+  '''\babc123\b''',
+  '''%password%''',
+  '''(?i)invalid-key''',
+  '''test-key-1234567890abcdef''',
+  '''6443/api/v1/health''',
+]
+
+# Local-only QA artifacts (gitignored, never committed)
+paths = [
+  '''qa/runs/''',
+]
