@@ -112,8 +112,9 @@ stray cluster before rerunning.
 === Verify
 
 The YAML file is created, the pipeline import succeeds, and the pipeline run
-completes without errors. The run logs show
-`Ray cluster is up and running: True`.
+completes with a **Succeeded** status in the *Runs* list. The run logs show
+`Ray cluster is up and running: True`, and `oc get rayclusters -n {guid}-{user}`
+returns no clusters — the Ray cluster was torn down at the end of the run.
 
 == Exercise 2: Monitor distributed workloads
 

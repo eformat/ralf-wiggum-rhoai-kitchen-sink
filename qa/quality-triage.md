@@ -5,8 +5,8 @@ Post-session re-run 2026-09-24 — analysis only. Reflects the easy-defect proce
 
 - RHOAI version: 3.5
 - Total enriched workshops: **54**
-- Scored > 0 (need processing): **32**
-- Score == 0 (skip — idempotent): **22**
+- Scored > 0 (need processing): **31**
+- Score == 0 (skip — idempotent): **23**
 - Processing order: **easy content-context defects first** (placeholders, vague verify, YAML callouts), then
   screenshot/image-ref gaps when a live cluster is available for capture.
 - Tools: `decided` 0.27.0, `rg` 15.2.0 available. Enrichment source repos: all 8 present.
@@ -28,10 +28,8 @@ Scoring: TODO markers +3 · broken heredoc/YAML outside source block +3 · broke
 | nemo-guardrails-mcp-gateway | guardrails | TP | 4 | no screenshots, placeholders |
 | maas-oidc-auth | maas | GA | 4 | no screenshots, placeholders |
 | maas-multi-tenancy | maas | TP | 4 | no screenshots, placeholders |
-| kuberay | distributed-training | GA | 3 | no screenshots, vague verify |
 | autorag | feature-store-automl-autorag | TP | 3 | TODO markers |
 | model-registry-catalog | model-registry | GA | 3 | TODO markers |
-| opencode-coding-agent | agents-mcp | TP | 2 | no screenshots |
 | validated-tool-calling-config | agents-mcp | TP | 2 | placeholders |
 | mcp-catalog-support-tier | agents-mcp | TP | 2 | placeholders |
 | mcp-lifecycle-operator | agents-mcp | TP | 2 | placeholders |
@@ -45,12 +43,14 @@ Scoring: TODO markers +3 · broken heredoc/YAML outside source block +3 · broke
 | ogx-remote-providers | agents-mcp | DP | 2 | placeholders |
 | external-metering-maas | agents-mcp | DP | 2 | no screenshots |
 | external-metering-per-user | agents-mcp | DP | 2 | no screenshots |
+| kuberay | distributed-training | GA | 2 | no screenshots |
 | mlflow-experiment-tracking | mlops | GA | 2 | placeholders |
 | llmd-priority-flow-control | model-serving | GA | 2 | no screenshots |
 | vllm-cpu-ibm-z-power | model-serving | GA | 2 | placeholders |
 | llama-stack-ogx-core | ogx | GA | 2 | placeholders |
 | platform-oidc-auth | platform-gateway | GA | 2 | placeholders |
 | ai-available-assets | agents-mcp | GA | 0 | clean |
+| opencode-coding-agent | agents-mcp | TP | 0 | clean |
 | agent-catalog-ai-hub | agents-mcp | DP | 0 | clean |
 | genai-studio-saved-agent | agents-mcp | DP | 0 | clean |
 | openshell-agent-sandboxing | agents-mcp | DP | 0 | clean |
@@ -97,7 +97,7 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 - **llmd-core** (model-serving, GA, score 0 — clean) — content-only fixes now; live tests deferred as observe-only.
 - **evalhub** (evaluation, GA, score 4) — content-only fixes now; live tests deferred as observe-only.
 - **llmd-priority-flow-control** (model-serving, GA, score 2) — content-only fixes now; live tests deferred as observe-only.
-- **kuberay** (distributed-training, GA, score 3) — content-only fixes now; live tests deferred as observe-only.
+- **kuberay** (distributed-training, GA, score 2) — content-only fixes now; live tests deferred as observe-only.
 - **maas-vllm-deployment** (maas, TP, score 0 — clean) — content-only fixes now; live tests deferred as observe-only.
 - **kubeflow-trainer-v2** (distributed-training, GA, score 0 — clean) — content-only fixes now; live tests deferred as observe-only.
 - **llminferenceservice-config** (model-serving, GA, score 0 — clean) — content-only fixes now; live tests deferred as observe-only.
@@ -172,12 +172,6 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 - Placeholder tokens in source blocks: 2 (<tenant_api_key>, <tenant_name>)
 - Screenshots on disk: 0
 
-### kuberay (distributed-training) — score 3
-
-- Zero screenshots in assets/images/ (0 png/jpg)
-- Screenshots on disk: 0
-- Vague verify sections: module-03-advanced.adoc
-
 ### autorag (feature-store-automl-autorag) — score 3
 
 - TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
@@ -189,11 +183,6 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 - TODO markers: 2 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
 - Image refs: 3, all resolve
 - Screenshots on disk: 3
-
-### opencode-coding-agent (agents-mcp) — score 2
-
-- Zero screenshots in assets/images/ (0 png/jpg)
-- Screenshots on disk: 0
 
 ### validated-tool-calling-config (agents-mcp) — score 2
 
@@ -262,6 +251,11 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 - Screenshots on disk: 0
 
 ### external-metering-per-user (agents-mcp) — score 2
+
+- Zero screenshots in assets/images/ (0 png/jpg)
+- Screenshots on disk: 0
+
+### kuberay (distributed-training) — score 2
 
 - Zero screenshots in assets/images/ (0 png/jpg)
 - Screenshots on disk: 0
