@@ -5,8 +5,8 @@ Post-session re-run 2026-09-24 — analysis only. Reflects the easy-defect proce
 
 - RHOAI version: 3.5
 - Total enriched workshops: **54**
-- Scored > 0 (need processing): **34**
-- Score == 0 (skip — idempotent): **20**
+- Scored > 0 (need processing): **32**
+- Score == 0 (skip — idempotent): **22**
 - Processing order: **easy content-context defects first** (placeholders, vague verify, YAML callouts), then
   screenshot/image-ref gaps when a live cluster is available for capture.
 - Tools: `decided` 0.27.0, `rg` 15.2.0 available. Enrichment source repos: all 8 present.
@@ -30,8 +30,6 @@ Scoring: TODO markers +3 · broken heredoc/YAML outside source block +3 · broke
 | maas-multi-tenancy | maas | TP | 4 | no screenshots, placeholders |
 | kuberay | distributed-training | GA | 3 | no screenshots, vague verify |
 | autorag | feature-store-automl-autorag | TP | 3 | TODO markers |
-| maas-core | maas | GA | 3 | TODO markers |
-| maas-loki-showback | maas | TP | 3 | TODO markers |
 | model-registry-catalog | model-registry | GA | 3 | TODO markers |
 | opencode-coding-agent | agents-mcp | TP | 2 | no screenshots |
 | validated-tool-calling-config | agents-mcp | TP | 2 | placeholders |
@@ -64,6 +62,8 @@ Scoring: TODO markers +3 · broken heredoc/YAML outside source block +3 · broke
 | llmd-lora-routing | agents-mcp | DP | 0 | clean |
 | kubeflow-trainer-v2 | distributed-training | GA | 0 | clean |
 | nemo-guardrails | guardrails | GA | 0 | clean |
+| maas-core | maas | GA | 0 | clean |
+| maas-loki-showback | maas | TP | 0 | clean |
 | maas-llmd-deployment | maas | TP | 0 | clean |
 | maas-multi-provider-passthrough | maas | TP | 0 | clean |
 | maas-vllm-deployment | maas | TP | 0 | clean |
@@ -179,18 +179,6 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 - Vague verify sections: module-03-advanced.adoc
 
 ### autorag (feature-store-automl-autorag) — score 3
-
-- TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
-- Image refs: 1, all resolve
-- Screenshots on disk: 1
-
-### maas-core (maas) — score 3
-
-- TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
-- Image refs: 1, all resolve
-- Screenshots on disk: 1
-
-### maas-loki-showback (maas) — score 3
 
 - TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
 - Image refs: 1, all resolve

@@ -84,7 +84,6 @@ metering system — for production chargeback workflows that require precise
 billing data, access the Limitador metrics endpoint directly rather than using
 Prometheus or the dashboard CSV export.
 
-// TODO: capture screenshot
 image::02-usage-dashboard.png[MaaS observability dashboard Usage tab,link=self,window=blank,width=700]
 
 . In the OpenShift AI dashboard, click *Observe & monitor* → *Dashboard* in the

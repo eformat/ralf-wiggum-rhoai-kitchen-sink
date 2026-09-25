@@ -235,3 +235,20 @@ Kuadrant CR activated), `monitoring` overlay (opentelemetry), `make maas-secrets
   observability dashboards" — the Loki backend (the lab's setup) is not deployed → E3
 - `maas-oidc-auth`, `maas-multi-tenancy`, `external-metering-maas`, `external-metering-per-user`:
   need MaaS exercise execution (subscriptions, auth policies, traffic) → E3
+
+### E3a result (2026-09-24): MaaS publish + observability — DONE (2 shots captured)
+
+- **maas-loki-showback 02-usage-dashboard.png CAPTURED**: PersesGlobalDatasource fix
+  (gold-standard observability-datasource) → Usage tab renders with MaaS usage metrics.
+- **maas-core 02-endpoints-dialog.png CAPTURED**: full publish flow — gateway stuck on
+  `type: LoadBalancer` with no LB provider (fixed via documented `make gateway-status`
+  status patch), `qwen25-05b-maas` LLMInferenceService deployed via the MaaS gateway,
+  MaaSModelRef + Subscription + AuthPolicy created → MaaS badge + endpoint URL + subscription
+  selector in the dialog.
+- **Cluster finding**: `cluster/overlays/maas/gateway/gateway-config.yaml` ships `type:
+  LoadBalancer`; on this cluster the documented `make gateway-status` status patch is REQUIRED
+  after every apply (or the Gateway never reports Programmed and ALL MaaS-path model
+  deployments hang). Should be added to the overlay README/verify or made ClusterIP+Route-only.
+- Remaining E3 (traffic-dependent): `external-metering-maas`, `external-metering-per-user`
+  (need MaaS API traffic for token-usage events), `maas-oidc-auth`, `maas-multi-tenancy`
+  (need per-tenant subscription/auth resources)

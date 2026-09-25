@@ -42,7 +42,6 @@ Endpoints dialog. The dialog shows:
 . Keep the Endpoints dialog open — you will use it to mint a quick temporary
 key in the next exercise.
 
-// TODO: capture screenshot
 image::02-endpoints-dialog.png[Model as a Service badge and external endpoint URL in the Endpoints dialog,link=self,window=blank,width=700]
 
 === Verify
