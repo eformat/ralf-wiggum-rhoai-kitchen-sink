@@ -252,3 +252,76 @@ Kuadrant CR activated), `monitoring` overlay (opentelemetry), `make maas-secrets
 - Remaining E3 (traffic-dependent): `external-metering-maas`, `external-metering-per-user`
   (need MaaS API traffic for token-usage events), `maas-oidc-auth`, `maas-multi-tenancy`
   (need per-tenant subscription/auth resources)
+
+### Heavy runs final status (2026-09-24)
+
+**1/8 done: `automl` clean** — full 3.5 lifecycle executed (DSPA + managed pipelines +
+Noobaa storage + 200-row CSV + 38m AutoGluon training, leaderboard captured).
+
+**Scanner false positives resolved (5 of 7)**: `evalhub`, `automated-red-teaming-garak`,
+`maas-oidc-auth`, `maas-multi-tenancy` — all "placeholder" flags are by-design
+learner-replace tokens with explicit "replace X with..." prose; CLI-driven, no RAC visual
+criteria, no screenshots required. `llmd-priority-flow-control` was already documented.
+
+**2 remaining, both multi-hour with blockers needing a decision:**
+
+- `autorag` (2): 60-90 min RAG-optimization workflow. Needs an OGX connection in the project
+  (base URL + API key) and a vector I/O provider registered with the OGX instance. The
+  per-project OGX server (`lsd-genai-playground`) is live but its provider-registration API
+  is not exposed through the dashboard — requires the OGX CLI or API work documented in the
+  Llama Stack / OGX docs.
+
+- `nemo-guardrails-mcp-gateway` (2): requires OpenShift Service Mesh (Istio) + EnvoyFilter.
+  Installing Service Mesh ALTERS the cluster for every other lab — it directly contradicts
+  the cluster/README.md constraint ("llm-d labs explicitly assume Service Mesh is ABSENT",
+  currently-running llmd workloads). Options: (a) install Service Mesh, run this lab, then
+  REMOVE Service Mesh before Act, or (b) keep it as a documented manual-lab exception.
+
+**Autorag final: failed on the per-project MLflow plugin (runID required) after the pipeline
+executed (data → chunking → indexing → evaluation started). Fix path documented: per-project
+MLflow tracking server + runID wiring, then re-run.**
+
+**Autorog autorun update 2: confirmed blocked on the cluster driver image
+(odh-ml-pipelines-driver-rhel9) — the mlflow plugin omits the X-MLflow-Workspace header the
+per-project MLflow server requires. Upstream RHOAI fix needed; all provisioning (DSPA, GenAI
+Stack connection, staged docs/eval, per-project MLflow) remains valid for a re-run.**
+
+## 8. Skill feedback: openclaw-starter-kit closure was WRONG (2026-09-25)
+
+User review of the published openclaw-starter-kit workshop found: no deployment code, no
+screenshots of any agent running, no demonstration. This was NOT by-design — it was a
+three-layer failure: (a) RAC oriented as a conceptual tour for a deployment workshop,
+(b) the enrichment skill had no signal for narrative-only content or runtime-demonstration
+gaps, (c) session-level closure misclassification.
+
+**quality-enrichment skill updated** (zt-rhaibu/skills/quality-enrichment/SKILL.md):
+- New triage signals: "no executable content for deploy/run claims" (+3) and
+  "runtime-demonstration gap" (+3) — neither may be closed as by-design
+- Phase 1 evidence map gains a DESCRIBED tier (prose-only ≠ proven) with deploy/run
+  DESCRIBED treated as a gap
+- Phase 3 gains a completeness audit: deploy/apply/install claims with no code behind
+  them are flagged, not passed
+- Closure guardrail: score-0 idempotency no longer swallows runtime-demonstration or
+  completeness gaps — they require a workshop-act run or explicit human deferral
+- Out-of-scope updated: the Quality report routes runtime-demonstration-gap workshops
+  to workshop-act before publish (the Quality report is the pipeline's gate)
+
+**openclaw-starter-kit status corrected to NOT by-design** — needs re-orient (RAC) +
+deployment code + Act evidence, or an explicit human decision that it is a conceptual tour.
+
+Note: the same review applies to `midoljo-adversarial-testing`, `openclaw-starter-kit`-adjacent
+starter kits and any other workshop previously closed as "no-matching-UI" — each needs a
+narrative-only vs. genuinely-terminal re-check under the new signals.
+
+## 9. Pilot fix: openclaw-starter-kit (2026-09-25)
+
+The user-identified gap fixed end-to-end as the pilot for the updated skill. Content now has
+real deployment code (tool-calling enablement, SA token, backend manifest + secret, kustomize
+apply), the agent was deployed live and demonstrated (UI screenshot with the response through
+OGX → vLLM), and the RAC re-oriented with REQ-010/011 (decided validate PASS). Score 2 → 0.
+
+**Live wiring findings for other agent-deployment workshops (opencode, claude-code):**
+- Agent base URL must EXCLUDE `/v1` (the agent appends it)
+- The OGX gateway requires the upstream model's bearer token (long-lived SA token via
+  kubernetes.io/service-account-token Secret)
+- vLLM tool calling needs `--enable-auto-tool-choice --tool-call-parser=hermes` (Qwen2.5)

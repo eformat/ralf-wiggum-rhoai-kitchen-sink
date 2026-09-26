@@ -59,10 +59,10 @@ OpenShift AI follow. Per the 3.5 release notes, OpenCode is the first coding age
 validated to follow the pattern established by OpenClaw, so what you learn here
 generalizes to the wider agent starter kit family.
 
-== Exercise 2: Deployment options and model connection
+== Exercise 2: Deploy the OpenClaw agent
 
-The kit ships with two deployment options. Choosing between them is the first decision
-you make when using the starter kit:
+The kit ships with two deployment options. Both converge on the same validated
+deployment — choose based on how you want to manage the definitions:
 
 [options="header"]
 |===
@@ -77,9 +77,175 @@ you make when using the starter kit:
 |You want the fastest path to a running OpenClaw instance
 |===
 
-TIP: Both options converge on the same validated deployment. If you are unsure, the
-automated installer manages the runtime concerns for you; the Kustomize manifests are
-there when you need the deployment to be explicit and inspectable.
+. Before deploying, confirm your working project is the current namespace:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc project
+----
+
+. The agent invokes tools through the model, so tool calling must be enabled
+on the model server. Check whether the `--enable-auto-tool-choice` and
+`--tool-call-parser` arguments are set on the model deployment:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get inferenceservice qwen25-05b -n {guid}-{user} \
+  -o jsonpath='{.spec.predictor.model.args}'
+----
+
+IMPORTANT: If the arguments are missing, patch the model server. The
+`--tool-call-parser` value depends on the model family — `hermes` for
+Qwen2.5 models:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc patch inferenceservice qwen25-05b -n {guid}-{user} --type merge \
+  -p '{"spec":{"predictor":{"model":{"args":["--dtype=bfloat16","--max-model-len=8192","--enable-auto-tool-choice","--tool-call-parser=hermes"]}}}}'
+----
+
+The model server rolls out with the new arguments. Wait for the deployment to
+report `READY 1/1` before continuing.
+
+. The model endpoint requires token authentication. Mint a long-lived token
+for the model-caller ServiceAccount and store it in a Secret:
+
+[source,bash,role="execute",subs="attributes"]
+----
+cat <<'EOF' | oc apply -f - -n {guid}-{user}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: qwen25-05b-caller-token
+  annotations:
+    kubernetes.io/service-account.name: qwen25-05b-caller
+type: kubernetes.io/service-account-token
+EOF
+----
+
+=== Option A: deploy from the validated Kustomize manifests
+
+The starter kit deploys two components: the *OpenClaw agent backend* (which talks
+the OpenAI-compatible protocol) and the *agent UI* (browser access through an
+OAuth proxy backed by OpenShift RBAC). The backend manifest wires the agent to
+the model endpoint through a Secret:
+
+[source,yaml]
+----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw-agent-be
+  labels:
+    app: openclaw-agent-be
+    app.kubernetes.io/part-of: openclaw
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openclaw-agent-be
+  template:
+    metadata:
+      labels:
+        app: openclaw-agent-be
+    spec:
+      containers:
+        - name: openclaw-agent-be
+          image: quay.io/rcarrata/agentic-app-be:v3 <1>
+          ports:
+            - containerPort: 8080
+          env:
+            - name: API_URL <2>
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-be-secret
+                  key: API_URL
+            - name: API_KEY <3>
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-be-secret
+                  key: API_KEY
+            - name: MODEL_NAME <4>
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-be-secret
+                  key: MODEL_NAME
+----
+<1> *image* — the validated OpenClaw agent backend image; no bespoke image builds required.
+<2> *API_URL* — the OpenAI-compatible base URL of your OGX inference gateway.
+<3> *API_KEY* — the API key for the gateway. Leave empty for gateways without auth.
+<4> *MODEL_NAME* — the model ID the agent requests on every call.
+
+. Create the Secret that wires the agent to your OGX gateway. The gateway
+exposes an OpenAI-compatible API on port 8321 — note the URL has **no** `/v1`
+suffix, because the agent appends it. The API key is the model-caller token
+from the previous step, which the OGX gateway forwards to the
+token-authenticated model server:
+
+[source,bash,role="execute",subs="attributes"]
+----
+OGX_TOKEN=$(oc get secret qwen25-05b-caller-token -n {guid}-{user} \
+  -o jsonpath='{.data.token}' | base64 -d)
+oc create secret generic openclaw-be-secret -n {guid}-{user} \
+  --from-literal=API_URL="http://lsd-genai-playground-service.{guid}-{user}.svc.cluster.local:8321" \
+  --from-literal=API_KEY="${OGX_TOKEN}" \
+  --from-literal=MODEL_NAME="vllm-inference-1/qwen25-05b"
+----
+
+. Apply the validated Kustomize manifests for both components:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -k https://github.com/redhat-ai-dev/agentic-examples/agentic-apps/agentic-app-langgraph/deploy-demo -n {guid}-{user}
+----
+
+. Confirm both deployments roll out:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get deployments -n {guid}-{user}
+----
+
+=== Verify
+
+Both the agent backend and the agent UI deployments show `READY 1/1`, and the
+`openclaw-be-secret` carries your OGX gateway URL:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get deployment openclaw-agent-be -n {guid}-{user} -o jsonpath='{.status.readyReplicas}'
+----
+
+Expected output is `1`.
+
+== Exercise 3: Verify the running agent
+
+. Open the agent UI route in a browser:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get route -n {guid}-{user}
+----
+
+The UI lists the API status, the model in use, and the agent's enabled tools.
+When you open the route for the first time, log in with OpenShift and approve
+the `agentic-sa` service account — the OAuth proxy enforces this.
+
+. Send a prompt through the agent chat. The agent forwards the request to the
+OGX gateway, which routes it to the self-hosted vLLM model, and the response
+streams back into the chat UI.
+
+image::01-agent-running.png[The OpenClaw agent UI responding to a prompt through the OGX gateway, with the model and enabled tools listed,link=self,window=blank,width=700]
+
+=== Verify
+
+The agent responds in the chat UI with a completion from the self-hosted model,
+and the backend logs show the upstream model call:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc logs -n {guid}-{user} deploy/openclaw-agent-be --tail=5
+----
 
 On the model side, the kit connects OpenClaw to *self-hosted models through vLLM by
 using the OGX inference gateway with an OpenAI-compatible API*. Notice what this

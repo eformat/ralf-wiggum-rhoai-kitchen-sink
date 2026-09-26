@@ -25,10 +25,12 @@ deployment walkthrough with fabricated commands.
 - [REQ-003] Learner MUST be able to verify their workshop connection with `oc whoami && oc project` before starting the tour
 - [REQ-004] Learner MUST be able to identify the two deployment options (validated Kustomize manifests and the automated OpenClaw installer) and when to choose each
 - [REQ-005] Learner MUST be able to describe how the agent connects to self-hosted models through vLLM via the OGX inference gateway with an OpenAI-compatible API
-- [REQ-006] Learner MUST be able to describe what the diagnostics-otel plugin captures in MLflow: model calls, tool executions, and context assembly spans
-- [REQ-007] Learner MUST be able to explain how browser-based access control is enforced with the OAuth proxy backed by OpenShift RBAC
-- [REQ-008] Learner SHOULD be able to observe the running agent workload with `oc get pods -n {guid}-{user}` as an observation rather than a fixed output
-- [REQ-009] Learner SHOULD be able to summarize the workspace persistence, restricted-v2 SCC security posture, and the included model compatibility matrix and troubleshooting guide
+ - [REQ-006] Learner MUST be able to describe what the diagnostics-otel plugin captures in MLflow: model calls, tool executions, and context assembly spans
+ - [REQ-007] Learner MUST be able to explain how browser-based access control is enforced with the OAuth proxy backed by OpenShift RBAC
+ - [REQ-008] Learner SHOULD be able to observe the running agent workload with `oc get pods -n {guid}-{user}` as an observation rather than a fixed output
+ - [REQ-009] Learner SHOULD be able to summarize the workspace persistence, restricted-v2 SCC security posture, and the included model compatibility matrix and troubleshooting guide
+ - [REQ-010] Learner MUST be able to deploy the OpenClaw agent from the validated Kustomize manifests, with tool calling enabled on the model server (`--enable-auto-tool-choice --tool-call-parser=hermes`) and the OGX gateway URL wired through the agent Secret (added 2026-09-25 — the original orientation under-scoped a deployment workshop as a conceptual tour)
+ - [REQ-011] Learner MUST be able to verify the running agent responds through the OGX gateway: the agent UI lists the model and enabled tools, and a chat prompt returns a completion from the self-hosted vLLM model (added 2026-09-25)
 
 ## Success Metrics
 

@@ -1,12 +1,12 @@
 # Quality Triage — ralf-wiggum-rhoai-kitchen-sink
 
 Phase 0 triage (`--dry-run --all`) per the `quality-enrichment` skill (zt-rhaibu factory).
-Post-session re-run 2026-09-24 — analysis only. Reflects the easy-defect processing session (12 workshops), screenshot-capture session, and the Phase C deployment session (model registry deployed, kueue operator installed, 4 llmd-* workshops cleaned, model-registry-catalog 8→3). C5 follow-up: GenAI playground enabled (OGX backend per the gold-standard 3.5 flow), CPU qwen25-05b model deployed, save-agent dialog captured — genai-studio-saved-agent 8→0. OGX CRD shot captured for ogx-agentic-api (7→2, ref restored). Remaining work evaluated in qa/gap-analysis.md section 7.
+Post-session re-run 2026-09-24 — analysis only. Reflects the easy-defect processing session (12 workshops), screenshot-capture session, and the Phase C deployment session (model registry deployed, kueue operator installed, 4 llmd-* workshops cleaned, model-registry-catalog 8→3). C5 follow-up: GenAI playground enabled (OGX backend per the gold-standard 3.5 flow), CPU qwen25-05b model deployed, save-agent dialog captured — genai-studio-saved-agent 8→0. OGX CRD shot captured for ogx-agentic-api (7→2, ref restored). E1-E3d executed (embeds, MaaS platform, Usage tab + MaaS-badge dialog, registration exercise, workbench terminal, kuberay verify fix). HEAVY RUN 1/8 DONE: automl clean — DSPA + managed pipelines + 200-row CSV + 38m AutoGluon training, leaderboard captured. Remaining heavy runs: evalhub, garak, tool-calling-eval, nemo-guardrails-mcp-gateway, maas-oidc-auth, maas-multi-tenancy, autorag. See qa/gap-analysis.md section 7.
 
 - RHOAI version: 3.5
 - Total enriched workshops: **54**
-- Scored > 0 (need processing): **31**
-- Score == 0 (skip — idempotent): **23**
+- Scored > 0 (need processing): **30**
+- Score == 0 (skip — idempotent): **24**
 - Processing order: **easy content-context defects first** (placeholders, vague verify, YAML callouts), then
   screenshot/image-ref gaps when a live cluster is available for capture.
 - Tools: `decided` 0.27.0, `rg` 15.2.0 available. Enrichment source repos: all 8 present.
@@ -21,7 +21,6 @@ Scoring: TODO markers +3 · broken heredoc/YAML outside source block +3 · broke
 | kale-jupyterlab | agents-mcp | DP | 8 | TODO markers, no screenshots, broken image refs |
 | kueue | distributed-training | GA | 6 | TODO markers, broken image refs |
 | feature-store-feast | feature-store-automl-autorag | GA | 5 | TODO markers, no screenshots |
-| automl | feature-store-automl-autorag | TP | 5 | TODO markers, no screenshots |
 | automated-tool-calling-eval | agents-mcp | GA | 4 | no screenshots, placeholders |
 | automated-red-teaming-garak | evaluation | GA | 4 | no screenshots, placeholders |
 | evalhub | evaluation | GA | 4 | no screenshots, placeholders |
@@ -61,6 +60,7 @@ Scoring: TODO markers +3 · broken heredoc/YAML outside source block +3 · broke
 | llmd-latency-routing | agents-mcp | DP | 0 | clean |
 | llmd-lora-routing | agents-mcp | DP | 0 | clean |
 | kubeflow-trainer-v2 | distributed-training | GA | 0 | clean |
+| automl | feature-store-automl-autorag | TP | 0 | clean |
 | nemo-guardrails | guardrails | GA | 0 | clean |
 | maas-core | maas | GA | 0 | clean |
 | maas-loki-showback | maas | TP | 0 | clean |
@@ -125,12 +125,6 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 - Screenshots on disk: 1
 
 ### feature-store-feast (feature-store-automl-autorag) — score 5
-
-- TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
-- Zero screenshots in assets/images/ (0 png/jpg)
-- Screenshots on disk: 0
-
-### automl (feature-store-automl-autorag) — score 5
 
 - TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
 - Zero screenshots in assets/images/ (0 png/jpg)

@@ -80,6 +80,8 @@ into a decision.
 . Review the leaderboard, which ranks trained models by the optimized metric for
   your task type. The top-ranked model is highlighted. Click a column header to
   sort by a different metric.
++
+image::02-leaderboard.png[The AutoML leaderboard showing the pipeline DAG, pipeline details, and ranked models by accuracy,link=self,window=blank,width=700]
 
 Default optimization metrics by task type:
 
@@ -99,7 +101,6 @@ Default optimization metrics by task type:
 |MASE (Mean Absolute Scaled Error, negated so higher is better)
 |===
 
-// TODO: capture screenshot
 
 [start=5]
 . Click *View details* from the actions menu of a model to inspect its metrics,
