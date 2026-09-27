@@ -86,7 +86,7 @@ The expected output is `true`.
 All three commands succeed and the two jsonpath checks return `true`. If the
 `mcpCatalog` flag is missing or `false`, your facilitator must enable it first:
 
-[source,bash]
+[source,bash,role="execute",subs="attributes"]
 ----
 oc patch datasciencecluster default-dsc --type=merge \
   -p '{"spec":{"components":{"mcplifecycleoperator":{"managementState":"Managed"}}}}'
@@ -161,7 +161,24 @@ data:
     }
 ----
 <1> *`name`* — a dedicated ConfigMap holding one entry per MCP server, applied by a cluster administrator.
-<2> *entry key* — case-sensitive and unique; the value must be valid JSON describing the server.
+<2> *`entry key`* — case-sensitive and unique; the value must be valid JSON describing the server.
+
+Walk through the old way once so you can compare it with the interface. Save the
+manifest as `gen-ai-aa-mcp-servers.yaml`, then apply it to the cluster:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc apply -f gen-ai-aa-mcp-servers.yaml
+----
+
+[NOTE]
+====
+This apply step is the contrast, not the workflow this module teaches — it requires
+cluster-administrator access to the `redhat-ods-applications` namespace, and the
+ConfigMap it creates is the state you would have to track by hand. If you are
+following the dashboard workflow only, skip the apply and go straight to the new
+way; the verify steps flag the checks that depend on it.
+====
 
 Managing catalog entries this way means writing YAML to local files, applying them with
 `oc`, and keeping track of ConfigMap state by hand — easy to get wrong and invisible to
@@ -190,14 +207,34 @@ may be browsing or deploying from.
 
 === Verify
 
-Confirm the round trip from the developer's point of view:
+Confirm the old way from the CLI:
+
+. If you ran the old-way apply, confirm the ConfigMap holds the entry:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get configmap gen-ai-aa-mcp-servers -n redhat-ods-applications -o yaml | grep GitHub-MCP-Server
+----
++
+Expected output shows the entry key, confirming the ConfigMap was created:
+
+----
+GitHub-MCP-Server: |
+----
+
+. In the dashboard, navigate to *AI hub* → *MCP servers*: the GitHub MCP server from
+the old-way ConfigMap appears as a catalog card. The dashboard feeds the catalog from
+the source configuration, so changes can take a few minutes to appear — give it a
+moment before concluding the entry is missing.
+
+Confirm the new way from the developer's point of view:
 
 . In the dashboard, navigate to *AI hub* → *MCP servers*. The catalog cards reflect
 the entries you just managed — a newly added entry's servers are listed, a removed
 entry's servers are gone.
-. From the CLI, confirm you never had to touch a ConfigMap: there is no
-`oc apply` step anywhere in this exercise. The interface performed the configuration
-changes for you.
+. The add, edit, and remove steps above touched no ConfigMap from your side: the
+interface performed the configuration changes for you. The only `oc apply` in this
+module is the old-way contrast, which the interface replaces — that is the round trip.
 
 You have now seen the full administrative workflow — the last step is to consolidate
 what you learned.
@@ -209,6 +246,8 @@ what you learned.
 * Verified the cluster was ready for MCP catalog administration: the MCP Lifecycle
   Operator installed and the `mcpCatalog` dashboard flag enabled
 * Toured the dashboard Settings page where MCP catalog source configurations are managed
+* Applied the old-way `gen-ai-aa-mcp-servers` ConfigMap with `oc` and contrasted it
+  with the dashboard workflow
 * Walked through the YAML-based add, edit, and remove workflows and saw how they replace
   manual ConfigMap edits
 

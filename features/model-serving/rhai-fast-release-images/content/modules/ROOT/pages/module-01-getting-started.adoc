@@ -83,8 +83,14 @@ referenced in supported configs live in `registry.redhat.io/rhaiis`.
 +
 [source,bash,role="execute",subs="attributes"]
 ----
-oc get template {runtime_name} -o yaml | grep unsupported-status-accepted
+oc get template {runtime_name} -n redhat-ods-applications -o yaml \
+  | grep unsupported-status-accepted
 ----
++
+NOTE: Pre-installed runtimes ship as OpenShift `Template` resources in the
+`redhat-ods-applications` namespace. A runtime you create yourself — by duplicating one in the
+dashboard or applying a manifest — is a `ServingRuntime` custom resource instead; in Module 02
+you inspect it with `oc get servingruntime`.
 
 === Verify
 

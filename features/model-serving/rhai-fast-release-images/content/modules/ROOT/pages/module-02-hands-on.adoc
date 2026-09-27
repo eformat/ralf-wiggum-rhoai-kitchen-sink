@@ -61,22 +61,70 @@ the ServingRuntime manifest in your GitOps repository and sync. The runtime beco
 without dashboard interaction, and the Git commit history provides an auditable acceptance
 record.
 
+.Optional: apply the complete runtime manifest from the CLI
+If you prefer the CLI, apply the full `ServingRuntime` manifest instead of duplicating in the
+dashboard — the specification mirrors the shipped GA `vllm-cuda-runtime` (entrypoint, model
+mount, supported model formats) with the fast-release image and the gating annotations:
+
+[source,bash,role="execute",subs="attributes"]
+----
+cat <<EOF | oc apply -n redhat-ods-applications -f -
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+  name: vllm-fast-1
+  annotations:
+    opendatahub.io/support-status: unsupported
+    opendatahub.io/unsupported-status-accepted: "true"
+    opendatahub.io/fast-version: "1"
+    opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
+    openshift.io/display-name: vLLM ServingRuntime for KServe (fast-1)
+  labels:
+    opendatahub.io/dashboard: "true"
+spec:
+  annotations:
+    prometheus.io/path: /metrics
+    prometheus.io/port: "8080"
+  containers:
+    - name: kserve-container
+      image: registry.redhat.io/rhaii-early-access/vllm-cuda-rhel9:3.5.0-ea.1-1780065492
+      command:
+        - python
+        - '-m'
+        - vllm.entrypoints.openai.api_server
+      args:
+        - --port=8080
+        - --model=/mnt/models
+      ports:
+        - containerPort: 8080
+          protocol: TCP
+  multiModel: false
+  supportedModelFormats:
+    - autoSelect: true
+      name: vLLM
+EOF
+----
+
 === Verify
 
 Confirm the runtime was created and carries the acceptance annotations:
 
 [source,bash,role="execute",subs="attributes"]
 ----
-oc get template vllm-fast-1 -o yaml | grep -A 2 "opendatahub.io/support-status"
+oc get servingruntime vllm-fast-1 -n redhat-ods-applications -o yaml \
+  | grep -E "support-status|fast-version"
 ----
 
 Expected output:
 
 ----
+opendatahub.io/fast-version: "1"
 opendatahub.io/support-status: unsupported
 opendatahub.io/unsupported-status-accepted: "true"
-opendatahub.io/fast-version: "1"
 ----
+
+The runtime you created is a `ServingRuntime` custom resource, so you query it with
+`oc get servingruntime`; shipped pre-installed runtimes are `Template` resources instead.
 
 In the dashboard, the runtime is shown in an enabled state on the *Serving runtimes* page with
 the *Limited support* and *fast-N* badges, and data scientists can now see it in the model
@@ -104,6 +152,81 @@ needed, then click *Next*.
 
 image::02-wizard-fast-runtime.png[Model deployment wizard showing the fast-1 runtime selected,link=self,window=blank,width=700]
 
+.Optional: deploy the same model from the CLI
+The wizard generates an `InferenceService` from your choices. To deploy the equivalent model from
+the CLI — for example, from a pipeline or a GitOps repository — apply the CR directly. KServe
+resolves `spec.predictor.runtime` from the deployment's own namespace, so the manifest below
+creates a project-scoped copy of the fast-release runtime, then the `InferenceService` that uses
+it:
+
+[source,bash,role="execute",subs="attributes"]
+----
+cat <<EOF | oc apply -n {guid}-{user} -f -
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+  name: vllm-fast-1
+  annotations:
+    opendatahub.io/support-status: unsupported
+    opendatahub.io/unsupported-status-accepted: "true"
+    opendatahub.io/fast-version: "1"
+    opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
+  labels:
+    opendatahub.io/dashboard: "true"
+spec:
+  containers:
+    - name: kserve-container
+      image: registry.redhat.io/rhaii-early-access/vllm-cuda-rhel9:3.5.0-ea.1-1780065492
+      command:
+        - python
+        - '-m'
+        - vllm.entrypoints.openai.api_server
+      args:
+        - --port=8080
+        - --model=/mnt/models
+      ports:
+        - containerPort: 8080
+          protocol: TCP
+  multiModel: false
+  supportedModelFormats:
+    - autoSelect: true
+      name: vLLM
+---
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: fast-1-qwen
+  labels:
+    opendatahub.io/dashboard: "true"
+    networking.kserve.io/visibility: exposed
+spec:
+  predictor:
+    minReplicas: 1
+    maxReplicas: 1
+    model:
+      modelFormat:
+        name: vLLM
+      runtime: vllm-fast-1
+      storageUri: oci://quay.io/redhat-ai-services/modelcar-catalog:qwen2.5-0.5b-instruct
+      args:
+        - "--dtype=bfloat16"
+        - "--max-model-len=8192"
+      resources:
+        requests:
+          cpu: "1"
+          memory: 4Gi
+        limits:
+          cpu: "4"
+          memory: 8Gi
+          nvidia.com/gpu: "1"
+EOF
+oc wait inferenceservice fast-1-qwen -n {guid}-{user} --for=condition=Ready --timeout=600s
+----
+
+The modelcar storage URI stages a small `qwen2.5-0.5b-instruct` model, so the pod is READY within
+a few minutes on an NVIDIA GPU. The token, endpoint, and chat-completion steps below apply to
+this deployment as well.
+
 === Verify
 
 . Confirm the deployed model is shown on the *Deployments* tab for the project, and on the
@@ -115,6 +238,21 @@ oc get pods -n {guid}-{user}
 ----
 The model pod transitions from *Pending* to *Running*, showing `1/1` in the `READY` column and
 `Running` in the `STATUS` column.
+. Confirm the `InferenceService` reports `READY` — this applies to both the wizard and the CLI
+deployment:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get inferenceservice -n {guid}-{user}
+----
+The wizard deployment appears under your *Model deployment name*; the CLI deployment from the
+optional path appears as `fast-1-qwen`:
+
+[subs="attributes"]
+----
+NAME           URL                                                                    READY   AGE
+fast-1-qwen    https://fast-1-qwen-{guid}-{user}.{openshift_cluster_ingress_domain}   True    5m
+----
 . Collect the values you need to query the model:
 * *Token*: *Projects* -> your project -> *Deployments* tab -> expand your model -> the token is
 shown in the *Token secret* field.

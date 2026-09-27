@@ -115,6 +115,17 @@ If no `LocalQueue` resources are listed, your cluster administrator has not defi
 default local queue — you must specify `local_queue` in each notebook configuration,
 as described in Module 02.
 
+The OpenShift console lists the RayClusters the KubeRay Operator manages in your
+project — create one from the console or apply a RayCluster manifest and it
+appears here:
+
+[source,bash,role="execute"]
+----
+oc get rayclusters -n {guid}-{user}
+----
+
+image::01-raycluster-console.png[RayClusters in the OpenShift console, showing the kuberay-lab cluster ready with one worker,link=self,window=blank,width=700]
+
 === Verify
 
 * `oc get crd rayclusters.ray.io` returns the CRD instead of `NotFound`.

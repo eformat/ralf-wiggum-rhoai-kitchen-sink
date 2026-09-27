@@ -10,6 +10,7 @@ inspect the pre-installed vLLM CPU ServingRuntime for KServe, and deploy a model
 * Explain why the vLLM CPU ServingRuntime for KServe is the supported vLLM runtime on IBM Z and IBM Power
 * Check your cluster architecture and locate the pre-installed runtime from the CLI
 * Deploy a model from the RHOAI dashboard with the vLLM CPU ServingRuntime for KServe
+* Deploy the same model from the CLI with the real ServingRuntime and InferenceService manifests
 * Validate the result of every step
 
 == Exercise 1: Check your architecture and the pre-installed runtime
@@ -159,12 +160,156 @@ resources you requested.
 The model is deployed. In the next module you verify the deployment from the CLI and send
 authenticated inference requests to it.
 
+== Exercise 3: Deploy the same model from the CLI
+
+The wizard *Deploy* step creates a KServe `InferenceService` resource in your working
+project. Every field you set in the wizard has a manifest equivalent, so you can also
+deploy the same model from the terminal — and see exactly what the wizard generates
+when you deploy through the dashboard.
+
+.Prerequisites
+
+* You are logged in to the workshop cluster and working in the project you created in
+*Getting Connected*
+* The model serving platform is enabled with the vLLM CPU ServingRuntime for KServe
+  (Exercise 1)
+
+.Procedure
+
+. KServe resolves the `spec.predictor.runtime` from the deployment's own namespace, so
+instantiate the pre-installed vLLM CPU runtime template into your project. The template
+carries the Red Hat s390x / ppc64le vLLM CPU container image from `registry.redhat.io`:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc process -n redhat-ods-applications {vllm_cpu_runtime_name}-template \
+  | oc apply -n {guid}-{user} -f -
+----
++
+[NOTE]
+====
+On x86_64 clusters the template is named `vllm-cpu-x86-runtime-template` and the
+instantiated runtime is `vllm-cpu-x86-runtime`. Exact resource names of pre-installed
+runtimes can vary between releases — list them with
+`oc get templates -n redhat-ods-applications | grep vllm-cpu` if the name differs.
+====
+
+. Stamp the template-origin annotations the dashboard expects on the instantiated runtime:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc annotate servingruntime {vllm_cpu_runtime_name} -n {guid}-{user} \
+  opendatahub.io/template-name={vllm_cpu_runtime_name}-template \
+  opendatahub.io/template-display-name="vLLM CPU ServingRuntime for KServe" \
+  --overwrite
+----
+
+. Deploy the model. The manifest mirrors the wizard choices from Exercise 2: standard
+deployment mode (RawDeployment — the only mode on IBM Z and IBM Power), an OCI modelcar
+URI for the model location, CPU resource bounds instead of GPU requests, and vLLM
+runtime arguments:
++
+[source,bash,role="execute",subs="attributes"]
+----
+cat <<EOF | oc apply -n {guid}-{user} -f -
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: qwen25-05b
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
+  labels:
+    opendatahub.io/dashboard: "true"
+    networking.kserve.io/visibility: exposed
+spec:
+  predictor:
+    minReplicas: 1
+    maxReplicas: 1
+    model:
+      modelFormat:
+        name: vLLM
+      runtime: {vllm_cpu_runtime_name}
+      storageUri: oci://quay.io/redhat-ai-services/modelcar-catalog:qwen2.5-0.5b-instruct
+      args:
+        - "--dtype=bfloat16"
+        - "--max-model-len=8192"
+        - "--enable-auto-tool-choice"
+        - "--tool-call-parser=hermes"
+      env:
+        - name: VLLM_CPU_KVCACHE_SPACE
+          value: "2"
+        - name: OMP_NUM_THREADS
+          value: "4"
+        - name: VLLM_CPU_OMP_THREADS_BIND
+          value: "0-3"
+      resources:
+        requests:
+          cpu: "1"
+          memory: 2Gi
+        limits:
+          cpu: "4"
+          memory: 8Gi
+EOF
+oc wait inferenceservice qwen25-05b -n {guid}-{user} --for=condition=Ready --timeout=600s
+----
++
+All model server compute comes from CPU and memory: the `VLLM_CPU_*` environment
+variables and the CPU resource requests and limits replace the hardware profile
+allocation, because there are no GPUs to request on IBM Z and IBM Power. The model
+pulls the modelcar image and reports `READY` in a few minutes on a CPU-backed node.
+
+. Enable token authentication the way the wizard does — create the service account you
+entered as *Service account name* and its token Secret. If you deployed through the
+wizard in Exercise 2, these already exist and the commands confirm them:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc create serviceaccount {token_service_account} -n {guid}-{user}
+cat <<'EOF' | oc apply -f - -n {guid}-{user}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {token_service_account}
+  annotations:
+    kubernetes.io/service-account.name: {token_service_account}
+type: kubernetes.io/service-account-token
+EOF
+----
+
+=== Verify
+
+The instantiated vLLM CPU runtime exists in your project and the inference service
+reports `Ready: True`:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get servingruntime {vllm_cpu_runtime_name} -n {guid}-{user}
+oc get isvc qwen25-05b -n {guid}-{user}
+----
++
+[subs="attributes"]
+----
+NAME         URL                                                                        READY   AGE
+qwen25-05b   https://qwen25-05b-{guid}-{user}.{openshift_cluster_ingress_domain}   True    5m
+----
++
+The predictor pod is `Running`:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get pods
+----
++
+The deployment is identical to what the wizard creates from your choices — in the next
+module you verify it from the CLI and send authenticated inference requests to it.
+
 == Module summary
 
 **What you accomplished:**
 
 * Confirmed your cluster architecture is `s390x` (IBM Z) or `ppc64le` (IBM Power) and located the pre-installed vLLM CPU ServingRuntime for KServe
 * Deployed a generative model from the RHOAI dashboard with the *Deploy a model* wizard, selecting the vLLM CPU runtime and configuring CPU and memory resources
+* Deployed the same model from the CLI with the real ServingRuntime template instantiation and `InferenceService` manifest
 * Verified the deployment shows a checkmark in the *Status* column on the *Deployments* tab
 
 **Key takeaways:**

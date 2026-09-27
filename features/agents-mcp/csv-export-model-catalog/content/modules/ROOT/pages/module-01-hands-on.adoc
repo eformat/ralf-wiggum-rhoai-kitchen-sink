@@ -68,9 +68,9 @@ additional dependencies. The script queries the Model Catalog REST API, paginate
 result set, and writes an RFC 4180-compliant CSV file that includes all model metadata and custom
 properties. Writes are atomic, so a failed run never leaves a partial CSV behind.
 
-NOTE: The exact script name and installation steps come from the *CSV Exporter for Model Catalog*
-guide referenced in the release notes; they are not part of the downloaded RHOAI documentation. The
-usage pattern below uses `<placeholders>` that you replace with values from that guide.
+NOTE: The export script is `model_catalog_export.py` in the Model Registry project's
+`tools/csv-exporter` directory — the script the *CSV Exporter for Model Catalog* guide documents.
+It is not part of the downloaded RHOAI documentation; download it before continuing.
 
 .Procedure
 
@@ -88,39 +88,125 @@ Python 3.12.3
 ----
 +
 Any Python 3.10 or newer version is sufficient; the script has no additional dependencies.
-. Install the export script by following the installation instructions in the *CSV Exporter for
-Model Catalog* guide.
+. Download the export script:
++
+[source,bash,role="execute",subs="attributes"]
+----
+curl -L -o model_catalog_export.py https://raw.githubusercontent.com/kubeflow/model-registry/main/tools/csv-exporter/model_catalog_export.py
+----
++
+The script uses only the Python standard library, so no `pip install` is required. Confirm it is
+runnable:
++
+[source,bash,role="execute",subs="attributes"]
+----
+python3 model_catalog_export.py --help
+----
++
+Expected output:
++
+----
+usage: model-catalog-export [-h] --url URL [--output OUTPUT] [--source SOURCE]
+                            [--limit LIMIT] [--page-size PAGE_SIZE]
+                            [--header HEADERS] [--list-sources]
+
+Export Model Catalog metadata to CSV.
+----
+. Locate the Model Catalog API route that the script reads from:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get route -l app=model-catalog
+----
++
+Expected output:
++
+[subs="attributes"]
+----
+NAME                 HOST/PORT                                   PATH   SERVICES       PORT       TERMINATION   WILDCARD
+model-catalog-https  model-catalog.apps.{openshift_cluster_ingress_domain}             model-catalog  https-api  reencrypt     None
+----
++
+The `model-catalog-https` route exposes the Model Catalog REST API outside the cluster, reencrypted
+through the kube-rbac-proxy sidecar that fronts the `model-catalog` service. If no route is listed,
+ask your administrator to check the Model Registry component in your registry namespace.
+. Capture the catalog API URL and your API token:
++
+[source,bash,role="execute",subs="attributes"]
+----
+CATALOG_URL="https://$(oc get route -l app=model-catalog -o jsonpath='{.items[0].spec.host}')"
+echo "$CATALOG_URL"
+----
++
+Expected output:
++
+----
+https://model-catalog.apps.{openshift_cluster_ingress_domain}
+----
++
+The kube-rbac-proxy in front of the API authenticates your requests, so capture the token that
+`oc` uses to talk to the cluster:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc whoami -t
+----
 . Run the export using the documented usage pattern:
 +
-[source,bash]
+[source,bash,role="execute",subs="attributes"]
 ----
-python3 <export-script>.py --source <catalog-source> --limit <count> --header <authorization-header>
+python3 model_catalog_export.py --url "$CATALOG_URL" --limit 10 --header "Authorization: Bearer $(oc whoami -t)" --output catalog-export.csv
 ----
 +
-Replace `<export-script>` with the script name from the installation step, `<catalog-source>` with
-a catalog source name, `<count>` with the number of models to export, and `<authorization-header>`
-with the authorization header value from the *CSV Exporter for Model Catalog* guide. The script
-supports filtering by source with `--source`, limiting the output count with `--limit`,
-and setting authorization headers with `--header` to authenticate against the Model Catalog REST
-API. Omit any option you do not need; with no options the script exports the full catalog result
-set.
-. Wait for the script to finish and note the path of the CSV file it reports.
+The script paginates through the catalog result set — 100 models per page by default — so large
+catalogs need no extra options. First list the catalog sources the API exposes, then restrict the
+export to one of them:
++
+[source,bash,role="execute",subs="attributes"]
+----
+python3 model_catalog_export.py --url "$CATALOG_URL" --list-sources
+----
++
+Expected output:
++
+----
+ID                NAME              STATUS
+community         Community         available
+validated_models   Validated Models  available
+----
++
+The exact source IDs come from the API. Restrict the export to a single source with `--source`:
++
+[source,bash,role="execute",subs="attributes"]
+----
+python3 model_catalog_export.py --url "$CATALOG_URL" --source community --output catalog-export.csv
+----
+. Wait for the script to finish. It reports the row and column count on stderr:
++
+----
+Exported 10 models (18 columns) to catalog-export.csv
+----
 
 .Documented script options
 
 |===
 |Option |Behavior
 
-|--source |Filters the export to models from a single catalog source
+|--url |Catalog API base URL the script queries (required)
+|--output |Path of the RFC 4180 CSV file to write (required unless you use `--list-sources`)
+|--source |Filters the export by catalog source ID; repeat the flag to export multiple sources
 |--limit |Limits the number of models included in the output
-|--header |Sets an authorization header used to authenticate against the Model Catalog REST API
+|--page-size |Number of models fetched per API page (default 100)
+|--header |Sets an HTTP header as `Name: Value`; repeat for multiple headers, for example `Authorization: Bearer $(oc whoami -t)`
+|--list-sources |Lists the available catalog sources and exits
 |===
 
 === Verify
 
-The script exits without errors and reports the path to a CSV file. If the run fails mid-export, no
-partial CSV file is left behind: the script writes atomically and only publishes the file once the
-full result set has been fetched.
+The script exits without errors and reports `Exported N models (M columns) to <output>` on stderr,
+where the row count matches the `--limit` value you set or the full catalog result set when no
+limit was given. If the run fails mid-export, no partial CSV file is left behind: the script writes
+atomically and only publishes the file once the full result set has been fetched.
 
 With a CSV in hand, validate what the export actually produced.
 
@@ -135,14 +221,28 @@ properties from the catalog.
 +
 [source,bash,role="execute",subs="attributes"]
 ----
-head -n 1 <exported-file>.csv
+head -n 1 catalog-export.csv
 ----
 +
-Replace `<exported-file>.csv` with the path the script reported. The output is a single line of
-comma-separated column names covering the exported model metadata and custom properties.
-. Open the file in a spreadsheet application or CSV viewer and confirm:
-* Every row is a model from the catalog result set, and the row count matches the `--limit` value
-you set, or the full result set when no limit was given.
+Expected output:
++
+----
+id,name,description,provider,maturity,license,licenseLink,libraryName,source_id,externalId,createTimeSinceEpoch,lastUpdateTimeSinceEpoch,language,tasks,validatedTasks,<custom-properties>
+----
++
+The header covers the standard model metadata columns followed by one column per custom property
+(`<custom-properties>` above). The file starts with a UTF-8 BOM that is invisible in terminal
+output, and rows are quoted per RFC 4180.
+. Count the models in the export and confirm the row count matches the `--limit` value you set,
+or the full result set when no limit was given:
++
+[source,bash,role="execute",subs="attributes"]
+----
+tail -n +2 catalog-export.csv | wc -l
+----
++
+Open the file in a spreadsheet application or CSV viewer and confirm:
+* Every row is a model from the catalog result set.
 * Each row includes the model metadata you saw on the model details page in Exercise 1, such as
 name, description, provider, and labels.
 * Custom properties appear as columns alongside the standard model metadata.
@@ -153,7 +253,8 @@ that the output only contains models from that source.
 
 The exported file opens cleanly as RFC 4180-compliant CSV: a header row followed by one row per
 model, with all model metadata and custom properties present. Rows respect the `--source` and
-`--limit` options you passed to the script.
+`--limit` options you passed to the script, and the header row matches the model metadata columns
+you saw in Exercise 1.
 
 == Module summary
 
@@ -167,7 +268,7 @@ model, with all model metadata and custom properties present. Rows respect the `
 
 * CSV export packages the full Model Catalog result set — metadata plus custom properties — as RFC 4180-compliant CSV via the Model Catalog REST API
 * The export script is standalone Python 3.10+ with no additional dependencies and writes atomically, so failures never leave partial files
-* `--source`, `--limit`, and `--header` control catalog-source filtering, output size, and API authentication
+* `--url` and `--output` point the script at the catalog API and the CSV file; `--source`, `--limit`, and `--header` control source filtering, output size, and API authentication
 
 **Next steps:**
 

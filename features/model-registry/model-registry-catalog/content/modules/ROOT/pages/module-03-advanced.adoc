@@ -69,8 +69,10 @@ s390x architecture.
 === Verify
 
 The new model details and version are displayed on the *Overview* tab on the
-model details page, and the model appears on the *Model registry* page. From
-the CLI, list your project's models to confirm the registry holds the model:
+model details page, and the model appears on the *Model registry* page.
+Registered model and version metadata is stored in the model registry's
+database rather than as Kubernetes resources, so the *Model registry* page is
+the source of truth — from the CLI, confirm the registry instance itself:
 
 [source,bash,role="execute",subs="attributes"]
 ----
@@ -155,6 +157,19 @@ Expected output shows an inference service named after the *Model deployment
 name* you configured in the wizard, with `READY` `True` and `STATUS`
 `Successful` once the deployment finishes rolling out.
 
+To confirm the deployment points at the read-only catalog URI, inspect the
+model location of the inference service — replace `<model-deployment-name>`
+with the *Model deployment name* you configured in the wizard:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get inferenceservice <model-deployment-name> -n {guid}-{user} -o jsonpath='{.spec.predictor.model.storageUri}'
+----
++
+Expected output is the catalog `oci://` URI from the *Model location* section
+of the model details page, for example
+`oci://quay.io/redhat-ai-services/modelcar-catalog:qwen2.5-0.5b-instruct`.
+
 TIP: The *Deploy a model* wizard shares its serving-runtime machinery with the
 deployment wizard used for registered models. To go deeper on serving runtimes
 — custom vLLM runtimes, hardware profiles, and KServe internals — continue to
@@ -209,6 +224,14 @@ details: *Registry* (for example, `quay.io` or your self-hosted registry), a
 *URI* without a scheme (for example, `myorg/granite-7b:v1`), a *Username*, and
 a *Password* (OCI registry token or password).
 +
+NOTE: The transfer job pushes the ModelCar image to your destination, so the
+*Username* and *Password* must belong to an account with write access to the
+destination — for example a Quay robot account or an account token. Without a
+writable OCI push target and valid push credentials, the transfer job fails.
+If you do not have an OCI push target available, use the plain *Register*
+option instead — it registers the metadata only and points at an artifact
+that is already stored elsewhere.
++
 In the background, a `busybox:latest` base image is pulled (for Quay
 destinations, `quay.io/quay/busybox:latest` is used automatically), model
 files are layered on top using `olot` (OCI Layers On Top), and the resulting
@@ -255,12 +278,30 @@ page auto-polls while any job is active. Click a status indicator to open the
 // TODO: capture screenshot
 image::03-model-transfer-jobs.png[The Model transfer jobs table with job names, namespaces, and statuses,link=self,window=blank,width=700]
 
+From the CLI, the same Kubernetes event log for the transfer job is:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get events -n {guid}-{user}
+----
++
+Expected output shows recent project events, including the transfer job's
+image pull and container start events while the job runs.
+
 If a job fails, click *Retry* in the *Transfer job status* column to create a
 new job with the same configuration (optionally deleting the failed job as
 part of the retry). To remove a job entirely, click the row action menu (⋮)
 and select *Delete* — this deletes the Job and its owned ConfigMap and
 Secrets, but a successfully transferred model remains available in the OCI
 registry and the model registry.
++
+From the CLI, deleting the transfer job has the same effect — the Job and its
+owned ConfigMap and Secrets are removed:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc delete job {job_resource_name} -n {guid}-{user}
+----
 
 With your model stored in OCI, govern which models appear in the catalog.
 

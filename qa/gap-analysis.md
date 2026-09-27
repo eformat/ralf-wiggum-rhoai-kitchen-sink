@@ -325,3 +325,38 @@ OGX → vLLM), and the RAC re-oriented with REQ-010/011 (decided validate PASS).
 - The OGX gateway requires the upstream model's bearer token (long-lived SA token via
   kubernetes.io/service-account-token Secret)
 - vLLM tool calling needs `--enable-auto-tool-choice --tool-call-parser=hermes` (Qwen2.5)
+
+**Screenshot quality rule added (user feedback):** screenshots must illustrate the exercise
+TOPIC, not incidental states (a login gate is filler). For access-control topics capture the
+authorization/RBAC surface (the OAuth "Authorize Access" page); to re-capture it, delete the
+recorded grant (`oc delete oauthclientauthorizations <user>:<sa-client>`) and clear browser
+cookies, then walk the login flow. Applies to all future captures.
+
+**Skill update 2 (user feedback, 2026-09-25):** the quality-enrichment SKILL.md now encodes
+the screenshot topic-relevance rules as MANDATORY pre-capture checks: capture the exercise's
+demonstrated outcome (never login gates/SSO pages/spinners/empty dashboards — those are
+filler); enforcement topics capture the enforcement surface (the OAuth Authorize page, not
+the login prompt); framing rules (element/cropped captures, standard viewport, populated
+states preferred); Phase 2 audits existing screenshots for filler and flags them for
+replacement; guardrail: "a filler screenshot is worse than none."
+
+## 10. Screenshot filler audit — all 54 workshops (2026-09-25)
+
+Audited 51 images across 10 workshops that have images. Results:
+
+- **1 real gap fixed**: `01-workbench-terminal.png` (opencode-coding-agent) was captured but
+  never embedded — image:: reference added at the terminal exercise step.
+- **1 FILLER-FILENAME flag assessed as TOPICAL**: `02-oidc-console-login.png`
+  (platform-oidc-auth) — a generic Keycloak page, BUT the workshop's topic IS the OIDC login
+  flow (module-02 shows "you are redirected to the OIDC provider login page"). Per the
+  updated skill rule 3, the enforcement surface IS the topic here. Kept.
+- **7 PLACED-BEFORE-EXERCISES flags assessed as legitimate**: maas dialogs (Endpoints dialog,
+  deploy wizard — UI-walk exercises where the evidence image is the walked-to state),
+  catalog/config pages (model catalog, AI asset endpoints, llmd routing configs, serving
+  runtime badges, Kuadrant operators) — all placed exactly where the exercise reaches the
+  surface they show. Topical.
+- **43 clean topical images.**
+
+Remaining screenshot work: the flagged workshops' RUNTIME-DEMO gaps (claude-code-starter-kit,
+kuberay, feature-store-feast, garak, evalhub, maas-multi-tenancy) still need their topical
+captures per the new rules.

@@ -83,6 +83,8 @@ in the OpenShift AI interface. Once the IDE opens, open its terminal and run:
 git --version && python --version
 ----
 
+image::01-workbench-terminal.png[The workbench IDE terminal running git and python version checks,link=self,window=blank,width=700]
+
 . In the dashboard, navigate to *AI hub* → *Models* and select the *External
 models* tab on the Model deployments page to see registered external model
 endpoints in the project, including name, provider, and reconciliation status.

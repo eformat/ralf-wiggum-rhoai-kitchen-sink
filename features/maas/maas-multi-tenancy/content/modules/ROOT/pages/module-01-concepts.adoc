@@ -120,10 +120,18 @@ Ready state. The default tenant is named `models-as-a-service` and lives in the
 oc get aitenant models-as-a-service -n ai-tenants
 ----
 
+Expected output:
+
+[source]
 ----
 NAME                  READY   AGE
 models-as-a-service   True    5d
 ----
+
+The console lists every provisioned tenant with its Ready state, tenant
+namespace, and dedicated gateway:
+
+image::01-aitenants-console.png[AITenants in the OpenShift console, showing the default tenant and an additional tenant-lab each with its own namespace and gateway,link=self,window=blank,width=700]
 
 The `READY` column shows `True`. Missing prerequisites cause `AITenant`
 creation to fail or remain in `Pending` status, so confirm this state before

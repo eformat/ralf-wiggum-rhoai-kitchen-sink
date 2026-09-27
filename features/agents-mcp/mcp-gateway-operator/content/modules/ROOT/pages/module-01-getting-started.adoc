@@ -118,8 +118,31 @@ clusterextension.olm.operatorframework.io/mcp-gateway condition met
 ----
 
 When the condition is met, the ClusterServiceVersion (CSV) for the MCP gateway
-Operator reports a `Succeeded` phase. With the Operator running, you can now
-create the gateway itself.
+Operator reports a `Succeeded` phase.
+
+. Verify that the Operator registered the MCP gateway CRDs:
+
+[source,bash,role="execute",subs="attributes"]
+----
+oc get crd -o name | grep mcp.kuadrant.io
+----
+
+.Example output
+----
+customresourcedefinition.apiextensions.k8s.io/mcpgatewayextensions.mcp.kuadrant.io
+customresourcedefinition.apiextensions.k8s.io/mcpserverregistrations.mcp.kuadrant.io
+customresourcedefinition.apiextensions.k8s.io/mcpvirtualservers.mcp.kuadrant.io
+----
+
+The Operator registers the `mcpgatewayextensions`, `mcpserverregistrations`,
+and `mcpvirtualservers` CRDs that this module and Module 02 apply. The CRDs
+exist on the cluster only after the Operator installs — until the CSV reports
+`Succeeded`, `oc apply` fails with `no matches for kind`. If the list is empty,
+install the Operator from OperatorHub or reapply the Subscription from this
+exercise, then recheck before continuing.
+
+With the Operator running and its CRDs registered, you can now create the
+gateway itself.
 
 == Exercise 2: Create a Gateway object with an MCP listener
 

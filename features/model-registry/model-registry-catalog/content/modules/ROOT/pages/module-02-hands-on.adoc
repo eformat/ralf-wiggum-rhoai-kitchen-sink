@@ -163,6 +163,10 @@ The new model and version details are displayed on the *Details* tab for the
 model version, and both appear on the *Model registry* page. After registering
 `v2`, the *Overview* tab shows both entries in the *Latest versions* section
 and the *Model registry* page shows `v2` in the *Latest version* column.
+Registered model and version metadata is stored in the model registry's
+database rather than as Kubernetes resources, so there is no `oc get`
+equivalent for the registered versions — the registry instance itself is
+confirmed with `oc get modelregistries` in Exercise 1.
 
 With two versions registered, deploy the first version in the next exercise.
 

@@ -30,6 +30,10 @@ Link feature that connects and secures your backend Model Context Protocol
 * An OpenShift cluster with RHOAI 3.5 installed
 * Red Hat Connectivity Link 1.4.1 or later installed
 
+NOTE: Red Hat Connectivity Link 1.4.2 or later is required for the
+multi-tenancy (cross-namespace reference) flow used by the `MCPGatewayExtension`
+CR in Module 01.
+
 == Estimated time
 
 About 60-90 minutes
