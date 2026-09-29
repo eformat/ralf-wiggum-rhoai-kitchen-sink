@@ -289,8 +289,7 @@ If the Alert state of a rule is *Firing*, click *Observe* → *Alerting* and the
 *Alerts* tab, open each alert for the firing rule, and in the Runbook section follow
 the linked runbook steps to identify the cause and resolve the situation.
 
-// TODO: capture screenshot
-image::02-kueue-alerting-rules.png[Kueue alerting rules in the OpenShift console,link=self,window=blank,width=700]
+// TODO: capture screenshot — Kueue alerting rules are aspirational for RHBoK 1.3.2 and not present in this build (content-vs-platform drift)
 
 When you troubleshoot queueing problems, these documented errors are the most common:
 

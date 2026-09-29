@@ -44,8 +44,7 @@ that notebook and switch it on.
 . Observe that switching the toggle on opens the *Kale metadata editor* for
 the notebook.
 
-// TODO: capture screenshot
-image::02-kale-enable-toggle.png[The Kale Enable toggle and metadata editor in JupyterLab,link=self,window=blank,width=700]
+// TODO: capture screenshot — the Kale Enable toggle does not render on this RHOAI 3.5.1 runtime-datascience build (content-vs-platform drift)
 
 . In the metadata editor, review the annotation fields that Kale attaches to
 the notebook. Kale uses these annotations and metadata to convert the notebook

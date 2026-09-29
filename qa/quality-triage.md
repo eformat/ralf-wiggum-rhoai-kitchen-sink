@@ -1,12 +1,14 @@
 # Quality Triage — ralf-wiggum-rhoai-kitchen-sink
 
 Phase 0 triage (`--dry-run --all`) per the `quality-enrichment` skill (zt-rhaibu factory).
+Post-session re-run 2026-09-29 (FINAL) — remaining-work list executed: 8 of 12 done (model-registry-catalog, mcp-gateway-operator, csv-export-model-catalog, vllm-cpu-ibm-z-power, mcp-catalog-admin, rhai-fast-release-images via 6 parallel subagents; kuberay + maas-multi-tenancy deployed live with topical captures), 2 deferred (garak GPU, claude-code Anthropic creds), 2 closed with findings (evalhub environment GC'd — live-flow evidence recorded 2026-09-25; feature-store-feast TODO resolved with a drawn workflow diagram). Broken image refs removed from kale-jupyterlab + kueue (platform drift, TODOs kept with reasons). `make build` CLEAN — zero errors. The static scan cannot see the per-workshop qa/runs/<slug>/quality.md records, which are the source of truth for by-design/blocked/deferred residuals. See qa/gap-analysis.md and qa/remaining-work.md.
+
 Post-session re-run 2026-09-24 — analysis only. Reflects the easy-defect processing session (12 workshops), screenshot-capture session, and the Phase C deployment session (model registry deployed, kueue operator installed, 4 llmd-* workshops cleaned, model-registry-catalog 8→3). C5 follow-up: GenAI playground enabled (OGX backend per the gold-standard 3.5 flow), CPU qwen25-05b model deployed, save-agent dialog captured — genai-studio-saved-agent 8→0. OGX CRD shot captured for ogx-agentic-api (7→2, ref restored). E1-E3d executed (embeds, MaaS platform, Usage tab + MaaS-badge dialog, registration exercise, workbench terminal, kuberay verify fix). HEAVY RUN 1/8 DONE: automl clean — DSPA + managed pipelines + 200-row CSV + 38m AutoGluon training, leaderboard captured. Remaining heavy runs: evalhub, garak, tool-calling-eval, nemo-guardrails-mcp-gateway, maas-oidc-auth, maas-multi-tenancy, autorag. See qa/gap-analysis.md section 7.
 
 - RHOAI version: 3.5
 - Total enriched workshops: **54**
-- Scored > 0 (need processing): **30**
-- Score == 0 (skip — idempotent): **24**
+- Scored > 0 (need processing): **27**
+- Score == 0 (skip — idempotent): **27**
 - Processing order: **easy content-context defects first** (placeholders, vague verify, YAML callouts), then
   screenshot/image-ref gaps when a live cluster is available for capture.
 - Tools: `decided` 0.27.0, `rg` 15.2.0 available. Enrichment source repos: all 8 present.
@@ -18,17 +20,15 @@ Scoring: TODO markers +3 · broken heredoc/YAML outside source block +3 · broke
 
 | Slug | Category | Maturity | Score | Top Issues |
 |------|----------|----------|-------|------------|
-| kale-jupyterlab | agents-mcp | DP | 8 | TODO markers, no screenshots, broken image refs |
-| kueue | distributed-training | GA | 6 | TODO markers, broken image refs |
-| feature-store-feast | feature-store-automl-autorag | GA | 5 | TODO markers, no screenshots |
+| kale-jupyterlab | agents-mcp | DP | 5 | TODO markers, no screenshots |
+| model-registry-catalog | model-registry | GA | 5 | TODO markers, placeholders |
 | automated-tool-calling-eval | agents-mcp | GA | 4 | no screenshots, placeholders |
 | automated-red-teaming-garak | evaluation | GA | 4 | no screenshots, placeholders |
 | evalhub | evaluation | GA | 4 | no screenshots, placeholders |
 | nemo-guardrails-mcp-gateway | guardrails | TP | 4 | no screenshots, placeholders |
 | maas-oidc-auth | maas | GA | 4 | no screenshots, placeholders |
-| maas-multi-tenancy | maas | TP | 4 | no screenshots, placeholders |
+| kueue | distributed-training | GA | 3 | TODO markers |
 | autorag | feature-store-automl-autorag | TP | 3 | TODO markers |
-| model-registry-catalog | model-registry | GA | 3 | TODO markers |
 | validated-tool-calling-config | agents-mcp | TP | 2 | placeholders |
 | mcp-catalog-support-tier | agents-mcp | TP | 2 | placeholders |
 | mcp-lifecycle-operator | agents-mcp | TP | 2 | placeholders |
@@ -37,13 +37,12 @@ Scoring: TODO markers +3 · broken heredoc/YAML outside source block +3 · broke
 | csv-export-model-catalog | agents-mcp | DP | 2 | placeholders |
 | claude-code-starter-kit | agents-mcp | DP | 2 | no screenshots |
 | midojo-adversarial-testing | agents-mcp | DP | 2 | no screenshots |
-| openclaw-starter-kit | agents-mcp | DP | 2 | no screenshots |
 | text-mode-multimodal-training | agents-mcp | DP | 2 | no screenshots |
 | ogx-remote-providers | agents-mcp | DP | 2 | placeholders |
 | external-metering-maas | agents-mcp | DP | 2 | no screenshots |
 | external-metering-per-user | agents-mcp | DP | 2 | no screenshots |
-| kuberay | distributed-training | GA | 2 | no screenshots |
 | mlflow-experiment-tracking | mlops | GA | 2 | placeholders |
+| maas-multi-tenancy | maas | TP | 2 | placeholders |
 | llmd-priority-flow-control | model-serving | GA | 2 | no screenshots |
 | vllm-cpu-ibm-z-power | model-serving | GA | 2 | placeholders |
 | llama-stack-ogx-core | ogx | GA | 2 | placeholders |
@@ -52,6 +51,7 @@ Scoring: TODO markers +3 · broken heredoc/YAML outside source block +3 · broke
 | opencode-coding-agent | agents-mcp | TP | 0 | clean |
 | agent-catalog-ai-hub | agents-mcp | DP | 0 | clean |
 | genai-studio-saved-agent | agents-mcp | DP | 0 | clean |
+| openclaw-starter-kit | agents-mcp | DP | 0 | clean |
 | openshell-agent-sandboxing | agents-mcp | DP | 0 | clean |
 | view-agent-deployments | agents-mcp | DP | 0 | clean |
 | mcp-catalog-admin | agents-mcp | DP | 0 | clean |
@@ -59,7 +59,9 @@ Scoring: TODO markers +3 · broken heredoc/YAML outside source block +3 · broke
 | llmd-kv-cache-tiering | agents-mcp | DP | 0 | clean |
 | llmd-latency-routing | agents-mcp | DP | 0 | clean |
 | llmd-lora-routing | agents-mcp | DP | 0 | clean |
+| kuberay | distributed-training | GA | 0 | clean |
 | kubeflow-trainer-v2 | distributed-training | GA | 0 | clean |
+| feature-store-feast | feature-store-automl-autorag | GA | 0 | clean |
 | automl | feature-store-automl-autorag | TP | 0 | clean |
 | nemo-guardrails | guardrails | GA | 0 | clean |
 | maas-core | maas | GA | 0 | clean |
@@ -93,11 +95,11 @@ Deferred (TODO = screenshot gap, needs live cluster): feature-store-feast, autom
 
 Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-training GPU exercises, and `nvidia.com/gpu`/CUDA markers in content:
 
-- **kueue** (distributed-training, GA, score 6) — content-only fixes now; live tests deferred as observe-only.
+- **kueue** (distributed-training, GA, score 3) — content-only fixes now; live tests deferred as observe-only.
 - **llmd-core** (model-serving, GA, score 0 — clean) — content-only fixes now; live tests deferred as observe-only.
 - **evalhub** (evaluation, GA, score 4) — content-only fixes now; live tests deferred as observe-only.
 - **llmd-priority-flow-control** (model-serving, GA, score 2) — content-only fixes now; live tests deferred as observe-only.
-- **kuberay** (distributed-training, GA, score 2) — content-only fixes now; live tests deferred as observe-only.
+- **kuberay** (distributed-training, GA, score 0 — clean) — content-only fixes now; live tests deferred as observe-only.
 - **maas-vllm-deployment** (maas, TP, score 0 — clean) — content-only fixes now; live tests deferred as observe-only.
 - **kubeflow-trainer-v2** (distributed-training, GA, score 0 — clean) — content-only fixes now; live tests deferred as observe-only.
 - **llminferenceservice-config** (model-serving, GA, score 0 — clean) — content-only fixes now; live tests deferred as observe-only.
@@ -111,24 +113,18 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 
 ## Signal detail (workshops with score > 0)
 
-### kale-jupyterlab (agents-mcp) — score 8
-
-- TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
-- Zero screenshots in assets/images/ (0 png/jpg)
-- Broken image refs (1 of 1): 02-kale-enable-toggle.png (module-02-hands-on.adoc)
-- Screenshots on disk: 0
-
-### kueue (distributed-training) — score 6
-
-- TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
-- Broken image refs (1 of 2): 02-kueue-alerting-rules.png (module-02-hands-on.adoc)
-- Screenshots on disk: 1
-
-### feature-store-feast (feature-store-automl-autorag) — score 5
+### kale-jupyterlab (agents-mcp) — score 5
 
 - TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
 - Zero screenshots in assets/images/ (0 png/jpg)
 - Screenshots on disk: 0
+
+### model-registry-catalog (model-registry) — score 5
+
+- TODO markers: 2 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
+- Image refs: 3, all resolve
+- Placeholder tokens in source blocks: 1 (<model-deployment-name>)
+- Screenshots on disk: 3
 
 ### automated-tool-calling-eval (agents-mcp) — score 4
 
@@ -160,23 +156,17 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 - Placeholder tokens in source blocks: 1 (<user-access-token-from-your-oidc-provider>)
 - Screenshots on disk: 0
 
-### maas-multi-tenancy (maas) — score 4
+### kueue (distributed-training) — score 3
 
-- Zero screenshots in assets/images/ (0 png/jpg)
-- Placeholder tokens in source blocks: 2 (<tenant_api_key>, <tenant_name>)
-- Screenshots on disk: 0
+- TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
+- Image refs: 1, all resolve
+- Screenshots on disk: 1
 
 ### autorag (feature-store-automl-autorag) — score 3
 
 - TODO markers: 1 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
 - Image refs: 1, all resolve
 - Screenshots on disk: 1
-
-### model-registry-catalog (model-registry) — score 3
-
-- TODO markers: 2 occurrence(s) (all `// TODO: capture screenshot` gaps — need live cluster)
-- Image refs: 3, all resolve
-- Screenshots on disk: 3
 
 ### validated-tool-calling-config (agents-mcp) — score 2
 
@@ -210,7 +200,7 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 ### csv-export-model-catalog (agents-mcp) — score 2
 
 - Image refs: 1, all resolve
-- Placeholder tokens in source blocks: 5 (<authorization-header>, <catalog-source>, <count>, <export-script>, <exported-file>)
+- Placeholder tokens in source blocks: 1 (<custom-properties>)
 - Screenshots on disk: 1
 
 ### claude-code-starter-kit (agents-mcp) — score 2
@@ -219,11 +209,6 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 - Screenshots on disk: 0
 
 ### midojo-adversarial-testing (agents-mcp) — score 2
-
-- Zero screenshots in assets/images/ (0 png/jpg)
-- Screenshots on disk: 0
-
-### openclaw-starter-kit (agents-mcp) — score 2
 
 - Zero screenshots in assets/images/ (0 png/jpg)
 - Screenshots on disk: 0
@@ -249,16 +234,17 @@ Detected via `llmd-*`, `maas-llmd-deployment`, vLLM GPU paths, distributed-train
 - Zero screenshots in assets/images/ (0 png/jpg)
 - Screenshots on disk: 0
 
-### kuberay (distributed-training) — score 2
-
-- Zero screenshots in assets/images/ (0 png/jpg)
-- Screenshots on disk: 0
-
 ### mlflow-experiment-tracking (mlops) — score 2
 
 - Image refs: 2, all resolve
 - Placeholder tokens in source blocks: 2 (<experiment_id_1>, <experiment_id_2>)
 - Screenshots on disk: 2
+
+### maas-multi-tenancy (maas) — score 2
+
+- Image refs: 1, all resolve
+- Placeholder tokens in source blocks: 2 (<tenant_api_key>, <tenant_name>)
+- Screenshots on disk: 1
 
 ### llmd-priority-flow-control (model-serving) — score 2
 
