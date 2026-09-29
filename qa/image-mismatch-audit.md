@@ -14,8 +14,29 @@ verification (final URL/title + pixel check, rejecting 404/error/modal/empty cap
 Content Correctness rule in WORKSHOP-COMMON-RULES were added so this class of defect is caught
 before shipping.
 
-Dedup note: 54 embeds map to 44 unique files (7 duplicate-hash groups). A shared file can be
-correct in one workshop and wrong in another (e.g. 01-model-catalog-page.png).
+## Post-fix validation re-run — 2026-09-30
+
+Full audit re-run over the current tree:
+
+| Check | Result |
+|---|---|
+| Total embeds | **43** (was 54; 11 removed with `// TODO(screenshot)` drift reasons) |
+| Missing files (ref to non-existent PNG) | **0** |
+| Broken `image::` syntax | **0** |
+| Comma-bearing alt-texts (truncate in rendered HTML) | **0** (3 found during spot-check and rewritten comma-free) |
+| `make build` | **0 errors** |
+| Duplicate-hash groups | 4 — all justified: OGX CRD search trio (same CRD page, verified good), llmd routing + topology empty-state pairs (documented empty states), ai-available-assets endpoints/Models-tab pair (same surface, both steps describe the same populated page) |
+| Recaptured files re-verified from disk | **11/11 correct** — every replacement re-read as an image and confirmed against its step text: Agents catalog, fast-1 wizard (Limited support + fast-1 badges), llm-d wizard, Inference-service wizard, vLLM CPU wizard, populated AI-asset endpoints page (×2), Connectivity Link in kuadrant-system, created ingress-gateway, OpenShift AI operator (OGX carrier), Serving runtimes badges |
+| Rendered-site spot-check | agent-catalog-ai-hub module-01 and rhai-fast-release-images module-02 render the new images with full alt-text (qa/spotcheck-agent-catalog-page.png) |
+
+**Post-fix scoreboard: 43 embeds — 39 clean matches, 4 documented empty states, 0 defects.**
+The 11 TODO'd screenshots are tracked with drift reasons below and are re-capturable as their
+environments return (cluster-gated items get honest findings, not fabricated captures).
+
+Dedup note: the original 54 embeds mapped to 44 unique files (7 duplicate-hash groups). A shared
+file can be correct in one workshop and wrong in another (e.g. 01-model-catalog-page.png was
+correct for csv-export-model-catalog but wrong for agent-catalog-ai-hub — the re-run split them:
+csv-export keeps the Models catalog, agent-catalog now has the Agents catalog).
 
 ## Scoreboard
 
