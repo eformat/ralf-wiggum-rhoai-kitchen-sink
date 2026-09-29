@@ -78,7 +78,7 @@ namespace, and filtering capabilities to help manage deployed agents.
   your namespace. Agents that were deployed manually appear there as
   OpenShell-managed Sandbox CRs.
 
-image::02-agent-deployments-dashboard.png[Running agent deployments in the RHOAI dashboard,link=self,window=blank,width=700]
+// TODO(screenshot): recapture — needs a running agent sandbox; the Red Hat build of Agent Sandbox operator is not installed on the capture cluster
 
 . If your facilitator has deployed an agent into your workshop namespace, observe the
   workloads the sandbox produces:

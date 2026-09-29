@@ -276,7 +276,7 @@ page auto-polls while any job is active. Click a status indicator to open the
 *Status* dialog and review the *Event log* tab for Kubernetes events.
 +
 // TODO: capture screenshot
-image::03-model-transfer-jobs.png[The Model transfer jobs table with job names, namespaces, and statuses,link=self,window=blank,width=700]
+// TODO(screenshot): recapture — needs at least one model transfer job; no transfer jobs exist on the capture cluster and one cannot be fabricated
 
 From the CLI, the same Kubernetes event log for the transfer job is:
 +

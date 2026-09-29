@@ -73,7 +73,7 @@ available.
 
 image::03-llmd-topology-settings.png[The llm-d topology configurations page listing the enabled Multi-node data-parallel configuration,link=self,window=blank,width=700]
 
-image::03-deploy-wizard-llmd-multinode.png[The Deploy model wizard with the Multi-node topology option enabled after the configuration exists,link=self,window=blank,width=700]
+image::03-deploy-wizard-llmd-multinode.png[The Deploy model wizard's topology options, with Single node selected and Multi-node available once a topology configuration exists,link=self,window=blank,width=700]
 
 With templates in place, add the optional router layer that the wizard exposes.
 

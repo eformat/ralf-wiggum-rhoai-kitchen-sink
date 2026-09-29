@@ -326,7 +326,7 @@ metric charts, and system metrics.
 
 image::02-experiments-list.png[The Experiments (MLflow) page listing demo-experiment,link=self,window=blank,width=700]
 
-image::02-experiment-overview.png[The demo-experiment overview page with its run statistics,link=self,window=blank,width=700]
+// TODO(screenshot): recapture — needs the demo-experiment overview with run statistics; the MLflow demo environment was garbage-collected from the capture cluster — re-capture after re-running the experiment-tracking flow
 
 == Module summary
 

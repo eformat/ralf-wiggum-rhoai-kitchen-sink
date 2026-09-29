@@ -100,7 +100,7 @@ Expected output: `condition met`.
 The *Deployed models* page in the RHOAI dashboard shows the deployment with a
 *Ready* status badge alongside its endpoint URL:
 
-image::02-deployed-models-llminferenceservice.png[Deployed models page showing the LLMInferenceService with a Ready status badge,link=self,window=blank,width=700]
+image::02-deployed-models-llminferenceservice.png[Deployed models page listing the LLMInferenceService among the project's model deployments,link=self,window=blank,width=700]
 
 Now that the service is running, validate its status details and test the endpoint.
 

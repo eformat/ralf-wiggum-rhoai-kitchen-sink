@@ -209,7 +209,7 @@ manage consumption for passthrough models.
 details — provider URL, authentication method, and target model ID — are
 correct.
 
-image::02-external-models-tab.png[External models tab showing claude-sonnet with Ready status,link=self,window=blank,width=700]
+// TODO(screenshot): recapture — needs an external model provider (claude-sonnet) configured and Ready; requires Anthropic credentials which are not available for captures
 
 === Verify
 

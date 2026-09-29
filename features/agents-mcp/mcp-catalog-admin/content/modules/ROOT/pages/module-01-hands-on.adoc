@@ -114,7 +114,7 @@ catalog source management sits in the Settings area, mirroring the Model Catalog
 administrative interface, which lives under *Settings* → *Model resources and
 operations* → *Model catalog settings*.
 
-image::01-mcp-catalog-settings.png[Settings page in the RHOAI dashboard showing MCP catalog source management,link=self,window=blank,width=700]
+// TODO(screenshot): recapture — the Settings page with MCP catalog source management does not exist in the RHOAI 3.5.1 dashboard build (URL 404s); re-capture when the page ships
 
 . Observe the list of configured MCP catalog source entries. Each entry represents a
 catalog source whose MCP servers appear in the AI Hub MCP Catalog; the list also shows

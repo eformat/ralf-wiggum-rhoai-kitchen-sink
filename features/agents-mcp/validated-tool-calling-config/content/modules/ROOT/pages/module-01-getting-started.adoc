@@ -102,7 +102,7 @@ and copy the exact `vllm serve` arguments required for tool calling, including
 `--tool-call-parser`, `--reasoning-parser`, `--chat-template`, and
 `--enable-auto-tool-choice`.
 
-image::01-validated-arguments-panel.png[Validated Arguments section with the Tool Calling panel on a model details page,link=self,window=blank,width=700]
+// TODO(screenshot): recapture — the model details page in the RHOAI 3.5.1 build has no Validated Arguments section with an expandable Tool Calling panel (only the catalog's Validated arguments filter exists); prose needs review against the shipped UI
 
 TIP: The same copy-and-run pattern applies to the *Runtime command* column on
 the *Performance insights* tab: clicking *View* opens a popover with the full

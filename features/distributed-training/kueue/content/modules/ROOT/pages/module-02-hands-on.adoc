@@ -235,7 +235,7 @@ status:
       for nvidia.com/gpu in flavor default-flavor in ClusterQueue
 ----
 
-image::02-workload-conditions.png[Workload YAML status conditions in the OpenShift console,link=self,window=blank,width=700]
+// TODO(screenshot): recapture — needs a kueue Workload resource with status conditions; the kueue admission webhook in the capture environment does not create Workloads for jobs — verify the kueue operator setup first
 
 === Verify
 

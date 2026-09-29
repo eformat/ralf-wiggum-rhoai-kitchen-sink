@@ -99,8 +99,9 @@ stack.
 
 In the RHOAI dashboard, under *Settings*, an administrator sees *llm-d routing
 configurations* and *llm-d topology configurations* pages. If you have
-administrator access, open both pages now and note the columns shown — you will
-work with router configurations in the next module.
+administrator access, open both pages now — the topology page shows its empty
+state (no configuration templates exist yet) and the routing page the same; you
+will work with router configurations in the next module.
 
 image::01-llmd-topology-configurations.png[The Settings > llm-d topology configurations page in an empty state, with no configurations created yet,link=self,window=blank,width=700]
 

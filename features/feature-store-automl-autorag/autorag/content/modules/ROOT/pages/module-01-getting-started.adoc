@@ -168,7 +168,7 @@ are selected.
 . Click *Create run*. AutoRAG begins testing RAG configurations; you can
 monitor the status on the AutoRAG page.
 
-image::01-autorag-page.png[AutoRAG page in the RHOAI dashboard listing optimization runs,link=self,window=blank,width=700]
+// TODO(screenshot): recapture — needs AutoRAG optimization runs; the AutoRAG environment was garbage-collected and a re-run is blocked on the upstream driver image (odh-ml-pipelines-driver-rhel9 omitting X-MLflow-Workspace)
 
 [TIP]
 ====

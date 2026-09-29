@@ -96,7 +96,7 @@ within Gen AI Studio can change between releases. If you do not see an Agent
 Ops entry, confirm the flag is set (Exercise 1) and check for a related item
 under *Gen AI studio*.
 
-image::01-agent-ops-list.png[Running agent deployments list in the dashboard,link=self,window=blank,width=700]
+// TODO(screenshot): recapture — needs a running agent deployment; the Red Hat build of Agent Sandbox operator is not installed on the capture cluster
 
 . Observe the list of running agent deployments. For each deployed agent
 instance, the view shows its *Name* and *Status*, along with the *Framework*
