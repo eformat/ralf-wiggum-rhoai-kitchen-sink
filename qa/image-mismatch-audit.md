@@ -120,10 +120,14 @@ Alt-text/prose corrections (3):
 - llminferenceservice-config module-03 alt — describes the actual wizard state (Single node selected, Multi-node available)
 - llmd-kv-cache-tiering prose — no longer asks the learner to "note the columns shown" in an empty state
 
-Residual prose drifts needing human review (recorded in the TODO comments):
-- validated-tool-calling-config Exercise 2 step 5 — the copy-and-run Tool Calling panel does not exist in the 3.5.1 UI
-- gateway-api-rhcl module-02 Verify — claims `Programmed=True`; the content's own NOTE explains this never happens on RHDP clusters without a LoadBalancer provider
-- llama-stack-ogx-core module-01 — "The OGX Operator appears in the redhat-ods-applications namespace" — OGX is a component of the OpenShift AI operator in this build, not a separate CSV
+Residual prose drifts — RESOLVED 2026-09-30 (all three rewritten to match the shipped UI):
+- validated-tool-calling-config Exercise 2 + module summary — now uses the catalog's *Validated arguments* > *Tool calling* filter and the model-labels verification; TODO notes the panel can be restored when it ships
+- gateway-api-rhcl module-02 Verify — now documents both states: `Programmed=True` on LoadBalancer clusters and `Accepted=True`/`Programmed=False` (AddressNotAssigned) on the RHDP workshop cluster, with the Route exposure path
+- llama-stack-ogx-core module-01 — now states OGX ships as a component of the OpenShift AI operator (no separate OGX operator CSV); conceptual "OGX Operator" references retained where accurate
+
+Alt-text comma note: AsciiDoc splits block attributes on commas, so comma-containing alt-texts
+render truncated in the built site — the three new comma-bearing alts were rewritten comma-free
+(rebuilt and verified in the rendered HTML; spot-check: qa/spotcheck-agent-catalog-page.png).
 
 - Anti-recurrence (DONE): the screenshot QA gap is fixed in the skills — quality-enrichment
   Phase 2 step 7 (content-match audit, +4 triage signal, WRONG/STALE verdicts, hash-dedup per
