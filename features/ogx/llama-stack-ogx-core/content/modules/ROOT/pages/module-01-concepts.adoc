@@ -74,10 +74,12 @@ Preview or Developer Preview. Check the API provider support table in the *Worki
 documentation before you build on a specific API.
 
 To find the feature in the console, log in as a cluster administrator and click *Ecosystem →
-Installed Operators* (on OpenShift 4.19, *Operators → Installed Operators*). The *OGX Operator*
-appears in the `redhat-ods-applications` namespace once it is activated.
+Installed Operators* (on OpenShift 4.19, *Operators → Installed Operators*). OGX ships as a
+component of the *OpenShift AI* operator, so the capability arrives with the `rhods-operator`
+CSV — there is no separate OGX operator to install. The *Red Hat OpenShift AI* operator appears
+in the `redhat-ods-applications` namespace once the platform is activated.
 
-image::01-ogx-operator-installed.png[Installed Operators view for the `redhat-ods-applications` namespace showing the OpenShift AI operator, which provides the OGX component,link=self,window=blank,width=700]
+image::01-ogx-operator-installed.png[Installed Operators view for the redhat-ods-applications namespace showing the OpenShift AI operator that provides the OGX component,link=self,window=blank,width=700]
 
 === Verify
 

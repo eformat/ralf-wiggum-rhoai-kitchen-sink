@@ -109,7 +109,7 @@ Check the status of the Gateway and its HTTPS listener:
 oc get gateway ${KUADRANT_GATEWAY_NAME} -n ${KUADRANT_GATEWAY_NS} -o=jsonpath='{.status.conditions[?(@.type=="Accepted")].message}{"\n"}{.status.conditions[?(@.type=="Programmed")].message}{"\n"}'
 ----
 
-.Example output
+.Example output (cluster with a LoadBalancer provider)
 ----
 Resource accepted
 Resource programmed, assigned to service(s)
@@ -119,9 +119,21 @@ ingress-gateway.api-gateway.svc.cluster.local:443
 The listener exists but is *not* programmed to accept traffic yet, because no valid
 certificate is available — the TLSPolicy fixes that.
 
+On a cluster without a LoadBalancer provider (the RHDP workshop cluster), the
+Gateway instead reports `Accepted=True` and `Programmed=False` with reason
+`AddressNotAssigned`, because the `LoadBalancer` Service never receives an
+external hostname — this is the state described in the note above, and the
+Route exposure from the note is what makes the gateway reachable. The
+listener-level TLS wiring is unchanged: the TLSPolicy you add next supplies the
+certificate.
+
 === Verify
 
-The Gateway reports `Resource accepted` and `Resource programmed, assigned to service(s)`.
+The Gateway reports `Accepted=True`. On a cluster with a LoadBalancer provider
+it also reports `Programmed=True` assigned to a service; on the RHDP workshop
+cluster it reports `Programmed=False` with reason `AddressNotAssigned`, which
+the Route exposure path handles. Either way the Gateway object exists and is
+accepted — Exercise 3 secures its HTTPS listener.
 
 image::02-gateways-status.png[The Gateways view showing the created Gateway with its status,link=self,window=blank,width=700]
 

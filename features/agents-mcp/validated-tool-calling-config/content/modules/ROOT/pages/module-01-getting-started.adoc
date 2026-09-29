@@ -94,15 +94,13 @@ the catalog.
 . In the menu bar, select a model category. The *Red Hat AI validated models*
 category lists third-party models benchmarked by Red Hat for performance and
 quality, and is a good place to look for tool-calling candidates.
-. Use the *Validated Arguments* filter to narrow the catalog to models with
-confirmed tool-calling support.
-. Click a model name to open its model details page.
-. In the *Validated Arguments* section, expand the *Tool Calling* panel to view
-and copy the exact `vllm serve` arguments required for tool calling, including
-`--tool-call-parser`, `--reasoning-parser`, `--chat-template`, and
-`--enable-auto-tool-choice`.
+. In the filter panel, use the *Validated arguments* filter and check *Tool
+calling* to narrow the catalog to models with confirmed tool-calling support.
+. Click a model name to open its model details page. The model card lists
+*Tool calling* among the model labels, and the *Getting Started* section shows
+how to serve the model.
 
-// TODO(screenshot): recapture — the model details page in the RHOAI 3.5.1 build has no Validated Arguments section with an expandable Tool Calling panel (only the catalog's Validated arguments filter exists); prose needs review against the shipped UI
+// TODO(screenshot): recapture — the model details page in the RHOAI 3.5.1 build has no Validated Arguments section with an expandable Tool Calling panel (only the catalog's Validated arguments filter exists); prose above updated to match the shipped UI 2026-09-30; if the panel ships, restore a capture of the expanded Tool Calling arguments
 
 TIP: The same copy-and-run pattern applies to the *Runtime command* column on
 the *Performance insights* tab: clicking *View* opens a popover with the full
@@ -114,9 +112,9 @@ configuration, which you can copy as a starting point for your own deployment.
 The model details page shows the model name heading, the *Model card* content
 section, and the *Model details* sidebar. For a validated model, the sidebar
 also shows the *Minimum vRAM* and *Container size* infrastructure fields, and
-the *Validated Arguments* section lists the *Tool Calling* panel. If the model
-you selected has no *Validated Arguments* section, pick another model — only
-models with confirmed tool-calling support display it.
+the model labels include *Tool calling*. If the model you selected does not
+list *Tool calling* among its labels, pick another model — only models with
+confirmed tool-calling support display the label.
 
 == Module summary
 
@@ -124,13 +122,13 @@ models with confirmed tool-calling support display it.
 
 * Enabled the `toolCalling` dashboard flag on the `OdhDashboardConfig` custom resource
 * Verified the flag and the running dashboard pods from the CLI
-* Located the Validated Arguments section and copied the validated `vllm serve` arguments for a tool-calling model
+* Filtered the catalog with the *Validated arguments* > *Tool calling* filter and confirmed a tool-calling model lists the label on its details page
 
 **Key takeaways:**
 
-* The catalog ships validated `vllm serve` arguments so tool calling works on the first run
+* The catalog's *Validated arguments* filter narrows the catalog to models with confirmed tool-calling support
 * Feature flags live in `spec.dashboardConfig` on the `OdhDashboardConfig` custom resource
-* The *Validated Arguments* filter narrows the catalog to models with confirmed tool-calling support
+* Model labels on the details page record the validated capabilities of each model
 
 **Next steps:**
 
