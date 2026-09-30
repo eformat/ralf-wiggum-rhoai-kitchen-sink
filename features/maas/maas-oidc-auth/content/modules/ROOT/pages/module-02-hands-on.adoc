@@ -28,6 +28,10 @@ from the token without requiring OpenShift group creation or synchronization.
 
 . In the OpenShift AI dashboard, click *Settings → MaaS governance*.
 . Click *Create subscription*.
+
+// TODO(screenshot): the Settings → MaaS governance page 404s in the RHOAI 3.5.1 dashboard build ("We can't find that page") — the MaaS governance UI does not exist in this build. Verified live on cluster-44gxc 2026-09-30; the subscription and matching auth policy were created via the underlying MaaSSubscription and MaaSAuthPolicy CRs (the resources this form would create). Re-capture when the UI ships; see qa/runs/maas-oidc-auth/quality.md.
+
+// TODO(screenshot/verify): the Settings → MaaS governance page does not exist in the RHOAI 3.5.1 dashboard build (URL 404s — "We can't find that page"); the subscription + matching auth policy must be created via the underlying MaaSSubscription and MaaSAuthPolicy CRs (the resources this UI would create), and the workshop's own Verify step (oc get maassubscription -n models-as-a-service -o yaml) already covers the CR path. Verified live on cluster-44gxc 2026-09-30 (see qa/runs/maas-oidc-auth/quality.md). Registering the client and user/group in the OIDC provider requires the Keycloak realm admin (the keycloak-initial-admin Secret's temp-admin credentials — the admin user in the realm has no realm-management roles).
 . In the *Create subscription* form, configure the subscription:
 .. *Name*: enter a descriptive name, for example `oidc-data-scientists`.
 .. *Priority*: set a numeric priority level. Higher numbers indicate higher

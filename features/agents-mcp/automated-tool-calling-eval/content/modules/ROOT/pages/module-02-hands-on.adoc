@@ -132,6 +132,8 @@ EvalHub, for example `lm_evaluation_harness` and `garak`. An empty or
 `401 Unauthorized` response means the token expired or the `x-tenant` header does
 not match your EvalHub tenant namespace.
 
+// TODO(screenshot/verify): the actual MCP tool schema for discover_providers takes `target_type` (model/agent/inference_server) and `evaluates` (array of capability tags), not a `filter` argument — the "find a provider for safety" intent maps to {"evaluates": ["safety"]}. Also: the evalhub-mcp server requires spec.mcp.authSecret (a Secret with a `token` key holding a token the EvalHub API accepts — the MCP server's own service-account token is rejected with 401); this prerequisite is missing from Exercise 1. Verified live on cluster-44gxc 2026-09-30 (see qa/runs/tool-calling-eval/quality.md).
+
 Now that your coding agent is connected to EvalHub, you will drive an evaluation through tool calls.
 
 == Exercise 3: Generate evaluation data through tool calls
