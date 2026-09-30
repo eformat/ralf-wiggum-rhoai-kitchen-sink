@@ -161,7 +161,7 @@ evalhub eval run \
   --model-url http://<model-svc>.{guid}-{user}.svc.cluster.local:8080/v1 \
   --model-name my-model \
   --provider lm_evaluation_harness \
-  -b mmlu -b hellaswag
+  -b arc_easy -b hellaswag
 ----
 +
 The server returns a `202 Accepted` response with a job resource including a
@@ -182,8 +182,8 @@ curl -X POST $EVALHUB_URL/api/v1/evaluations/jobs \
       "name": "my-model"
     },
     "benchmarks": [
-      {"provider_id": "lm_evaluation_harness", "benchmark_id": "mmlu"},
-      {"provider_id": "lm_evaluation_harness", "benchmark_id": "hellaswag"}
+      {"id": "arc_easy", "provider_id": "lm_evaluation_harness"},
+      {"id": "hellaswag", "provider_id": "lm_evaluation_harness"}
     ]
   }'
 ----

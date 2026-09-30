@@ -22,7 +22,7 @@ Scoring: TODO markers +3 · broken heredoc/YAML +3 · broken image refs +3 · ze
 | maas-multi-provider-passthrough | maas | TP | 8 | TODO markers, no screenshots, RUNTIME-DEMO GAP | BLOCKED | external-models image removed 2026-09-30 — needs Anthropic credentials |
 | model-registry-catalog | model-registry | GA | 8 | TODO markers, placeholders, NARRATIVE-ONLY (no deploy code) | DONE | narrative-only fixes applied (earlier session); residual = design |
 | automated-red-teaming-garak | evaluation | GA | 7 | no screenshots, placeholders, RUNTIME-DEMO GAP | BLOCKED | needs garai CLI + GPU-capable model — standing deferral |
-| evalhub | evaluation | GA | 7 | no screenshots, placeholders, RUNTIME-DEMO GAP | CLOSED | environment GC'd; live-flow evidence recorded 2026-09-25; prose fixes pending human (benchmark_id format, module-03 walkthrough drift) |
+| evalhub | evaluation | GA | 7 | no screenshots, placeholders, RUNTIME-DEMO GAP | CLOSED | environment GC'd; live-flow evidence recorded 2026-09-25; prose fixes applied 2026-09-30 (id-format request examples, module-03 walkthrough de-drifted) |
 | mcp-gateway-operator | agents-mcp | TP | 5 | no screenshots, NARRATIVE-ONLY (no deploy code) | DONE | narrative-only fixes applied; narrative design |
 | kale-jupyterlab | agents-mcp | DP | 5 | TODO markers, no screenshots | DONE | broken image refs removed earlier; TODOs kept with drift reasons |
 | openshell-agent-sandboxing | agents-mcp | DP | 5 | TODO markers, no screenshots | DONE | agent-deployments image removed 2026-09-30 — Agent Sandbox operator not installed; TODO records drift |
@@ -73,5 +73,5 @@ status, and the 10 residual score-2 flags were spot-checked and are **false posi
   capture-when-available bucket as the 11 TODO'd screenshots).
 
 Remaining human decisions (from the TODO list, not triage flags): nemo-guardrails-mcp-gateway
-(Service Mesh install vs deferral), evalhub module-03 walkthrough drift, upstream autorag
-driver-image bug report.
+(Service Mesh install vs deferral), upstream autorag driver-image bug report.
+(evalhub module-03 walkthrough drift resolved 2026-09-30 — see qa/runs/evalhub/quality.md.)
