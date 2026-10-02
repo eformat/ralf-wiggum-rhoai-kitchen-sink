@@ -96,7 +96,7 @@ within Gen AI Studio can change between releases. If you do not see an Agent
 Ops entry, confirm the flag is set (Exercise 1) and check for a related item
 under *Gen AI studio*.
 
-// TODO(screenshot): recapture — needs a running agent deployment; the Red Hat build of Agent Sandbox operator is not installed on the capture cluster
+// TODO(screenshot): the Gen AI studio → Agent ops page does not exist in the RHOAI 3.5.1 dashboard build (route 404s — "We can't find that page"; no nav entry despite the agentOps flag set, the agent-ops module deployed by the dashboard operator, the agent-ops-ui backend Running, and a dashboard restart). The Red Hat build of Agent Sandbox operator IS installed and Sandboxes are Running (see Exercise 3) — the dashboard surface must ship before this capture is possible.
 
 . Observe the list of running agent deployments. For each deployed agent
 instance, the view shows its *Name* and *Status*, along with the *Framework*
@@ -157,6 +157,8 @@ oc get sandboxes -A
 
 Observe the namespaces and names in the output. Every running Sandbox CR
 corresponds to an agent instance entry in the dashboard view from Exercise 2.
+
+image::01-sandbox-crs.png[The Sandboxes list in the console showing the running agent Sandbox CRs with Ready conditions in the workshop namespace,link=self,window=blank,width=700]
 
 . Compare the CLI output with the dashboard list: the same namespaces and agent
 names appear in both — the list's *Sandbox* column identifies the Sandbox

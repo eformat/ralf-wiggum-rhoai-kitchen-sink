@@ -78,7 +78,7 @@ namespace, and filtering capabilities to help manage deployed agents.
   your namespace. Agents that were deployed manually appear there as
   OpenShell-managed Sandbox CRs.
 
-// TODO(screenshot): recapture — needs a running agent sandbox; the Red Hat build of Agent Sandbox operator is not installed on the capture cluster
+// TODO(screenshot): the Gen AI studio → Agent ops page does not exist in the RHOAI 3.5.1 dashboard build (route 404s — "We can't find that page"; no nav entry despite the agentOps flag set, the agent-ops module deployed by the dashboard operator, the agent-ops-ui backend Running, and a dashboard restart). The Red Hat build of Agent Sandbox operator IS installed and Sandboxes are Running — the Sandbox CRs and the sandboxed agent pods are captured in this module; the dashboard surface must ship before the Agent ops view itself can be captured.
 
 . If your facilitator has deployed an agent into your workshop namespace, observe the
   workloads the sandbox produces:
@@ -91,6 +91,8 @@ oc get pods -n {guid}-{user}
 Expect a pod for the sandboxed agent alongside any supporting components, such as
 identity or proxy sidecars; the exact names depend on the deployment, so treat this as
 an observation rather than a fixed output.
+
+image::02-sandbox-pods.png[The pods in the workshop namespace including the sandboxed agent pods running from the Sandbox CRs,link=self,window=blank,width=700]
 
 [NOTE]
 ====

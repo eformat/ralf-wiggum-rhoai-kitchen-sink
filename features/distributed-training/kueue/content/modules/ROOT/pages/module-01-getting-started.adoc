@@ -176,6 +176,8 @@ Then confirm the same objects from the OpenShift console:
 . Open the {openshift_console_url}[OpenShift console] and select your project from the Project list.
 . Click *Search*, and from the Resources list, select *LocalQueue* to show the list of local queues for your project.
 . Click the `workshop-lq` queue name, click the *YAML* tab, and review the `metadata.annotations` section. The `kueue.x-k8s.io/default-queue` annotation is set to `'true'`, so this queue is configured as the default local queue.
++
+image::01-localqueue-yaml.png[The workshop-lq LocalQueue YAML tab with the kueue.x-k8s.io/default-queue annotation,link=self,window=blank,width=700]
 
 TIP: From a workbench, you can also use the CodeFlare SDK `list_local_queues()`
 function to view all local queues in your current namespace and the resource flavors

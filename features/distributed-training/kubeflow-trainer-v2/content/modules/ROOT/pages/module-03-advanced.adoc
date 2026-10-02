@@ -296,6 +296,8 @@ One pod per training node is listed, each in `Running` state. (Optional) Open
 the OpenShift AI dashboard and click *TrainingJobs* to see the real-time
 progress metrics for your training job.
 
+image::01-trainjob-dashboard.png[The Jobs page in the OpenShift AI dashboard listing the TrainJob in the workshop project,link=self,window=blank,width=700]
+
 Now that you have submitted and verified a `TrainJob` with the SDK, you will
 apply the same workflow to LLM fine-tuning with Training Hub.
 

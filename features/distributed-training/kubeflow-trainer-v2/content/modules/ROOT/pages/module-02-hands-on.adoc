@@ -174,7 +174,7 @@ Cross-check in the OpenShift console, Administrator perspective:
 * Click *Home → Search*, select your project, and find `pytorch-minimal-example` under `TrainJob`.
 * Click *Workloads → Pods* and confirm the requested training node pods are running.
 
-// TODO(screenshot): recapture — needs a TrainJob resource; the TrainJob CRD (Kubeflow Trainer) is not installed on the capture cluster
+// TODO(screenshot): the console Search page does not render TrainJob results in this build (the filter bar lists the TrainJob resource but the results table stays empty — same Search behavior for other CRDs); the TrainJob CRD IS now installed (Kubeflow Trainer enabled in the DSC + JobSet operator) and the TrainJob is listed in the OpenShift AI dashboard's Jobs page — captured in module 03.
 
 TIP: To follow real-time progress metrics in the OpenShift AI dashboard (*Model
 training*), enable progress tracking on the job by adding the annotation

@@ -96,11 +96,13 @@ category lists third-party models benchmarked by Red Hat for performance and
 quality, and is a good place to look for tool-calling candidates.
 . In the filter panel, use the *Validated arguments* filter and check *Tool
 calling* to narrow the catalog to models with confirmed tool-calling support.
++
+image::01-validated-arguments-filter.png[The AI hub Models catalog with the Validated arguments Tool calling filter checked,link=self,window=blank,width=700]
 . Click a model name to open its model details page. The model card lists
 *Tool calling* among the model labels, and the *Getting Started* section shows
 how to serve the model.
 
-// TODO(screenshot): recapture — the model details page in the RHOAI 3.5.1 build has no Validated Arguments section with an expandable Tool Calling panel (only the catalog's Validated arguments filter exists); prose above updated to match the shipped UI 2026-09-30; if the panel ships, restore a capture of the expanded Tool Calling arguments
+// TODO(screenshot): the model details page in the RHOAI 3.5.1 build has no Validated Arguments section with an expandable Tool Calling panel (only the catalog's Validated arguments filter exists — captured above); prose updated to match the shipped UI 2026-09-30; if the panel ships, add a capture of the expanded Tool Calling arguments
 
 TIP: The same copy-and-run pattern applies to the *Runtime command* column on
 the *Performance insights* tab: clicking *View* opens a popover with the full

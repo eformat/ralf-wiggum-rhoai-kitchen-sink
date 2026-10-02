@@ -295,6 +295,8 @@ oc wait --for=condition=Ready mcpgatewayextension/mcp-gateway-one -n ${MCP_SYSTE
 mcpgatewayextension.mcp.kuadrant.io/mcp-gateway-one condition met
 ----
 
+image::01-mcpgatewayextension-ready.png[The MCPGatewayExtensions list showing mcp-gateway-one with Ready condition,link=self,window=blank,width=700]
+
 .Example failure output
 ----
 error: timed out waiting for the condition on mcpgatewayextensions/mcp-gateway-one
