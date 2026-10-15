@@ -1,0 +1,53 @@
+{
+  "title": "AI Available Assets — from platform config to a usable MCP server",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 14.0,
+      "target": { "x": 290, "y": 70, "w": 560, "h": 190 },
+      "caption": "AI asset endpoints — the discovery point for the AI assets in your project",
+      "details": [
+        { "label": "Project", "value": "ai-tenants" },
+        { "label": "Categories", "value": "Models · MCP servers" }
+      ]
+    },
+    {
+      "t": 32.0,
+      "target": { "x": 780, "y": 590, "w": 590, "h": 130 },
+      "caption": "Starting state — no MCP configuration at the platform level",
+      "details": [
+        { "label": "MCP servers", "value": "No MCP configuration found" },
+        { "label": "Publish via", "value": "gen-ai-aa-mcp-servers ConfigMap" }
+      ]
+    },
+    {
+      "t": 58.0,
+      "target": { "x": 310, "y": 225, "w": 1570, "h": 250 },
+      "caption": "The platform-level ConfigMap — GitHub-MCP-Server in redhat-ods-applications",
+      "details": [
+        { "label": "ConfigMap", "value": "gen-ai-aa-mcp-servers" },
+        { "label": "Namespace", "value": "redhat-ods-applications" },
+        { "label": "Key", "value": "GitHub-MCP-Server · api.githubcopilot.com/mcp" }
+      ]
+    },
+    {
+      "t": 70.0,
+      "target": { "x": 300, "y": 155, "w": 820, "h": 310 },
+      "caption": "Created — the dashboard reads this ConfigMap from the platform namespace",
+      "details": [
+        { "label": "Created at", "value": "Just now" },
+        { "label": "Data", "value": "GitHub-MCP-Server" }
+      ]
+    },
+    {
+      "t": 110.0,
+      "target": { "x": 310, "y": 360, "w": 1430, "h": 160 },
+      "caption": "The GitHub MCP server is now an available AI asset in your project",
+      "details": [
+        { "label": "Server", "value": "GitHub-MCP-Server" },
+        { "label": "Status", "value": "Token Required" },
+        { "label": "Endpoint", "value": "View" }
+      ]
+    }
+  ]
+}

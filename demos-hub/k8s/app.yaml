@@ -1,0 +1,64 @@
+# Arcade demos hub — nginx-unprivileged:alpine on 8080 serving the demo ConfigMap.
+# Same shape as the html-scene-deck deployment (tiny resources, readiness probe,
+# docroot mounted read-only). The ConfigMap is built by deploy.sh from the
+# working tree: one key per demo player + index.html.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: arcade-demos
+  labels:
+    app: arcade-demos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: arcade-demos
+  template:
+    metadata:
+      labels:
+        app: arcade-demos
+    spec:
+      containers:
+      - name: nginx
+        image: docker.io/nginxinc/nginx-unprivileged:alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 2
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 256Mi
+        volumeMounts:
+        - mountPath: /usr/share/nginx/html
+          name: site
+          readOnly: true
+      volumes:
+      - name: site
+        projected:
+          sources:
+          - configMap:
+              name: arcade-demos-site
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: arcade-demos
+  labels:
+    app: arcade-demos
+spec:
+  selector:
+    app: arcade-demos
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080

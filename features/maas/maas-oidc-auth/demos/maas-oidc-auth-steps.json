@@ -1,0 +1,43 @@
+{
+  "title": "MaaS external OIDC — the tenant, the CR, and the provider",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 6.0,
+      "target": { "x": 310, "y": 260, "w": 1580, "h": 110 },
+      "caption": "The MaaS default tenant — models-as-a-service, Ready",
+      "details": [
+        { "label": "Tenant", "value": "models-as-a-service · Ready" },
+        { "label": "Gateway", "value": "maas-default-gateway" }
+      ]
+    },
+    {
+      "t": 40.0,
+      "target": { "x": 340, "y": 610, "w": 780, "h": 280 },
+      "caption": "The AITenant CR — the OIDC config lives in its spec",
+      "details": [
+        { "label": "Phase", "value": "Active" },
+        { "label": "Gateway ref", "value": "maas-default-gateway · openshift-ingress" },
+        { "label": "Status", "value": "Reconciled · True" }
+      ]
+    },
+    {
+      "t": 72.0,
+      "target": { "x": 800, "y": 160, "w": 630, "h": 250 },
+      "caption": "The external OIDC provider — the keycloak realm",
+      "details": [
+        { "label": "Provider", "value": "Red Hat build of Keycloak" },
+        { "label": "Realm", "value": "keycloak" }
+      ]
+    },
+    {
+      "t": 95.0,
+      "target": { "x": 310, "y": 320, "w": 850, "h": 400 },
+      "caption": "Registered clients — the OpenShift IdP client among them",
+      "details": [
+        { "label": "Clients", "value": "7 · OpenID Connect" },
+        { "label": "Platform client", "value": "idp-4-ocp" }
+      ]
+    }
+  ]
+}

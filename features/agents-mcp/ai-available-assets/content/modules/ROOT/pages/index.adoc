@@ -45,3 +45,5 @@ About 60-90 minutes
 * xref:module-01-getting-started.adoc[Discover AI assets in the dashboard]
 * xref:module-02-hands-on.adoc[Publish and consume a model asset]
 * xref:conclusion.adoc[Conclusion]
+
+link:_attachments/ai-available-assets-demo.html[▶ Watch the demo — interactive walkthrough,window=_blank]

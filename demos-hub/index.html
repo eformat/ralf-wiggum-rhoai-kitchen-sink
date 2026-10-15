@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenShift AI — interactive demos</title>
+<style>
+  :root { --red: #EE0000; --ink: #151515; --muted: #6a6a6a; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: RedHatDisplay, "Red Hat Display", "Helvetica Neue", Arial, sans-serif; background: #f2f2f2; color: var(--ink); min-height: 100vh; }
+  header { background: var(--ink); color: #fff; padding: 48px 40px 40px; }
+  header .bar { width: 44px; height: 6px; background: var(--red); margin-bottom: 20px; }
+  header h1 { font-size: 30px; font-weight: 500; line-height: 1.2; }
+  header p { margin-top: 10px; color: #cfcfcf; font-size: 15px; max-width: 640px; }
+  main { max-width: 980px; margin: 0 auto; padding: 40px 24px 72px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; }
+  a.card { display: block; background: #fff; border: 1px solid #d8d8d8; border-top: 4px solid var(--red); padding: 24px; text-decoration: none; color: inherit; transition: box-shadow .15s ease, transform .15s ease; }
+  a.card:hover { box-shadow: 0 6px 18px rgba(0,0,0,.12); transform: translateY(-2px); }
+  .card .tag { display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .card h2 { font-size: 19px; font-weight: 500; margin-bottom: 8px; color: #0066cc; }
+  .card p { font-size: 14px; color: var(--muted); line-height: 1.5; margin-bottom: 14px; }
+  .card .meta { font-size: 12px; color: var(--muted); }
+  footer { max-width: 980px; margin: 0 auto; padding: 0 24px 40px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar"></div>
+  <h1>Red Hat OpenShift AI — interactive feature demos</h1>
+  <p>Arcade-style walkthroughs: click through each step, zoom into the UI, and follow the
+     demonstrated outcome of every hands-on exercise. Each demo is self-contained — no cluster
+     access needed to watch one.</p>
+</header>
+<main id="cards"></main>
+<footer>
+  Source: the kitchen-sink workshop repo. Each demo links from its feature's workshop page too.
+</footer>
+<script>
+const DEMOS = [
+  { file: "ai-available-assets-demo.html", category: "Agents & MCP", title: "AI Available Assets",
+    desc: "From platform-level ConfigMap to a usable MCP server — publish GitHub-MCP-Server and watch it appear as an available AI asset.",
+    meta: "5 steps · dashboard + console" },
+  { file: "maas-oidc-auth-demo.html", category: "Models-as-a-Service", title: "MaaS external OIDC",
+    desc: "The two-tier MaaS auth story: the Ready tenant, the AITenant CR where the OIDC config lives, and the Keycloak provider behind it.",
+    meta: "4 steps · console + Keycloak" },
+];
+const main = document.getElementById("cards");
+for (const d of DEMOS) {
+  const a = document.createElement("a");
+  a.className = "card"; a.href = d.file;
+  a.innerHTML = `<span class="tag">${d.category}</span><h2>${d.title}</h2><p>${d.desc}</p><span class="meta">${d.meta}</span>`;
+  main.appendChild(a);
+}
+</script>
+</body>
+</html>
