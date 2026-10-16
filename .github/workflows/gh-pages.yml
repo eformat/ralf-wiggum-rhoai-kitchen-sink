@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'content/**'
+      - 'home/**'
       - 'features/**'
       - 'site.yml'
       - 'site-*.yml'
@@ -13,6 +14,7 @@ on:
     branches: [main]
     paths:
       - 'content/**'
+      - 'home/**'
       - 'features/**'
       - 'site.yml'
       - 'site-*.yml'
