@@ -1,0 +1,126 @@
+{
+  "title": "LLMInferenceServiceConfig — templates that drive the llm-d deployment wizard",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 40,
+      "target": { "x": 285, "y": 90, "w": 1580, "h": 430 },
+      "caption": "llm-d topology configurations — where LLMInferenceServiceConfig templates live",
+      "details": [
+        { "label": "Page", "value": "Settings > Model resources & operations > llm-d topology configurations" },
+        { "label": "Manages", "value": "LLMInferenceServiceConfig template CRs" },
+        { "label": "Empty state", "value": "No configurations until an administrator adds one" }
+      ]
+    },
+    {
+      "t": 61,
+      "target": { "x": 285, "y": 126, "w": 1580, "h": 560 },
+      "caption": "Add Single node configuration — name + sample source",
+      "details": [
+        { "label": "Name", "value": "llmisvc-config-demo (resource name auto-derived)" },
+        { "label": "Configuration source", "value": "Select a source for the topology configuration" },
+        { "label": "Options", "value": "Start from a sample configuration file | Open code editor" }
+      ]
+    },
+    {
+      "t": 88,
+      "target": { "x": 285, "y": 534, "w": 1580, "h": 500 },
+      "caption": "The sample defines a single-node GPU topology template",
+      "details": [
+        { "label": "Kind", "value": "LLMInferenceServiceConfig (serving.kserve.io)" },
+        { "label": "Template", "value": "Single-Node GPU Deployment" },
+        { "label": "Note", "value": "baseRefs is forbidden on configs — only LLMInferenceService may set it" }
+      ]
+    },
+    {
+      "t": 108,
+      "target": { "x": 285, "y": 90, "w": 1580, "h": 300 },
+      "caption": "llmisvc-config-demo created — an LLMInferenceServiceConfig CR on the cluster",
+      "details": [
+        { "label": "Config", "value": "llmisvc-config-demo" },
+        { "label": "Topology type", "value": "Single node" },
+        { "label": "Created", "value": "Just now" }
+      ]
+    },
+    {
+      "t": 126,
+      "target": { "x": 285, "y": 120, "w": 1580, "h": 880 },
+      "caption": "The raw CRs — the created config plus 19 platform templates, all Ready",
+      "details": [
+        { "label": "CRD", "value": "llminferenceserviceconfigs.serving.kserve.io" },
+        { "label": "Instances", "value": "llmisvc-config-demo + v3-5-1-kserve-config-llm-* presets" },
+        { "label": "Ready", "value": "True" }
+      ]
+    },
+    {
+      "t": 140,
+      "target": { "x": 285, "y": 165, "w": 1580, "h": 400 },
+      "caption": "opendatahub.io/config-type — the label the wizard discovers templates by",
+      "details": [
+        { "label": "Template", "value": "v3-5-1-kserve-config-llm-single-node-template-nvidia-cuda" },
+        { "label": "Label", "value": "opendatahub.io/config-type: workload-single-node" },
+        { "label": "Ready", "value": "True" }
+      ]
+    },
+    {
+      "t": 190,
+      "target": { "x": 285, "y": 120, "w": 1580, "h": 580 },
+      "caption": "The template CR — supported-topologies declares which topologies it serves",
+      "details": [
+        { "label": "Kind", "value": "LLMInferenceServiceConfig" },
+        { "label": "Annotation", "value": "opendatahub.io/supported-topologies: [\"workload-single-node\"]" },
+        { "label": "API", "value": "serving.kserve.io/v1alpha2" }
+      ]
+    },
+    {
+      "t": 222,
+      "target": { "x": 285, "y": 126, "w": 1580, "h": 750 },
+      "caption": "LLMInferenceService — one CR composes model, router, gateway and scheduler",
+      "details": [
+        { "label": "Kind", "value": "LLMInferenceService (serving.kserve.io/v1alpha1)" },
+        { "label": "Model", "value": "hf://RedHatAI/Qwen3-8B-FP8-dynamic" },
+        { "label": "Empty maps", "value": "router.route/gateway/scheduler — the controller fills them in" }
+      ]
+    },
+    {
+      "t": 295,
+      "target": { "x": 285, "y": 165, "w": 1580, "h": 870 },
+      "caption": "Status conditions, honestly — composed True, workloads Pending on CPU-only",
+      "details": [
+        { "label": "Composed", "value": "HTTPRoutesReady / InferencePoolReady / PresetsCombined = True" },
+        { "label": "Ready", "value": "False (MinimumReplicasUnavailable)" },
+        { "label": "Cause", "value": "Pods request nvidia.com/gpu — this cluster is CPU-only" }
+      ]
+    },
+    {
+      "t": 439,
+      "target": { "x": 555, "y": 555, "w": 1310, "h": 440 },
+      "caption": "Deploy model wizard — Distributed inference with llm-d selected",
+      "details": [
+        { "label": "Method", "value": "LLM inference service with llm-d" },
+        { "label": "Topology type", "value": "Single node" },
+        { "label": "Topology configuration", "value": "Single node (default) — the built-in preset" }
+      ]
+    },
+    {
+      "t": 504,
+      "target": { "x": 285, "y": 285, "w": 1580, "h": 290 },
+      "caption": "The project's deployments — the new service listed under llm-d",
+      "details": [
+        { "label": "Deployment", "value": "sample-llm-inference-service (Distributed inference with llm-d)" },
+        { "label": "Status", "value": "Failed — no hardware profile (CPU-only cluster)" },
+        { "label": "Note", "value": "maas-llmd-demo: Pending/Starting on the same project" }
+      ]
+    },
+    {
+      "t": 529,
+      "target": { "x": 555, "y": 765, "w": 1310, "h": 240 },
+      "caption": "The payoff — the wizard discovered the created template",
+      "details": [
+        { "label": "Dropdown options", "value": "Single node (default) + llmisvc-config-demo" },
+        { "label": "Discovery", "value": "via opendatahub.io/config-type labels on the config CRs" },
+        { "label": "Workshop", "value": "Module 03 — topology templates as an administrator" }
+      ]
+    }
+  ]
+}

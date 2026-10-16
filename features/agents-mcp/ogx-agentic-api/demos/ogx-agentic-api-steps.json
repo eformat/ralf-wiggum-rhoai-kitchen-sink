@@ -1,0 +1,126 @@
+{
+  "title": "OGX agentic API surface — Tool Runtime, Responses, Conversations",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 10,
+      "target": {"x": 360, "y": 380, "w": 1250, "h": 90},
+      "caption": "Console: the OGX Operator is installed — the OGXServer CRD is registered",
+      "details": [
+        {"label": "CRD", "value": "ogxservers.ogx.io · 1 of 1 after name filter"},
+        {"label": "Group / version", "value": "ogx.io / v1beta1"},
+        {"label": "Established", "value": "Yes — Technology Preview"}
+      ]
+    },
+    {
+      "t": 30,
+      "target": {"x": 360, "y": 250, "w": 1250, "h": 680},
+      "caption": "CRD details: NamesAccepted and Established both True",
+      "details": [
+        {"label": "Conditions", "value": "NamesAccepted True (NoConflicts) · Established True"},
+        {"label": "Scope", "value": "Namespaced — one OGXServer CR per project"},
+        {"label": "Labels", "value": "app.kubernetes.io/name=ogx-operator · components.platform.opendatahub.io/managed-by=ogx"}
+      ]
+    },
+    {
+      "t": 65,
+      "target": {"x": 360, "y": 870, "w": 1450, "h": 100},
+      "caption": "The OGX server is Running — managed by the OGX Operator",
+      "details": [
+        {"label": "Deployment", "value": "lsd-genai-playground · 1 of 1 pods"},
+        {"label": "Managed by", "value": "app.kubernetes.io/managed-by=ogx-operator · part-of=ogx"},
+        {"label": "Model backend", "value": "qwen25-05b InferenceService — Ready"}
+      ]
+    },
+    {
+      "t": 115,
+      "target": {"x": 360, "y": 590, "w": 1450, "h": 120},
+      "caption": "The OGX service exposes the OpenAI-compatible surface on port 8321",
+      "details": [
+        {"label": "Service", "value": "lsd-genai-playground-service"},
+        {"label": "Location", "value": "172.231.4.51:8321 (API) · :9464 (metrics)"},
+        {"label": "base_url rule", "value": "append /v1 when using the OpenAI SDK"}
+      ]
+    },
+    {
+      "t": 151,
+      "target": {"x": 430, "y": 110, "w": 1150, "h": 130},
+      "caption": "Open the exercise notebook in the project workbench",
+      "details": [
+        {"label": "Project", "value": "abc123-user1"},
+        {"label": "Workbench", "value": "mlflow-demo — Data Science CPU image"},
+        {"label": "Notebook", "value": "ogx-agentic-api.ipynb — module 02 + 03 exercises"}
+      ]
+    },
+    {
+      "t": 180,
+      "target": {"x": 430, "y": 230, "w": 1170, "h": 90},
+      "caption": "Install the client libraries — the module's documented setup step",
+      "details": [
+        {"label": "Command", "value": "pip install -q openai rich"},
+        {"label": "openai", "value": "3.24.0"},
+        {"label": "Client", "value": "OpenAI(api_key=..., base_url=...:8321/v1)"}
+      ]
+    },
+    {
+      "t": 215,
+      "target": {"x": 430, "y": 600, "w": 1170, "h": 440},
+      "caption": "client.models.list() — the OGX surface registers the LLM and embedding models",
+      "details": [
+        {"label": "model_id", "value": "vllm-inference-1/qwen25-05b"},
+        {"label": "model_type", "value": "llm · owned_by ogx"},
+        {"label": "Also listed", "value": "granite-embedding-125m · nomic-embed-text-v1.5 · Qwen3-Reranker-0.6B"}
+      ]
+    },
+    {
+      "t": 235,
+      "target": {"x": 430, "y": 250, "w": 1170, "h": 540},
+      "caption": "Chat Completions sanity check — inference through the OGX server is live",
+      "details": [
+        {"label": "Answer", "value": "The capital of France is Paris."},
+        {"label": "Module 02 verify", "value": "assert len(response.choices) > 0 passes"},
+        {"label": "Next", "value": "drive a multi-turn chat with the Conversations API"}
+      ]
+    },
+    {
+      "t": 255,
+      "target": {"x": 430, "y": 280, "w": 1390, "h": 450},
+      "caption": "Conversations API: server-side state accumulates across turns",
+      "details": [
+        {"label": "conversation_id", "value": "conv_5c215bfce508e1749e2b8207a2a03fc5abd7a5416958626c"},
+        {"label": "Turns", "value": "2 — Responses API with conversation=<id> and store=True"},
+        {"label": "No previous_response_id", "value": "the conversation parameter attaches each turn to the history"}
+      ]
+    },
+    {
+      "t": 300,
+      "target": {"x": 430, "y": 740, "w": 1250, "h": 260},
+      "caption": "conversations.items.list proves the state — then delete cleans it up",
+      "details": [
+        {"label": "items.list order=asc", "value": "user + assistant turns, in order"},
+        {"label": "Delete", "value": "ConversationDeletedResource · deleted=True"},
+        {"label": "WARNING", "value": "deleting a conversation removes its full history"}
+      ]
+    },
+    {
+      "t": 320,
+      "target": {"x": 430, "y": 420, "w": 1390, "h": 130},
+      "caption": "Guardrails opt-in fails closed — no moderation endpoint, explained rather than skipped",
+      "details": [
+        {"label": "Request", "value": "POST /v1/responses with guardrails: true"},
+        {"label": "Response", "value": "error — Service 'moderation_endpoint' is not enabled"},
+        {"label": "Module 03 behavior", "value": "fail-closed: any moderation error blocks content"}
+      ]
+    },
+    {
+      "t": 340,
+      "target": {"x": 430, "y": 590, "w": 500, "h": 90},
+      "caption": "Tool Runtime survey: /v1/tool-runtime is not exposed by this distribution's run.yaml",
+      "details": [
+        {"label": "Endpoint", "value": "/v1/tool-runtime — native OGX API, not OpenAI-compatible"},
+        {"label": "HTTP", "value": "404 on this distribution's default run.yaml"},
+        {"label": "Support level", "value": "Developer Preview — not recommended for production"}
+      ]
+    }
+  ]
+}

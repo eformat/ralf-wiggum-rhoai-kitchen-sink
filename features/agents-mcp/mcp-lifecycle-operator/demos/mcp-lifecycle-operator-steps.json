@@ -1,0 +1,116 @@
+{
+  "title": "MCP Lifecycle Operator — deploy and manage an MCP server",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 12,
+      "target": {"x": 300, "y": 85, "w": 420, "h": 70},
+      "caption": "AI hub → MCP servers — the mcpCatalog flag makes the catalog visible",
+      "details": [
+        {"label": "Dashboard flag", "value": "OdhDashboardConfig spec.dashboardConfig.mcpCatalog=true"},
+        {"label": "Operator", "value": "mcp-lifecycle-operator 1/1 Running"},
+        {"label": "Enabled via", "value": "DataScienceCluster spec.components.mcplifecycleoperator Managed"}
+      ]
+    },
+    {
+      "t": 55,
+      "target": {"x": 945, "y": 240, "w": 290, "h": 95},
+      "caption": "The catalog reports honestly: the source API is unreachable on this workshop cluster",
+      "details": [
+        {"label": "State", "value": "MCP catalog source load error — documented lmg7d defect (504 via route hairpin)"},
+        {"label": "Still true", "value": "the mcpCatalog flag, the UI, and the operator are live"},
+        {"label": "Deploy path used here", "value": "the MCPServer CR directly — the same resource the catalog generates"}
+      ]
+    },
+    {
+      "t": 66,
+      "target": {"x": 660, "y": 370, "w": 620, "h": 110},
+      "caption": "No MCP server deployments yet — deploying creates one",
+      "details": [
+        {"label": "Project", "value": "abc123-user1"},
+        {"label": "Deployments", "value": "0"},
+        {"label": "Next", "value": "apply the MCPServer CR in the OpenShift console"}
+      ]
+    },
+    {
+      "t": 102,
+      "target": {"x": 290, "y": 305, "w": 1010, "h": 115},
+      "caption": "Console: the operator registered the MCPServer CRD",
+      "details": [
+        {"label": "CRD", "value": "mcpservers.mcp.x-k8s.io"},
+        {"label": "Version", "value": "v1alpha1 — Technology Preview, no backwards-compatibility commitment"},
+        {"label": "Established", "value": "Yes"}
+      ]
+    },
+    {
+      "t": 130,
+      "target": {"x": 290, "y": 250, "w": 960, "h": 380},
+      "caption": "Deploy by applying the MCPServer CR — no manual image sourcing",
+      "details": [
+        {"label": "spec.source", "value": "ContainerImage · quay.io/containers/kubernetes_mcp_server"},
+        {"label": "spec.config.port", "value": "8080"},
+        {"label": "Operator action", "value": "provisions the Deployment, Service, and NetworkPolicy"}
+      ]
+    },
+    {
+      "t": 146,
+      "target": {"x": 290, "y": 240, "w": 1010, "h": 420},
+      "caption": "The operator provisions everything — READY True, ACCEPTED True",
+      "details": [
+        {"label": "Ready / Accepted", "value": "True / True"},
+        {"label": "Address", "value": "http://my-mcp-server.abc123-user1.svc.cluster.local:8080/mcp"},
+        {"label": "Port", "value": "8080"}
+      ]
+    },
+    {
+      "t": 190,
+      "target": {"x": 290, "y": 410, "w": 1010, "h": 130},
+      "caption": "The deployed server appears in the dashboard — Available",
+      "details": [
+        {"label": "MCP server", "value": "my-mcp-server"},
+        {"label": "Status", "value": "Available"},
+        {"label": "Service", "value": "View — the cluster-internal URL for service discovery"}
+      ]
+    },
+    {
+      "t": 248,
+      "target": {"x": 290, "y": 250, "w": 960, "h": 380},
+      "caption": "Scale with oc patch spec.runtime.replicas — servers are stateful by default",
+      "details": [
+        {"label": "Command", "value": "oc patch mcpserver my-mcp-server --type=merge -p '{\"spec\":{\"runtime\":{\"replicas\":3}}}'"},
+        {"label": "Stateful default", "value": "SessionAffinity ClientIP pins each client to one pod"},
+        {"label": "Stateless", "value": "set spec.mcp.stateless=true only if the server declares it"}
+      ]
+    },
+    {
+      "t": 270,
+      "target": {"x": 290, "y": 330, "w": 1010, "h": 380},
+      "caption": "The operator rolls out 3 replicas — all Running on CPU",
+      "details": [
+        {"label": "Replicas", "value": "3/3 Running"},
+        {"label": "Memory", "value": "~272 MB per pod"},
+        {"label": "Owner", "value": "the MCPServer CR owns every managed resource"}
+      ]
+    },
+    {
+      "t": 300,
+      "target": {"x": 370, "y": 215, "w": 540, "h": 290},
+      "caption": "Delete the CR — the operator cleans up every managed resource",
+      "details": [
+        {"label": "Confirm", "value": "type my-mcp-server"},
+        {"label": "Cleanup", "value": "Deployment, Service, NetworkPolicy removed automatically"},
+        {"label": "No manual cleanup", "value": "deleting the MCPServer CR is enough"}
+      ]
+    },
+    {
+      "t": 335,
+      "target": {"x": 290, "y": 400, "w": 1010, "h": 220},
+      "caption": "my-mcp-server is gone from the dashboard — lifecycle complete",
+      "details": [
+        {"label": "MCPServer", "value": "NotFound — deleted"},
+        {"label": "Managed resources", "value": "cleaned by the operator"},
+        {"label": "Remaining rows", "value": "other MCP servers from other users — untouched"}
+      ]
+    }
+  ]
+}

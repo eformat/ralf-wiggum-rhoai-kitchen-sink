@@ -44,3 +44,12 @@ About 60-90 minutes
 * xref:module-01-getting-started.adoc[Getting Started]
 * xref:module-02-hands-on.adoc[Hands-on Exercise]
 * xref:conclusion.adoc[Conclusion]
+
+== Watch the demo
+
+An interactive walkthrough of the MCP gateway Operator arc recorded on a live
+cluster — from the OperatorHub listing through the installed operator, the
+mcp.kuadrant.io CRDs, the Gateway with its MCP listener, the Ready
+`MCPGatewayExtension`, and the auto-created HTTPRoute and EnvoyFilter:
+
+link:_attachments/mcp-gateway-operator-demo.html[▶ Watch the demo — interactive walkthrough,window=_blank]

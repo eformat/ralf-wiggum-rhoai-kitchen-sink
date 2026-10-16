@@ -1,0 +1,222 @@
+{
+  "title": "MCP Gateway Operator (Tech Preview)",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 177,
+      "target": {
+        "x": 600,
+        "y": 400,
+        "w": 255,
+        "h": 225
+      },
+      "caption": "OperatorHub lists the MCP Gateway Operator (Tech Preview)",
+      "details": [
+        {
+          "label": "Source",
+          "value": "redhat-operators (preview channel)"
+        },
+        {
+          "label": "Provider",
+          "value": "Kuadrant"
+        },
+        {
+          "label": "Installed",
+          "value": "v0.7.1"
+        }
+      ]
+    },
+    {
+      "t": 217,
+      "target": {
+        "x": 280,
+        "y": 310,
+        "w": 900,
+        "h": 250
+      },
+      "caption": "The operator is installed \u2014 the CSV reports Succeeded",
+      "details": [
+        {
+          "label": "CSV",
+          "value": "mcp-gateway.v0.7.1 (Tech Preview)"
+        },
+        {
+          "label": "Status",
+          "value": "Succeeded \u2014 install strategy completed"
+        },
+        {
+          "label": "Provided APIs",
+          "value": "3 mcp.kuadrant.io CRDs"
+        }
+      ]
+    },
+    {
+      "t": 337,
+      "target": {
+        "x": 255,
+        "y": 370,
+        "w": 1430,
+        "h": 150
+      },
+      "caption": "The operator registers the mcp.kuadrant.io CRDs",
+      "details": [
+        {
+          "label": "MCPGatewayExtension",
+          "value": "v1alpha1 \u2014 Established"
+        },
+        {
+          "label": "MCPServerRegistration",
+          "value": "v1alpha1 \u2014 Established"
+        },
+        {
+          "label": "MCPVirtualServer",
+          "value": "v1alpha1 \u2014 Established"
+        }
+      ]
+    },
+    {
+      "t": 377,
+      "target": {
+        "x": 255,
+        "y": 795,
+        "w": 1430,
+        "h": 200
+      },
+      "caption": "Gateway mcp-gateway: Accepted True, Programmed True",
+      "details": [
+        {
+          "label": "GatewayClass",
+          "value": "openshift-ai-inference (cluster's accepted class)"
+        },
+        {
+          "label": "Address",
+          "value": "mcp-gateway-abc123-gateway.apps.cluster-lmg7d\u2026"
+        },
+        {
+          "label": "Conditions",
+          "value": "Accepted True \u00b7 Programmed True"
+        }
+      ]
+    },
+    {
+      "t": 422,
+      "target": {
+        "x": 285,
+        "y": 345,
+        "w": 1400,
+        "h": 510
+      },
+      "caption": "The mcp listener is in use by the MCP Gateway",
+      "details": [
+        {
+          "label": "MCPGatewayExtension",
+          "value": "abc123-mcp-system/mcp-gateway-one"
+        },
+        {
+          "label": "EnvoyFilter",
+          "value": "abc123-gateway/mcp-ext-proc-abc123-mcp-system-gateway"
+        },
+        {
+          "label": "ResolvedRefs",
+          "value": "True \u2014 No errors found"
+        }
+      ]
+    },
+    {
+      "t": 467,
+      "target": {
+        "x": 290,
+        "y": 265,
+        "w": 1580,
+        "h": 100
+      },
+      "caption": "MCPGatewayExtension mcp-gateway-one is Ready",
+      "details": [
+        {
+          "label": "Ready",
+          "value": "True \u2014 successfully verified and configured"
+        },
+        {
+          "label": "Namespace",
+          "value": "abc123-mcp-system"
+        },
+        {
+          "label": "Created",
+          "value": "16 Oct 2026, 12:54"
+        }
+      ]
+    },
+    {
+      "t": 517,
+      "target": {
+        "x": 285,
+        "y": 315,
+        "w": 1400,
+        "h": 680
+      },
+      "caption": "targetRef wires the extension to the Gateway's mcp listener",
+      "details": [
+        {
+          "label": "sectionName",
+          "value": "mcp \u2014 matches the Gateway listener name"
+        },
+        {
+          "label": "Gateway",
+          "value": "mcp-gateway \u00b7 abc123-gateway"
+        },
+        {
+          "label": "httpRouteManagement",
+          "value": "Enabled"
+        }
+      ]
+    },
+    {
+      "t": 577,
+      "target": {
+        "x": 255,
+        "y": 270,
+        "w": 1425,
+        "h": 420
+      },
+      "caption": "The extension auto-created the /mcp HTTPRoute",
+      "details": [
+        {
+          "label": "Hostname",
+          "value": "mcp.example.com"
+        },
+        {
+          "label": "Managed by",
+          "value": "mcp-gateway-controller"
+        },
+        {
+          "label": "parentRef",
+          "value": "Gateway mcp-gateway \u00b7 sectionName mcp"
+        }
+      ]
+    },
+    {
+      "t": 667,
+      "target": {
+        "x": 285,
+        "y": 315,
+        "w": 1400,
+        "h": 680
+      },
+      "caption": "The MCP router lands as an EnvoyFilter on the gateway",
+      "details": [
+        {
+          "label": "Kind",
+          "value": "EnvoyFilter \u00b7 networking.istio.io/v1alpha3"
+        },
+        {
+          "label": "Name",
+          "value": "mcp-ext-proc-abc123-mcp-system-gateway"
+        },
+        {
+          "label": "Managed by",
+          "value": "mcp-gateway-controller"
+        }
+      ]
+    }
+  ]
+}

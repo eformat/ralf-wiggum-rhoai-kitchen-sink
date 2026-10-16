@@ -36,6 +36,10 @@ template model that powers the dashboard's llm-d topology selector.
 
 About 2 hours
 
+== Watch the demo
+
+link:_attachments/llminferenceservice-config-demo.html[▶ Watch the demo — interactive walkthrough,window=_blank]
+
 == Get started
 
 * xref:getting-connected.adoc[Connect to your environment]

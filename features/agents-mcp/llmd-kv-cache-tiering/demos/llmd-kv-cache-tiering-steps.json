@@ -1,0 +1,136 @@
+{
+  "title": "Hierarchical KV Cache Tiering (llm-d) — cache-aware routing with a KV-cache router configuration",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 10,
+      "target": { "x": 280, "y": 250, "w": 1560, "h": 180 },
+      "caption": "Settings > llm-d routing configurations — the admin view: kv-cache-router-single-node is enabled with Single node topology and appears in the deployment wizard",
+      "details": [
+        { "label": "Page", "value": "Settings > llm-d routing configurations" },
+        { "label": "Config", "value": "kv-cache-router-single-node" },
+        { "label": "Label", "value": "opendatahub.io/config-type: router" },
+        { "label": "Module 02 Exercise 1", "value": "Explore a KV-cache-aware router configuration" }
+      ]
+    },
+    {
+      "t": 42,
+      "target": { "x": 280, "y": 360, "w": 1560, "h": 220 },
+      "caption": "The model serving project: three llm-d deployments — maas-llmd-demo, sample-llm-inference-service, and the kv-cache-router-demo this walkthrough creates",
+      "details": [
+        { "label": "Page", "value": "Projects > abc123-user1 > Deployments" },
+        { "label": "Deployments", "value": "maas-llmd-demo + sample-llm-inference-service" },
+        { "label": "Next", "value": "Deploy model opens the llm-d wizard" },
+        { "label": "Module 01 Exercise 3", "value": "Confirm your environment is ready" }
+      ]
+    },
+    {
+      "t": 54,
+      "target": { "x": 600, "y": 260, "w": 700, "h": 260 },
+      "caption": "Deploy a model wizard — Model details: Existing connection + Generative AI model",
+      "details": [
+        { "label": "Page", "value": "Deploy a model > Model details" },
+        { "label": "Model location", "value": "Existing connection" },
+        { "label": "Model type", "value": "Generative AI model (Example, LLM)" },
+        { "label": "Connection", "value": "modelcar-catalog" }
+      ]
+    },
+    {
+      "t": 78,
+      "target": { "x": 600, "y": 700, "w": 1250, "h": 260 },
+      "caption": "Model location — OCI ModelCar URI: oci://quay.io/redhat-ai-services/modelcar-catalog:qwen2.5-0.5b-instruct",
+      "details": [
+        { "label": "Connection", "value": "modelcar-catalog (quay.io)" },
+        { "label": "Model URI", "value": "oci://quay.io/redhat-ai-services/modelcar-catalog:qwen2.5-0.5b-instruct" },
+        { "label": "ModelCar", "value": "OCI connections deploy models packaged as ModelCars" }
+      ]
+    },
+    {
+      "t": 102,
+      "target": { "x": 280, "y": 260, "w": 1560, "h": 600 },
+      "caption": "Deployment method — LLM inference service with llm-d; name kv-cache-router-demo; Topology Single node with the Single node (default) configuration",
+      "details": [
+        { "label": "Method", "value": "LLM inference service with llm-d (selected)" },
+        { "label": "Name", "value": "kv-cache-router-demo" },
+        { "label": "Topology", "value": "Single node / Single node (default)" },
+        { "label": "Hardware profile", "value": "default-profile" }
+      ]
+    },
+    {
+      "t": 114,
+      "target": { "x": 280, "y": 640, "w": 1560, "h": 200 },
+      "caption": "Advanced routing — the Router configuration list offers kv-cache-router-single-node: selecting it replaces the default optimized routing with the cache-aware scorer profile",
+      "details": [
+        { "label": "Routing", "value": "kv-cache-router-single-node (selected)" },
+        { "label": "Effect", "value": "prefix-cache-scorer weight 100 + queue-scorer weight 50" },
+        { "label": "Alternative", "value": "Default optimized routing (built-in 2:2:3:2 profile)" },
+        { "label": "Module 02 Exercise 2", "value": "Select a router config with KV cache-aware scheduling" }
+      ]
+    },
+    {
+      "t": 138,
+      "target": { "x": 500, "y": 100, "w": 1250, "h": 850 },
+      "caption": "Review — Routing: kv-cache-router-single-node; token authentication on; Deploy model creates the LLMInferenceService",
+      "details": [
+        { "label": "Routing", "value": "kv-cache-router-single-node" },
+        { "label": "Token authentication", "value": "Yes" },
+        { "label": "Project", "value": "abc123-user1" },
+        { "label": "Create", "value": "Deploy model button" }
+      ]
+    },
+    {
+      "t": 174,
+      "target": { "x": 280, "y": 340, "w": 1560, "h": 220 },
+      "caption": "Deployment created — LLMInferenceService kv-cache-router-demo lists on the Deployments tab; on this CPU-only cluster the status stays Pending (honest: model pods need GPU nodes)",
+      "details": [
+        { "label": "Deployment", "value": "kv-cache-router-demo" },
+        { "label": "Status", "value": "Pending (CPU-only cluster)" },
+        { "label": "RouterReady / SchedulerWorkloadReady", "value": "True / True" },
+        { "label": "Module 02 Exercise 2", "value": "Verify the router was attached" }
+      ]
+    },
+    {
+      "t": 250,
+      "target": { "x": 380, "y": 200, "w": 1460, "h": 760 },
+      "caption": "Console YAML — the router config carries the EndpointPickerConfig inline: prefix-cache-scorer + queue-scorer with scheduling profile weights 100:50",
+      "details": [
+        { "label": "apiVersion", "value": "llm-d.ai/v1alpha1" },
+        { "label": "plugins", "value": "prefix-cache-scorer, queue-scorer" },
+        { "label": "schedulingProfiles", "value": "default (prefix-cache 100, queue 50)" },
+        { "label": "Label", "value": "opendatahub.io/config-type: router" }
+      ]
+    },
+    {
+      "t": 338,
+      "target": { "x": 380, "y": 200, "w": 1460, "h": 760 },
+      "caption": "Generated LLMInferenceService YAML — spec.baseRefs lists kv-cache-router-single-node after the wizard attach; the model URI is the OCI ModelCar",
+      "details": [
+        { "label": "baseRefs", "value": "kv-cache-router-single-node" },
+        { "label": "model.uri", "value": "oci://quay.io/redhat-ai-services/modelcar-catalog:qwen2.5-0.5b-instruct" },
+        { "label": "Module 02 Exercise 2", "value": "Verify baseRefs lists the selected router configuration" }
+      ]
+    },
+    {
+      "t": 398,
+      "target": { "x": 380, "y": 280, "w": 1460, "h": 680 },
+      "caption": "The Endpoint Picker pod is Running and loaded the cache-aware profile — logs show Scorers: prefix-cache-scorer 100.0, queue-scorer 50.0",
+      "details": [
+        { "label": "Pod", "value": "kv-cache-router-demo-kserve-router-scheduler" },
+        { "label": "Status", "value": "Running 1/1" },
+        { "label": "Scorer weights", "value": "prefix-cache-scorer 100.0, queue-scorer 50.0" },
+        { "label": "Picker", "value": "max-score-picker (single-profile-handler)" }
+      ]
+    },
+    {
+      "t": 434,
+      "target": { "x": 380, "y": 200, "w": 1460, "h": 780 },
+      "caption": "The cache metric is live: llm_d_epp_prefix_indexer_size scraped from the EPP into user-workload monitoring — the prefix index is empty (0) because no inference traffic has been processed on this CPU-only cluster",
+      "details": [
+        { "label": "Metric", "value": "llm_d_epp_prefix_indexer_size" },
+        { "label": "Value", "value": "0 — no inference traffic yet" },
+        { "label": "Series", "value": "kv-cache-router-demo-epp-service" },
+        { "label": "Module 02 Exercise 3", "value": "Observe KV cache behavior with metrics" }
+      ]
+    }
+  ]
+}

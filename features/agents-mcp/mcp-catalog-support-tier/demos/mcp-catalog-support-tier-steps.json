@@ -1,0 +1,94 @@
+{
+  "title": "MCP Catalog support tiers — deploy a Red Hat-supported MCP server",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 10,
+      "target": { "x": 615, "y": 465, "w": 375, "h": 330 },
+      "caption": "Every MCP server card in the AI Hub MCP Catalog carries a support tier — Red Hat, Partner, or Community — telling you who maintains and supports the server.",
+      "details": [
+        { "label": "Support tiers", "value": "Red Hat · Partner · Community" },
+        { "label": "Red Hat tier", "value": "Fully supported by Red Hat" },
+        { "label": "Filter options", "value": "deployment mode, transports, license, labels" }
+      ]
+    },
+    {
+      "t": 40,
+      "target": { "x": 700, "y": 320, "w": 250, "h": 60 },
+      "caption": "Filter the catalog by support tier — the Red Hat tier lists the servers that are fully supported by Red Hat.",
+      "details": [
+        { "label": "Filter", "value": "Red Hat MCP servers" },
+        { "label": "Result", "value": "openshift-mcp-server · aap-mcp-server · insights-mcp-server" }
+      ]
+    },
+    {
+      "t": 70,
+      "target": { "x": 1360, "y": 350, "w": 440, "h": 460 },
+      "caption": "Open the server details — review the provider, the tools the server exposes, and whether it requires a service account.",
+      "details": [
+        { "label": "Server", "value": "openshift-mcp-server" },
+        { "label": "Provider", "value": "Red Hat" },
+        { "label": "Tools", "value": "pods, events, config — read-only toolsets" }
+      ]
+    },
+    {
+      "t": 90,
+      "target": { "x": 560, "y": 95, "w": 815, "h": 895 },
+      "caption": "Deploy MCP server — the deployment dialog prefills the YAML from the catalog's server metadata; edit as needed.",
+      "details": [
+        { "label": "Deployment name", "value": "openshift-mcp-server-demo" },
+        { "label": "Project", "value": "abc123-user1" },
+        { "label": "Prefilled YAML", "value": "runtime.security.serviceAccountName + config + storage" }
+      ]
+    },
+    {
+      "t": 160,
+      "target": { "x": 540, "y": 420, "w": 1200, "h": 170 },
+      "caption": "The operator reports honest conditions: Accepted=False — the prefilled YAML references a ConfigMap the project does not have yet.",
+      "details": [
+        { "label": "Ready", "value": "False — ConfigurationInvalid" },
+        { "label": "Accepted", "value": "False — Invalid" },
+        { "label": "Message", "value": "ConfigMap 'openshift-mcp-server-config' not found in namespace" }
+      ]
+    },
+    {
+      "t": 252,
+      "target": { "x": 560, "y": 95, "w": 815, "h": 895 },
+      "caption": "Fix the YAML: remove the missing ConfigMap storage block and keep the service account — created beforehand with oc create sa mcp-viewer.",
+      "details": [
+        { "label": "Edited YAML", "value": "runtime + config only, storage block removed" },
+        { "label": "ServiceAccount", "value": "mcp-viewer (oc create sa mcp-viewer)" }
+      ]
+    },
+    {
+      "t": 280,
+      "target": { "x": 540, "y": 420, "w": 1200, "h": 170 },
+      "caption": "Status Available — the MCP Lifecycle Operator provisioned the MCPServer custom resource, the Deployment, and the Service.",
+      "details": [
+        { "label": "Ready", "value": "True" },
+        { "label": "Accepted", "value": "True" },
+        { "label": "Address", "value": "http://openshift-mcp-server-demo.abc123-user1.svc.cluster.local:8080/mcp" }
+      ]
+    },
+    {
+      "t": 375,
+      "target": { "x": 600, "y": 285, "w": 1140, "h": 210 },
+      "caption": "In the OpenShift console, the MCPServer custom resource shows READY and ACCEPTED True for the deployed server.",
+      "details": [
+        { "label": "MCPServer", "value": "openshift-mcp-server-demo" },
+        { "label": "Ready / Accepted", "value": "True / True" },
+        { "label": "Image", "value": "openshift-mcp-server-rhel9:0.4" }
+      ]
+    },
+    {
+      "t": 465,
+      "target": { "x": 420, "y": 460, "w": 1440, "h": 260 },
+      "caption": "The CR's status conditions confirm the server: Accepted=True (Configuration is valid) and Ready=True — the operator turned the catalog card into a running workload.",
+      "details": [
+        { "label": "Accepted", "value": "True — Configuration is valid" },
+        { "label": "Ready", "value": "True" },
+        { "label": "serverInfo", "value": "kubernetes-mcp-server · protocol 2025-11-25" }
+      ]
+    }
+  ]
+}

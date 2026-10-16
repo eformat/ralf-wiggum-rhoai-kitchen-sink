@@ -1,0 +1,126 @@
+{
+  "title": "vLLM model deployment directly through MaaS — deploy, publish, govern",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 30,
+      "target": { "x": 300, "y": 780, "w": 420, "h": 160 },
+      "caption": "Module 01 — Enable the Technology Preview vLLM deployment on MaaS flag",
+      "details": [
+        { "label": "Flag", "value": "vLLMDeploymentOnMaaS: true" },
+        { "label": "Where", "value": "spec.dashboardConfig in the OdhDashboardConfig resource" },
+        { "label": "Effect", "value": "adds the vLLM-based deployment resources to the model deployment wizard" }
+      ]
+    },
+    {
+      "t": 75,
+      "target": { "x": 300, "y": 525, "w": 560, "h": 165 },
+      "caption": "Verify the MaaS platform is enabled in the DataScienceCluster",
+      "details": [
+        { "label": "kserve", "value": "Managed" },
+        { "label": "aigateway (MaaS platform)", "value": "Managed" },
+        { "label": "Note", "value": "on 3.5.1 MaaS is governed by the aigateway component" }
+      ]
+    },
+    {
+      "t": 105,
+      "target": { "x": 300, "y": 270, "w": 1520, "h": 95 },
+      "caption": "The MaaS API service is running in the MaaS infrastructure namespace",
+      "details": [
+        { "label": "Namespace", "value": "redhat-ai-gateway-infra (from MaasTenantConfig default-tenant)" },
+        { "label": "maas-api", "value": "Running 1/1" },
+        { "label": "Gateway", "value": "maas-default-gateway in openshift-ingress, Programmed True" }
+      ]
+    },
+    {
+      "t": 170,
+      "target": { "x": 550, "y": 300, "w": 520, "h": 640 },
+      "caption": "Module 02 — Deploy a vLLM model from an existing OCI connection",
+      "details": [
+        { "label": "Model location", "value": "Existing connection — modelcar-catalog" },
+        { "label": "Model URI", "value": "oci://quay.io/redhat-ai-services/modelcar-catalog:qwen2.5-0.5b-instruct" },
+        { "label": "Model type", "value": "Generative AI model (Example, LLM)" }
+      ]
+    },
+    {
+      "t": 200,
+      "target": { "x": 590, "y": 880, "w": 1100, "h": 190 },
+      "caption": "Technology Preview — the vLLM-based deployment resources appear in the wizard",
+      "details": [
+        { "label": "Selected resource", "value": "vLLM NVIDIA CUDA GPU LLMInferenceServiceConfig Single Node" },
+        { "label": "Gated by", "value": "the vLLMDeploymentOnMaaS dashboard flag" },
+        { "label": "Note", "value": "vLLM runtime support for MaaS is Technology Preview" }
+      ]
+    },
+    {
+      "t": 245,
+      "target": { "x": 550, "y": 245, "w": 830, "h": 175 },
+      "caption": "Publish as MaaS registers the model with the gateway",
+      "details": [
+        { "label": "Option", "value": "Publish as MaaS" },
+        { "label": "Creates", "value": "a MaaSModelRef object in your project" },
+        { "label": "Important", "value": "publishing alone does not give access — subscription and policy come first" }
+      ]
+    },
+    {
+      "t": 260,
+      "target": { "x": 550, "y": 195, "w": 700, "h": 660 },
+      "caption": "Review — Model format vLLM, MaaS endpoint: Yes",
+      "details": [
+        { "label": "Model format", "value": "vLLM" },
+        { "label": "Accelerator configuration", "value": "vLLM NVIDIA CUDA GPU LLMInferenceServiceConfig Single Node" },
+        { "label": "MaaS endpoint", "value": "Yes" }
+      ]
+    },
+    {
+      "t": 300,
+      "target": { "x": 300, "y": 385, "w": 1590, "h": 75 },
+      "caption": "The deployed model appears on the Deployments tab — status Starting",
+      "details": [
+        { "label": "Status", "value": "Starting — honest on this CPU-only cluster" },
+        { "label": "Why", "value": "the vLLM NVIDIA CUDA resource pulls the CUDA runtime image and only becomes Ready on GPU hardware" },
+        { "label": "Still wired", "value": "the router is already pointed at maas-default-gateway" }
+      ]
+    },
+    {
+      "t": 380,
+      "target": { "x": 300, "y": 800, "w": 800, "h": 210 },
+      "caption": "The wizard created an LLMInferenceService wired to the MaaS gateway",
+      "details": [
+        { "label": "Kind", "value": "LLMInferenceService (serving.kserve.io v1alpha2)" },
+        { "label": "model.uri", "value": "oci://quay.io/redhat-ai-services/modelcar-catalog:qwen2.5-0.5b-instruct" },
+        { "label": "router.gateway", "value": "maas-default-gateway (openshift-ingress)" }
+      ]
+    },
+    {
+      "t": 440,
+      "target": { "x": 300, "y": 340, "w": 1590, "h": 60 },
+      "caption": "Publish as MaaS created a MaaSModelRef in the project",
+      "details": [
+        { "label": "maas-vllm-demo", "value": "Pending" },
+        { "label": "HTTPRoute", "value": "maas-vllm-demo-kserve-route" },
+        { "label": "Gateway", "value": "maas-default-gateway" }
+      ]
+    },
+    {
+      "t": 502,
+      "target": { "x": 300, "y": 270, "w": 650, "h": 660 },
+      "caption": "Module 02 — Grant access with a subscription and an authorization policy",
+      "details": [
+        { "label": "MaaSSubscription", "value": "workshop-model-subscription (tokenRateLimits 100000/1m)" },
+        { "label": "MaaSAuthPolicy", "value": "workshop-model-access" },
+        { "label": "Group", "value": "workshop-users" }
+      ]
+    },
+    {
+      "t": 547,
+      "target": { "x": 300, "y": 338, "w": 1590, "h": 62 },
+      "caption": "The MaaS controller generated the per-model token rate-limit policy",
+      "details": [
+        { "label": "maas-trlp-maas-vllm-demo", "value": "Accepted True, Enforced True" },
+        { "label": "Target", "value": "HTTPRoute maas-vllm-demo-kserve-route" },
+        { "label": "Note", "value": "gateway auth is enforced by the tenant-level MaaSAuthPolicy" }
+      ]
+    }
+  ]
+}

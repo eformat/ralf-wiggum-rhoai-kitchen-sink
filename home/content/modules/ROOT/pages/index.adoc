@@ -28,13 +28,13 @@ the kustomize `cluster/` config and which overlays each lab needs.
 
 |xref:validated-tool-calling-config::index.adoc[Validated tool-calling configuration in Model Catalog] |TP |xref:validated-tool-calling-config::index.adoc[Start →] |—
 
-|xref:mcp-catalog-support-tier::index.adoc[MCP Catalog support-tier labeling] |TP |xref:mcp-catalog-support-tier::index.adoc[Start →] |—
+|xref:mcp-catalog-support-tier::index.adoc[MCP Catalog support-tier labeling] |TP |xref:mcp-catalog-support-tier::index.adoc[Start →] |link:../mcp-catalog-support-tier/_attachments/mcp-catalog-support-tier-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:mcp-lifecycle-operator::index.adoc[MCP Lifecycle Operator] |TP |xref:mcp-lifecycle-operator::index.adoc[Start →] |—
+|xref:mcp-lifecycle-operator::index.adoc[MCP Lifecycle Operator] |TP |xref:mcp-lifecycle-operator::index.adoc[Start →] |link:../mcp-lifecycle-operator/_attachments/mcp-lifecycle-operator-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:mcp-gateway-operator::index.adoc[MCP gateway Operator] |TP |xref:mcp-gateway-operator::index.adoc[Start →] |—
+|xref:mcp-gateway-operator::index.adoc[MCP gateway Operator] |TP |xref:mcp-gateway-operator::index.adoc[Start →] |link:../mcp-gateway-operator/_attachments/mcp-gateway-operator-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:ogx-agentic-api::index.adoc[OGX-native agentic API surface (Tool Runtime, Responses, Conversations)] |TP |xref:ogx-agentic-api::index.adoc[Start →] |—
+|xref:ogx-agentic-api::index.adoc[OGX-native agentic API surface (Tool Runtime, Responses, Conversations)] |TP |xref:ogx-agentic-api::index.adoc[Start →] |link:../ogx-agentic-api/_attachments/ogx-agentic-api-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:agent-catalog-ai-hub::index.adoc[Agent Catalog in AI Hub] |DP |xref:agent-catalog-ai-hub::index.adoc[Start →] |—
 
@@ -58,7 +58,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 
 |xref:mcp-catalog-admin::index.adoc[MCP Catalog administrative interface] |DP |xref:mcp-catalog-admin::index.adoc[Start →] |—
 
-|xref:ogx-file-processors::index.adoc[OGX File Processors API] |DP |xref:ogx-file-processors::index.adoc[Start →] |—
+|xref:ogx-file-processors::index.adoc[OGX File Processors API] |DP |xref:ogx-file-processors::index.adoc[Start →] |link:../ogx-file-processors/_attachments/ogx-file-processors-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:ogx-remote-providers::index.adoc[OGX remote::anthropic and remote::gemini providers] |DP |xref:ogx-remote-providers::index.adoc[Start →] |—
 
@@ -66,11 +66,11 @@ the kustomize `cluster/` config and which overlays each lab needs.
 
 |xref:external-metering-per-user::index.adoc[External metering: per-user token usage and cost] |DP |xref:external-metering-per-user::index.adoc[Start →] |—
 
-|xref:llmd-kv-cache-tiering::index.adoc[Hierarchical KV Cache Tiering (llm-d)] |DP |xref:llmd-kv-cache-tiering::index.adoc[Start →] |—
+|xref:llmd-kv-cache-tiering::index.adoc[Hierarchical KV Cache Tiering (llm-d)] |DP |xref:llmd-kv-cache-tiering::index.adoc[Start →] |link:../llmd-kv-cache-tiering/_attachments/llmd-kv-cache-tiering-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:llmd-latency-routing::index.adoc[Latency-aware routing for llm-d] |DP |xref:llmd-latency-routing::index.adoc[Start →] |—
+|xref:llmd-latency-routing::index.adoc[Latency-aware routing for llm-d] |DP |xref:llmd-latency-routing::index.adoc[Start →] |link:../llmd-latency-routing/_attachments/llmd-latency-routing-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:llmd-lora-routing::index.adoc[LoRA-aware routing for llm-d] |DP |xref:llmd-lora-routing::index.adoc[Start →] |—
+|xref:llmd-lora-routing::index.adoc[LoRA-aware routing for llm-d] |DP |xref:llmd-lora-routing::index.adoc[Start →] |link:../llmd-lora-routing/_attachments/llmd-lora-routing-demo.html[▶ Walkthrough,window=_blank]
 
 |===
 
@@ -148,7 +148,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 
 |xref:maas-multi-provider-passthrough::index.adoc[Multi-provider API passthrough for external models (MaaS)] |TP |xref:maas-multi-provider-passthrough::index.adoc[Start →] |—
 
-|xref:maas-vllm-deployment::index.adoc[vLLM model deployment directly through MaaS] |TP |xref:maas-vllm-deployment::index.adoc[Start →] |—
+|xref:maas-vllm-deployment::index.adoc[vLLM model deployment directly through MaaS] |TP |xref:maas-vllm-deployment::index.adoc[Start →] |link:../maas-vllm-deployment/_attachments/maas-vllm-deployment-demo.html[▶ Walkthrough,window=_blank]
 
 |===
 
@@ -166,17 +166,17 @@ the kustomize `cluster/` config and which overlays each lab needs.
 |===
 |Feature |Maturity |Workshop |Arcade
 
-|xref:llmd-core::index.adoc[Distributed Inference with llm-d (core)] |GA |xref:llmd-core::index.adoc[Start →] |—
+|xref:llmd-core::index.adoc[Distributed Inference with llm-d (core)] |GA |xref:llmd-core::index.adoc[Start →] |link:../llmd-core/_attachments/llmd-core-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:llmd-priority-flow-control::index.adoc[Distributed Inference with llm-d: priority-based flow control] |GA |xref:llmd-priority-flow-control::index.adoc[Start →] |—
+|xref:llmd-priority-flow-control::index.adoc[Distributed Inference with llm-d: priority-based flow control] |GA |xref:llmd-priority-flow-control::index.adoc[Start →] |link:../llmd-priority-flow-control/_attachments/llmd-priority-flow-control-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:llminferenceservice-config::index.adoc[LLMInferenceService / LLMInferenceServiceConfig (llm-d-native)] |GA |xref:llminferenceservice-config::index.adoc[Start →] |—
+|xref:llminferenceservice-config::index.adoc[LLMInferenceService / LLMInferenceServiceConfig (llm-d-native)] |GA |xref:llminferenceservice-config::index.adoc[Start →] |link:../llminferenceservice-config/_attachments/llminferenceservice-config-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:rhai-fast-release-images::index.adoc[Red Hat AI Inference fast-release images as custom ServingRuntime] |GA |xref:rhai-fast-release-images::index.adoc[Start →] |—
+|xref:rhai-fast-release-images::index.adoc[Red Hat AI Inference fast-release images as custom ServingRuntime] |GA |xref:rhai-fast-release-images::index.adoc[Start →] |link:../rhai-fast-release-images/_attachments/rhai-fast-release-images-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:vllm-cpu-ibm-z-power::index.adoc[vLLM CPU ServingRuntime on IBM Z / Power] |GA |xref:vllm-cpu-ibm-z-power::index.adoc[Start →] |—
 
-|xref:vllm-serving-runtime-kserve::index.adoc[vLLM ServingRuntime for KServe] |GA |xref:vllm-serving-runtime-kserve::index.adoc[Start →] |—
+|xref:vllm-serving-runtime-kserve::index.adoc[vLLM ServingRuntime for KServe] |GA |xref:vllm-serving-runtime-kserve::index.adoc[Start →] |link:../vllm-serving-runtime-kserve/_attachments/vllm-serving-runtime-kserve-demo.html[▶ Walkthrough,window=_blank]
 
 |===
 
@@ -185,7 +185,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 |===
 |Feature |Maturity |Workshop |Arcade
 
-|xref:llama-stack-ogx-core::index.adoc[Llama Stack / OGX core: RAG, agentic workflows, vector DB integration] |GA |xref:llama-stack-ogx-core::index.adoc[Start →] |—
+|xref:llama-stack-ogx-core::index.adoc[Llama Stack / OGX core: RAG, agentic workflows, vector DB integration] |GA |xref:llama-stack-ogx-core::index.adoc[Start →] |link:../llama-stack-ogx-core/_attachments/llama-stack-ogx-core-demo.html[▶ Walkthrough,window=_blank]
 
 |===
 

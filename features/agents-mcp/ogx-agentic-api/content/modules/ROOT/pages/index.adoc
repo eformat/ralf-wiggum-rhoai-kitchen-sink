@@ -39,3 +39,7 @@ About 2 hours
 * xref:module-02-hands-on.adoc[Module 02: Responses and Conversations hands-on]
 * xref:module-03-advanced.adoc[Module 03: RAG, citations, and advanced APIs]
 * xref:conclusion.adoc[Conclusion]
+
+== Watch the demo
+
+link:_attachments/ogx-agentic-api-demo.html[▶ Watch the demo — interactive walkthrough,window=_blank]

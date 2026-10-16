@@ -1,0 +1,135 @@
+{
+  "title": "Gateway API + Red Hat Connectivity Link — expose an API, attach policies, enforce zero-trust defaults",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 5,
+      "target": { "x": 290, "y": 290, "w": 1600, "h": 800 },
+      "caption": "Installed Operators — Red Hat Connectivity Link 1.4.3 and its bundled operators, with the plugin's Connectivity Link menu in the sidebar",
+      "details": [
+        { "label": "Page", "value": "Ecosystem > Installed Operators (Project: kuadrant-system)" },
+        { "label": "Connectivity Link", "value": "1.4.3 — Succeeded (rhcl-operator)" },
+        { "label": "Bundled operators", "value": "Authorino 1.4.3 · DNS 1.4.2 · Limitador 1.4.2" },
+        { "label": "Console plugin", "value": "Connectivity Link + API Catalog nav items (module-01 payoff)" }
+      ]
+    },
+    {
+      "t": 33,
+      "target": { "x": 300, "y": 440, "w": 1600, "h": 520 },
+      "caption": "Connectivity Link Overview (console plugin) — gateway fleet status for abc123-gateway",
+      "details": [
+        { "label": "Page", "value": "Connectivity Link > Overview (plugin route /kuadrant/overview)" },
+        { "label": "Gateways", "value": "2 Total · 1 Healthy · 1 Unhealthy" },
+        { "label": "ingress-gateway", "value": "Unknown — LoadBalancer address pending (honest, no-LB cluster)" },
+        { "label": "mcp-gateway", "value": "Enforced (sibling mcp-gateway-operator demo)" }
+      ]
+    },
+    {
+      "t": 48,
+      "target": { "x": 300, "y": 620, "w": 820, "h": 360 },
+      "caption": "Gateway-level policies attached in abc123-gateway — the module's platform-engineer defaults",
+      "details": [
+        { "label": "AuthPolicy ingress-gateway-auth", "value": "Overridden (Not Enforced) — route-level policy wins" },
+        { "label": "RateLimitPolicy ingress-gateway-rlp", "value": "Overridden (Not Enforced) — route-level policy wins" },
+        { "label": "TLSPolicy ingress-gateway-tls", "value": "Enforced" },
+        { "label": "TokenRateLimitPolicy llm-protection", "value": "Enforced" }
+      ]
+    },
+    {
+      "t": 68,
+      "target": { "x": 290, "y": 300, "w": 1600, "h": 620 },
+      "caption": "Kuadrant CR — the Connectivity Link control plane is Ready",
+      "details": [
+        { "label": "Page", "value": "kuadrant-system > Kuadrant > kuadrant" },
+        { "label": "Status", "value": "Ready" },
+        { "label": "Condition", "value": "Ready=True — \"Kuadrant is ready\"" },
+        { "label": "Namespace", "value": "kuadrant-system (system namespace for keys + AuthConfigs)" }
+      ]
+    },
+    {
+      "t": 88,
+      "target": { "x": 290, "y": 200, "w": 1600, "h": 310 },
+      "caption": "Component pods Running — Authorino (authn/authz) and Limitador (rate limiting)",
+      "details": [
+        { "label": "authorino", "value": "1/1 Running, 0 restarts" },
+        { "label": "limitador", "value": "1/1 Running, 0 restarts" },
+        { "label": "Control-plane operators", "value": "cluster-wide in openshift-operators (global install on this cluster)" }
+      ]
+    },
+    {
+      "t": 118,
+      "target": { "x": 290, "y": 230, "w": 1600, "h": 260 },
+      "caption": "Gateways in abc123-gateway — the module's ingress-gateway on data-science-gateway-class",
+      "details": [
+        { "label": "ingress-gateway", "value": "data-science-gateway-class · Programmed False (address pending)" },
+        { "label": "mcp-gateway", "value": "openshift-ai-inference class · Programmed True (external hostname)" },
+        { "label": "Class note", "value": "openshift-default absent on lmg7d — module NOTE documents data-science-gateway-class" }
+      ]
+    },
+    {
+      "t": 148,
+      "target": { "x": 290, "y": 840, "w": 1590, "h": 240 },
+      "caption": "Gateway conditions — Accepted=True; Programmed=False is the documented no-LoadBalancer state",
+      "details": [
+        { "label": "Accepted", "value": "True — Resource accepted" },
+        { "label": "Programmed", "value": "False AddressNotAssigned — external address pending for the hostname" },
+        { "label": "Honest framing", "value": "reportable state on RHDP/no-LB clusters; data plane verified in-cluster" },
+        { "label": "Policy wiring", "value": "all four kuadrant.io/*Affected conditions True" }
+      ]
+    },
+    {
+      "t": 170,
+      "target": { "x": 290, "y": 280, "w": 1600, "h": 320 },
+      "caption": "Connectivity Link Policies tab — every policy attached to this gateway, live",
+      "details": [
+        { "label": "Defaults", "value": "AuthPolicy + RateLimitPolicy: Overridden (Not Enforced) — route-level overrides win" },
+        { "label": "Enforced", "value": "TLSPolicy + TokenRateLimitPolicy: Enforced" },
+        { "label": "Plugin payoff", "value": "this tab is added to Gateway and HTTPRoute pages" }
+      ]
+    },
+    {
+      "t": 192,
+      "target": { "x": 320, "y": 580, "w": 1560, "h": 470 },
+      "caption": "Gateway YAML — listener api.example.com:443 with TLS Terminate and allowedRoutes: All",
+      "details": [
+        { "label": "gatewayClassName", "value": "data-science-gateway-class (module-02 NOTE for no-LB clusters)" },
+        { "label": "Listener", "value": "api.example.com · port 443 · HTTPS · mode Terminate" },
+        { "label": "Certificate", "value": "Secret api-ingress-gateway-tls (issued by the TLSPolicy)" },
+        { "label": "Marked for policy", "value": "kuadrant.io/gateway: \"true\"" }
+      ]
+    },
+    {
+      "t": 210,
+      "target": { "x": 290, "y": 320, "w": 1600, "h": 680 },
+      "caption": "TLSPolicy — cert-manager issued the listener certificate",
+      "details": [
+        { "label": "Accepted", "value": "True — TLSPolicy has been accepted" },
+        { "label": "Enforced", "value": "True — successfully enforced" },
+        { "label": "TargetRef", "value": "Gateway ingress-gateway (abc123-gateway)" },
+        { "label": "Issuer", "value": "ClusterIssuer self-signed (module-02 exercise)" }
+      ]
+    },
+    {
+      "t": 228,
+      "target": { "x": 290, "y": 330, "w": 1600, "h": 210 },
+      "caption": "Route-level policies on the toystore HTTPRoute — the application-developer override",
+      "details": [
+        { "label": "toystore-auth", "value": "API-key authentication — Enforced" },
+        { "label": "toystore-rlp", "value": "per-user rate limits — Enforced" },
+        { "label": "Verified in-cluster", "value": "unauthenticated 401 · valid key 200 · alice 429 on call 6 (5/10s) · bob 429 on call 3 (2/10s)" },
+        { "label": "Drift note", "value": "RHCL 1.4.3 drops credentials.authorizationHeader — keys default to Bearer, not the module's APIKEY prefix" }
+      ]
+    },
+    {
+      "t": 260,
+      "target": { "x": 290, "y": 280, "w": 1600, "h": 720 },
+      "caption": "TokenRateLimitPolicy — token-consumption limits for LLM inference traffic, enforced on the gateway",
+      "details": [
+        { "label": "llm-protection", "value": "Accepted=True · Enforced=True" },
+        { "label": "Limit", "value": "10000 tokens / 24h per user on /v1/chat/completions" },
+        { "label": "How it works", "value": "Limitador extracts usage.total_tokens from OpenAI-style responses as hits_addend" },
+        { "label": "TargetRef", "value": "Gateway ingress-gateway" }
+      ]
+    }
+  ]
+}

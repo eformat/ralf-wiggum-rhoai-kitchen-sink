@@ -1,0 +1,128 @@
+{
+  "title": "Distributed Inference with llm-d — where the feature lives and the CRDs behind it",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 3,
+      "target": { "x": 350, "y": 280, "w": 1520, "h": 320 },
+      "caption": "Data Science Projects — the model serving project",
+      "details": [
+        { "label": "Page", "value": "Projects > abc123-user1 > Deployments" },
+        { "label": "Deployments", "value": "maas-llmd-demo + sample-llm-inference-service" },
+        { "label": "Next", "value": "Deploy model opens the llm-d wizard" }
+      ]
+    },
+    {
+      "t": 20,
+      "target": { "x": 540, "y": 240, "w": 640, "h": 220 },
+      "caption": "Deploy model wizard — Model details: location + model type",
+      "details": [
+        { "label": "Page", "value": "Deploy a model > Model details" },
+        { "label": "Model location", "value": "Existing connection" },
+        { "label": "Model type", "value": "Generative AI model" }
+      ]
+    },
+    {
+      "t": 45,
+      "target": { "x": 500, "y": 470, "w": 1380, "h": 340 },
+      "caption": "Model details — OCI model location via ModelCar",
+      "details": [
+        { "label": "Connection", "value": "modelcar-catalog (quay.io)" },
+        { "label": "Model URI", "value": "oci://quay.io/redhat-ai-services/modelcar-catalog:qwen2.5-0.5b-instruct" },
+        { "label": "Model type", "value": "Generative AI model (Example, LLM)" }
+      ]
+    },
+    {
+      "t": 72,
+      "target": { "x": 500, "y": 490, "w": 1400, "h": 240 },
+      "caption": "Deployment method — LLM inference service with llm-d",
+      "details": [
+        { "label": "Method", "value": "LLM inference service with llm-d (selected)" },
+        { "label": "Effect", "value": "Distributed serving + advanced routing" },
+        { "label": "Alternatives", "value": "LLM inference service · Inference service" }
+      ]
+    },
+    {
+      "t": 95,
+      "target": { "x": 500, "y": 730, "w": 1400, "h": 350 },
+      "caption": "Topology type Single node — validated deployment patterns",
+      "details": [
+        { "label": "Topology type", "value": "Single node" },
+        { "label": "Configuration", "value": "Single node (default)" },
+        { "label": "Hardware profile", "value": "default-profile (2 CPU / 4 GiB)" },
+        { "label": "Routing", "value": "Default optimized routing" }
+      ]
+    },
+    {
+      "t": 140,
+      "target": { "x": 900, "y": 520, "w": 400, "h": 180 },
+      "caption": "Settings — llm-d topology configurations (admin view)",
+      "details": [
+        { "label": "Page", "value": "Settings > llm-d topology configurations" },
+        { "label": "State", "value": "No admin-created templates yet" },
+        { "label": "Add", "value": "single node configuration button" }
+      ]
+    },
+    {
+      "t": 155,
+      "target": { "x": 280, "y": 90, "w": 1100, "h": 470 },
+      "caption": "Add a topology configuration — sample file or code editor",
+      "details": [
+        { "label": "Form", "value": "Name + Description + Configuration source" },
+        { "label": "Source options", "value": "Sample configuration file · code editor" },
+        { "label": "Create", "value": "makes the topology available in the wizard" }
+      ]
+    },
+    {
+      "t": 212,
+      "target": { "x": 340, "y": 430, "w": 1550, "h": 270 },
+      "caption": "OpenShift console — DataScienceCluster YAML",
+      "details": [
+        { "label": "kserve", "value": "Managed" },
+        { "label": "kserve.wva", "value": "Managed (Workload Variant Autoscaler)" },
+        { "label": "rawDeploymentServiceConfig", "value": "Headless (no Service Mesh)" }
+      ]
+    },
+    {
+      "t": 235,
+      "target": { "x": 340, "y": 260, "w": 1520, "h": 360 },
+      "caption": "llm-d controllers Running in redhat-ods-applications",
+      "details": [
+        { "label": "kserve-controller-manager", "value": "Running" },
+        { "label": "llmisvc-controller-manager", "value": "Running" },
+        { "label": "workload-variant-autoscaler", "value": "Running" }
+      ]
+    },
+    {
+      "t": 255,
+      "target": { "x": 300, "y": 280, "w": 1600, "h": 440 },
+      "caption": "openshift-ai-inference Gateway — Programmed True",
+      "details": [
+        { "label": "Namespace", "value": "openshift-ingress" },
+        { "label": "Class", "value": "data-science-gateway-class" },
+        { "label": "Address", "value": "inference.apps.cluster-lmg7d.dyn.redhatworkshops.io" },
+        { "label": "Conditions", "value": "Accepted True · Programmed True" }
+      ]
+    },
+    {
+      "t": 272,
+      "target": { "x": 300, "y": 260, "w": 1600, "h": 540 },
+      "caption": "LLMInferenceServices — the llm-d serving CRD",
+      "details": [
+        { "label": "maas-llmd-demo", "value": "abc123-user1 (MaaS gateway URL)" },
+        { "label": "sample-llm-inference-service", "value": "abc123-user1 (inference.apps URL)" },
+        { "label": "Status", "value": "False / MinimumReplicasUnavailable (needs GPU nodes)" }
+      ]
+    },
+    {
+      "t": 295,
+      "target": { "x": 340, "y": 260, "w": 1520, "h": 400 },
+      "caption": "LLMInferenceServiceConfigs — the validated templates",
+      "details": [
+        { "label": "Namespace", "value": "redhat-ods-applications" },
+        { "label": "v3-5-1 templates", "value": "decode · prefill · scheduler · router" },
+        { "label": "Label", "value": "opendatahub.io/config-type categorizes each template" }
+      ]
+    }
+  ]
+}

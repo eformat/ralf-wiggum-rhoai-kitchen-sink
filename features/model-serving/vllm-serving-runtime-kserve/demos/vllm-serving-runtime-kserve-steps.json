@@ -1,0 +1,108 @@
+{
+  "title": "vLLM ServingRuntime for KServe — enable the runtime, inspect the CR, deploy",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 12,
+      "target": { "x": 300, "y": 590, "w": 1560, "h": 390 },
+      "caption": "Serving runtimes — the preinstalled vLLM ServingRuntimes for KServe",
+      "details": [
+        { "label": "Page", "value": "Settings > Model resources and operations > Serving runtimes" },
+        { "label": "Runtimes", "value": "13 preinstalled: vLLM (NVIDIA/AMD/Gaudi/Spyre/CPU) + MLServer + OpenVINO + more" },
+        { "label": "Badges", "value": "Pre-installed + version badge (v0.24.0) = full GA support" },
+        { "label": "State", "value": "All runtimes Enabled — toggles blue" }
+      ]
+    },
+    {
+      "t": 100,
+      "target": { "x": 200, "y": 200, "w": 1250, "h": 560 },
+      "caption": "The ServingRuntime CR — the pod template KServe instantiates",
+      "details": [
+        { "label": "Page", "value": "Console > redhat-ods-applications > ServingRuntimes > vllm-cuda-runtime > YAML" },
+        { "label": "Kind", "value": "ServingRuntime (serving.kserve.io/v1alpha1), created from its template" },
+        { "label": "Entrypoint", "value": "python -m vllm.entrypoints.openai.api_server" },
+        { "label": "Model path", "value": "--model=/mnt/models — where KServe mounts model files" }
+      ]
+    },
+    {
+      "t": 155,
+      "target": { "x": 200, "y": 300, "w": 1250, "h": 480 },
+      "caption": "ServingRuntime anatomy — engine image, port, and model formats",
+      "details": [
+        { "label": "Image", "value": "registry.redhat.io/rhaii/vllm-cuda-rhel9 (pinned digest)" },
+        { "label": "Port", "value": "containerPort 8080 (OpenAI-compatible REST API)" },
+        { "label": "multiModel", "value": "false — single-model serving platform" },
+        { "label": "supportedModelFormats", "value": "vLLM with autoSelect: true — KServe matches deployments automatically" }
+      ]
+    },
+    {
+      "t": 235,
+      "target": { "x": 260, "y": 745, "w": 1170, "h": 240 },
+      "caption": "granite-vllm InferenceService — honest conditions during the model pull",
+      "details": [
+        { "label": "Page", "value": "Console > abc123-user1 > InferenceServices > granite-vllm" },
+        { "label": "Deployed via", "value": "Import YAML — the module's CPU-only path (RawDeployment + modelcar OCI URI)" },
+        { "label": "IngressReady", "value": "True" },
+        { "label": "PredictorReady", "value": "False — MinimumReplicasUnavailable: Deployment does not have minimum availability" },
+        { "label": "Readiness", "value": "Ready False — the predictor is pulling modelcar weights (CPU node)" }
+      ]
+    },
+    {
+      "t": 320,
+      "target": { "x": 260, "y": 745, "w": 1170, "h": 240 },
+      "caption": "Ready=True — the vLLM CPU runtime serves granite-vllm",
+      "details": [
+        { "label": "Readiness", "value": "Ready True (real, ~75s after create on a CPU node)" },
+        { "label": "PredictorReady", "value": "True — NewReplicaSetAvailable: ReplicaSet has successfully progressed" },
+        { "label": "IngressReady", "value": "True" },
+        { "label": "Runtime", "value": "vllm-cpu-x86-runtime resolved from the project namespace" }
+      ]
+    },
+    {
+      "t": 520,
+      "target": { "x": 790, "y": 150, "w": 950, "h": 690 },
+      "caption": "Deploy model wizard — ModelCar location and model type",
+      "details": [
+        { "label": "Page", "value": "Deploy a model wizard > Model details" },
+        { "label": "Model location", "value": "Existing connection" },
+        { "label": "Connection", "value": "modelcar-catalog (quay.io)" },
+        { "label": "Model URI", "value": "quay.io/redhat-ai-services/modelcar-catalog:qwen2.5-0.5b-instruct" },
+        { "label": "Model type", "value": "Generative AI model (Example, LLM)" }
+      ]
+    },
+    {
+      "t": 718,
+      "target": { "x": 590, "y": 650, "w": 1165, "h": 430 },
+      "caption": "Deployment method Inference service — the serving runtime template list",
+      "details": [
+        { "label": "Method", "value": "Inference service — deploy a model using a serving runtime template" },
+        { "label": "Serving runtime", "value": "Manual selection lists all 9 vLLM ServingRuntimes (v0.24.0)" },
+        { "label": "Badges", "value": "Version badge v0.24.0; the fast-1 build shows Limited support instead" },
+        { "label": "Scope", "value": "Global-scoped — runtimes live in redhat-ods-applications" }
+      ]
+    },
+    {
+      "t": 760,
+      "target": { "x": 1150, "y": 260, "w": 745, "h": 335 },
+      "caption": "Cancel — the NVIDIA GPU runtime needs an accelerator this CPU cluster doesn't have",
+      "details": [
+        { "label": "Selected", "value": "vLLM NVIDIA GPU ServingRuntime for KServe (v0.24.0, Global-scoped)" },
+        { "label": "Blocker", "value": "No GPU hardware profile on this CPU-only cluster — Next stays disabled" },
+        { "label": "Action", "value": "Cancel > Discard deployment configuration" },
+        { "label": "CPU-only path", "value": "The module's documented CLI alternative — deployed via Import YAML above" }
+      ]
+    },
+    {
+      "t": 818,
+      "target": { "x": 230, "y": 560, "w": 1645, "h": 250 },
+      "caption": "Deployments — granite-vllm Ready with the vLLM CPU ServingRuntime",
+      "details": [
+        { "label": "Page", "value": "Projects > abc123-user1 > Deployments" },
+        { "label": "granite-vllm", "value": "vLLM CPU (x86) ServingRuntime for KServe v0.24.0 Latest" },
+        { "label": "Status", "value": "Ready (green checkmark)" },
+        { "label": "Endpoint", "value": "Internal and external endpoint" },
+        { "label": "Runtime label", "value": "Fixed by the module's template-display-name annotation (was Unknown Serving Runtime)" }
+      ]
+    }
+  ]
+}

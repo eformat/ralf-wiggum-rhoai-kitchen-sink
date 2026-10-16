@@ -1,0 +1,124 @@
+{
+  "title": "NeMo Guardrails on RHOAI — deploy a guardrails service, test the rails, front a live model",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 4,
+      "target": { "x": 620, "y": 200, "w": 1220, "h": 470 },
+      "caption": "The TrustyAI operator provides the NemoGuardrails API — CRD Established: True",
+      "details": [
+        { "label": "CRD", "value": "nemoguardrails.trustyai.opendatahub.io" },
+        { "label": "Conditions", "value": "Established=True, NamesAccepted=True" },
+        { "label": "Version", "value": "v1alpha1 — Served True, Storage True" }
+      ]
+    },
+    {
+      "t": 26,
+      "target": { "x": 450, "y": 230, "w": 1400, "h": 560 },
+      "caption": "Deploy the standalone quickstart: guardrails config ConfigMap + NemoGuardrails CR",
+      "details": [
+        { "label": "ConfigMap", "value": "nemo-quickstart-config — Presidio entities + regex patterns" },
+        { "label": "CR", "value": "nemo-quickstart — enable-auth: 'true'" },
+        { "label": "Detectors", "value": "Built-in Presidio + regex — no LLM required" }
+      ]
+    },
+    {
+      "t": 64,
+      "target": { "x": 420, "y": 150, "w": 1350, "h": 640 },
+      "caption": "PHASE Ready — the TrustyAI operator deployed the server pod, service, and route",
+      "details": [
+        { "label": "Status", "value": "NemoGuardrails nemo-quickstart — Ready" },
+        { "label": "Conditions", "value": "DeploymentReady=True, RouteReady=True" },
+        { "label": "Instances", "value": "nemo-quickstart, nemo-simple, nemo-policies" }
+      ]
+    },
+    {
+      "t": 86,
+      "target": { "x": 300, "y": 85, "w": 1500, "h": 160 },
+      "caption": "Prerequisite verified: the TrustyAI component is Managed in the DSC; the guardrails route is exported",
+      "details": [
+        { "label": "DSC", "value": "default-dsc TRUSTYAI=Managed" },
+        { "label": "Route", "value": "GUARDRAILS_ROUTE=nemo-quickstart-abc123-user1.apps..." },
+        { "label": "Auth", "value": "Bearer token from oc whoami -t — kube-rbac-proxy enforces it" }
+      ]
+    },
+    {
+      "t": 93,
+      "target": { "x": 300, "y": 230, "w": 1500, "h": 250 },
+      "caption": "Safe content passes all rails; an email address triggers the Presidio detector",
+      "details": [
+        { "label": "Safe check", "value": "status success — both rails pass, llm_calls_count 0" },
+        { "label": "Email check", "value": "status blocked — 'detect sensitive data on input'" },
+        { "label": "Endpoint", "value": "POST /v1/guardrail/checks — no LLM call needed" }
+      ]
+    },
+    {
+      "t": 97,
+      "target": { "x": 300, "y": 440, "w": 1500, "h": 160 },
+      "caption": "The regex rail blocks security keywords like 'password'",
+      "details": [
+        { "label": "Keyword check", "value": "status blocked — 'regex check input'" },
+        { "label": "Patterns", "value": "password|secret|api-key|token + SSN pattern, case-insensitive" }
+      ]
+    },
+    {
+      "t": 103,
+      "target": { "x": 300, "y": 450, "w": 1500, "h": 220 },
+      "caption": "Multiple messages in one request — per-message results pinpoint which message tripped which rail",
+      "details": [
+        { "label": "Message 0", "value": "success/success — clean content" },
+        { "label": "Message 1", "value": "blocked — Presidio detected the person name" },
+        { "label": "Message 2", "value": "blocked — the regex rail caught 'api-key'" }
+      ]
+    },
+    {
+      "t": 111,
+      "target": { "x": 300, "y": 580, "w": 1500, "h": 150 },
+      "caption": "Front a live model: the safe question reaches granite-vllm through the rails",
+      "details": [
+        { "label": "Endpoint", "value": "POST /v1/chat/completions — nemo-simple" },
+        { "label": "Model", "value": "granite-vllm (CPU RawDeployment + modelcar)" },
+        { "label": "Answer", "value": "The capital of France is Paris." }
+      ]
+    },
+    {
+      "t": 117,
+      "target": { "x": 300, "y": 680, "w": 1500, "h": 150 },
+      "caption": "The email is blocked before the LLM is called — the guardrails fallback message",
+      "details": [
+        { "label": "Response", "value": "I don't know the answer to that." },
+        { "label": "Behavior", "value": "Input rail blocks; the model is never invoked" }
+      ]
+    },
+    {
+      "t": 150,
+      "target": { "x": 300, "y": 80, "w": 1500, "h": 220 },
+      "caption": "Switch policies with config_id: the same email is blocked under the strict default — and passes under lenient-filtering",
+      "details": [
+        { "label": "Strict (default)", "value": "blocked — Presidio detects the email" },
+        { "label": "Lenient", "value": "success — regex only, no email check" },
+        { "label": "Selector", "value": "guardrails.config_id=lenient-filtering" }
+      ]
+    },
+    {
+      "t": 179,
+      "target": { "x": 300, "y": 80, "w": 1500, "h": 260 },
+      "caption": "Mask PII instead of blocking: after patching to the masking configuration, the address is anonymized before the LLM",
+      "details": [
+        { "label": "Patch", "value": "nemoConfigs -> nemo-masking-config (auto redeploy)" },
+        { "label": "Flow", "value": "mask sensitive data on input — replaces PII with <EMAIL_ADDRESS>" },
+        { "label": "Result", "value": "Request succeeds — config_id: nemo-masking-config" }
+      ]
+    },
+    {
+      "t": 196,
+      "target": { "x": 300, "y": 220, "w": 1500, "h": 420 },
+      "caption": "Scale out: nemo-policies runs three replicas for availability and throughput",
+      "details": [
+        { "label": "Deployment", "value": "nemo-policies — 3 of 3 pods Running" },
+        { "label": "CR", "value": "spec.replicas: 3 (minimum 1)" },
+        { "label": "Deployments", "value": "nemo-quickstart, nemo-simple, nemo-policies" }
+      ]
+    }
+  ]
+}

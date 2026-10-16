@@ -1,0 +1,133 @@
+{
+  "title": "Latency-aware routing for llm-d",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 8,
+      "target": { "x": 330, "y": 330, "w": 940, "h": 360 },
+      "caption": "Project Deployments: the llm-d serving stack in the working project — LLMInferenceServices listed with honest CPU-only states; the router scheduler pod is Running while the model workloads stay Pending",
+      "details": [
+        { "label": "Deployment", "value": "maas-llmd-demo (Distributed inference with llm-d)" },
+        { "label": "Status", "value": "Pending — MinimumReplicasUnavailable (CPU-only cluster)" },
+        { "label": "sample-llm-inference-service", "value": "Not available / Failed (nvidia.com/gpu)" },
+        { "label": "Module 01 Exercise 3", "value": "Confirm the llm-d serving resources exist" }
+      ]
+    },
+    {
+      "t": 45,
+      "target": { "x": 295, "y": 180, "w": 970, "h": 310 },
+      "caption": "Settings > llm-d routing configurations: the administrator-created latency-router-config — a latency-aware scheduling policy with predicted-latency-producer, latency-scorer, and weighted-random-picker, enabled for single-node deployments",
+      "details": [
+        { "label": "latency-router-config", "value": "config-type router, single-node topology, Enabled" },
+        { "label": "kv-cache-router-single-node", "value": "cache-aware baseline (prefix-cache-scorer + queue-scorer)" },
+        { "label": "Enabled configs", "value": "available in the deployment wizard" },
+        { "label": "Module 02 Exercise 1", "value": "Explore a latency-aware scheduler configuration" }
+      ]
+    },
+    {
+      "t": 90,
+      "target": { "x": 290, "y": 130, "w": 975, "h": 560 },
+      "caption": "Editing latency-router-config: Single node topology — the YAML carries the EndpointPickerConfig (spec.router.scheduler.config.inline) with the three latency-aware plugins",
+      "details": [
+        { "label": "Name", "value": "latency-router-config" },
+        { "label": "Topology type", "value": "Single node" },
+        { "label": "YAML", "value": "spec.router.scheduler.config.inline — plugins + schedulingProfiles" },
+        { "label": "Edit action", "value": "kebab menu on the routing configurations page" }
+      ]
+    },
+    {
+      "t": 180,
+      "target": { "x": 545, "y": 240, "w": 720, "h": 370 },
+      "caption": "Deploy model wizard — Model details: a ModelCar URI from the existing modelcar-catalog connection, with model type Generative AI",
+      "details": [
+        { "label": "Model location", "value": "Existing connection (modelcar-catalog, quay.io)" },
+        { "label": "Model URI", "value": "oci://quay.io/redhat-ai-services/modelcar-catalog:qwen2.5-0.5b-instruct" },
+        { "label": "Model type", "value": "Generative AI model (Example, LLM)" }
+      ]
+    },
+    {
+      "t": 195,
+      "target": { "x": 545, "y": 240, "w": 720, "h": 240 },
+      "caption": "Deployment method radios — LLM inference service selected by default; the llm-d method adds distributed serving with advanced routing techniques such as cache-aware routing and disaggregated prefill and decode",
+      "details": [
+        { "label": "LLM inference service", "value": "single serving runtime, MaaS compatible" },
+        { "label": "LLM inference service with llm-d", "value": "distributed serving + advanced routing" },
+        { "label": "Inference service", "value": "serving runtime template, not MaaS compatible" }
+      ]
+    },
+    {
+      "t": 215,
+      "target": { "x": 545, "y": 240, "w": 720, "h": 460 },
+      "caption": "Selecting LLM inference service with llm-d reveals the topology settings: Single node topology with the administrator-defined topology configuration",
+      "details": [
+        { "label": "Topology type", "value": "Single node" },
+        { "label": "Topology configuration", "value": "Single node (default) — pre-installed for single-node deployments" },
+        { "label": "Router configs", "value": "filtered by the router's supported topology types" }
+      ]
+    },
+    {
+      "t": 250,
+      "target": { "x": 545, "y": 390, "w": 720, "h": 200 },
+      "caption": "The Routing section: the wizard lists only configurations compatible with the selected topology — latency-router-config selected over Default optimized routing (Module 02 Exercise 2)",
+      "details": [
+        { "label": "Routing", "value": "latency-router-config (single-node compatible)" },
+        { "label": "Default optimized routing", "value": "the 4-scorer baseline profile (2:2:3:2)" },
+        { "label": "Selected config plugins", "value": "predicted-latency-producer + latency-scorer (weight 3) + weighted-random-picker" }
+      ]
+    },
+    {
+      "t": 280,
+      "target": { "x": 350, "y": 275, "w": 580, "h": 195 },
+      "caption": "Cancel discards the wizard — on this CPU-only workshop cluster the deployment is not created; the routing configuration stays available for GPU deployments",
+      "details": [
+        { "label": "Discard deployment configuration?", "value": "wizard confirmation dialog" },
+        { "label": "Why cancel", "value": "model workloads need GPU capacity (observe-only cluster)" },
+        { "label": "The router config", "value": "remains listed for compatible deployments" }
+      ]
+    },
+    {
+      "t": 360,
+      "target": { "x": 288, "y": 410, "w": 975, "h": 240 },
+      "caption": "Observe > LLM Performance: the built-in dashboard charts TTFT, E2E request latency, and inter-token latency (P50/P95/P99) — empty until inference traffic flows through the Endpoint Picker",
+      "details": [
+        { "label": "Panels", "value": "TTFT, E2E request latency, Inter-token latency (+ KV cache)" },
+        { "label": "Empty on CPU-only", "value": "model pods Pending, no EPP traffic" },
+        { "label": "EPP metrics", "value": "llm_d_epp_request_ series — service-level, include queue wait" },
+        { "label": "Module 02 Exercise 3", "value": "Observe latency behavior with metrics" }
+      ]
+    },
+    {
+      "t": 425,
+      "target": { "x": 288, "y": 240, "w": 975, "h": 360 },
+      "caption": "OpenShift console: LLMInferenceServiceConfigs — 23 templates all Ready, including the latency-router-config router configuration",
+      "details": [
+        { "label": "Project", "value": "redhat-ods-applications" },
+        { "label": "Count", "value": "1-23 of 23, all Ready" },
+        { "label": "Router configs", "value": "kv-cache-router-single-node + latency-router-config" },
+        { "label": "Platform templates", "value": "v3-5-1-kserve-config-* topology/router presets" }
+      ]
+    },
+    {
+      "t": 480,
+      "target": { "x": 290, "y": 280, "w": 975, "h": 400 },
+      "caption": "The latency-router-config YAML: config-type router label, single-node supported-topologies annotation, and a description naming the three latency-aware plugins",
+      "details": [
+        { "label": "metadata.labels", "value": "opendatahub.io/config-type: router" },
+        { "label": "metadata.annotations", "value": "opendatahub.io/supported-topologies: [\"workload-single-node\"]" },
+        { "label": "EndpointPickerConfig inline", "value": "predicted-latency-producer + latency-scorer (weight 3) + weighted-random-picker" },
+        { "label": "schedulingProfiles", "value": "default profile the scheduler uses for every request" }
+      ]
+    },
+    {
+      "t": 600,
+      "target": { "x": 288, "y": 150, "w": 720, "h": 420 },
+      "caption": "The Endpoint Picker pod for the deployment: maas-llmd-demo-kserve-router-scheduler Running — the scheduler workload the routing configuration deploys",
+      "details": [
+        { "label": "Pod", "value": "maas-llmd-demo-kserve-router-scheduler (1/1 Running)" },
+        { "label": "Labels", "value": "app.kubernetes.io/component: scheduler" },
+        { "label": "Namespace", "value": "abc123-user1" },
+        { "label": "Role", "value": "places each request on a pod predicted to meet its latency target" }
+      ]
+    }
+  ]
+}

@@ -36,6 +36,10 @@ agent-based AI workflows.
 
 About 2 hours
 
+== Watch the demo
+
+link:_attachments/llama-stack-ogx-core-demo.html[▶ Watch the demo — interactive walkthrough,window=_blank]
+
 == Get started
 
 * xref:getting-connected.adoc[Connect to your environment]

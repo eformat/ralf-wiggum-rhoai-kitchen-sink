@@ -1,0 +1,126 @@
+{
+  "title": "Red Hat AI Inference fast-release images — custom ServingRuntime on OpenShift AI",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 12,
+      "target": { "x": 390, "y": 390, "w": 230, "h": 630 },
+      "caption": "Settings → Serving runtimes: every vLLM runtime carries a support-level badge",
+      "details": [
+        { "label": "Page", "value": "Settings → Model resources and operations → Serving runtimes" },
+        { "label": "GA runtime", "value": "vLLM NVIDIA GPU ServingRuntime for KServe — Pre-installed + v0.24.0" },
+        { "label": "Support levels", "value": "Supported (GA) · Limited support (fast builds) · Unsupported (custom)" }
+      ]
+    },
+    {
+      "t": 35,
+      "target": { "x": 290, "y": 330, "w": 1530, "h": 560 },
+      "caption": "Duplicate the vLLM NVIDIA GPU ServingRuntime — the form carries over the full spec",
+      "details": [
+        { "label": "Action", "value": "Action menu (⋮) → Duplicate on vLLM NVIDIA GPU ServingRuntime for KServe" },
+        { "label": "Carried over", "value": "Runtime spec, model formats, container configuration" },
+        { "label": "Storage detail", "value": "Dashboard-created runtimes are stored as OpenShift Templates on 3.5.1" }
+      ]
+    },
+    {
+      "t": 55,
+      "target": { "x": 290, "y": 330, "w": 1150, "h": 420 },
+      "caption": "Edit the YAML: fast-release image + gating annotations",
+      "details": [
+        { "label": "Image", "value": "registry.redhat.io/rhaii-early-access/vllm-cuda-rhel9:3.5.0-ea.1-1780065492" },
+        { "label": "Annotations", "value": "support-status: unsupported · unsupported-status-accepted: \"true\" · fast-version: \"1\"" },
+        { "label": "Support window", "value": "1 month after release — tracked by you, not the annotation" }
+      ]
+    },
+    {
+      "t": 114,
+      "target": { "x": 330, "y": 600, "w": 780, "h": 160 },
+      "caption": "Created: the new runtime appears with Limited support and fast-1 badges",
+      "details": [
+        { "label": "Badges", "value": "Limited support · fast-1" },
+        { "label": "Visibility", "value": "Enabled by default — data scientists see it in the deploy wizard" },
+        { "label": "Upgrade", "value": "None required — fast images are validated against the current stable release" }
+      ]
+    },
+    {
+      "t": 153,
+      "target": { "x": 220, "y": 300, "w": 850, "h": 280 },
+      "caption": "Deploy a model: model location from the modelcar-catalog connection",
+      "details": [
+        { "label": "Model location", "value": "Existing connection — modelcar-catalog" },
+        { "label": "Model type", "value": "Generative AI model" },
+        { "label": "Project", "value": "abc123-user1" }
+      ]
+    },
+    {
+      "t": 175,
+      "target": { "x": 220, "y": 360, "w": 950, "h": 440 },
+      "caption": "The ModelCar URI points at a small qwen model in the OCI catalog",
+      "details": [
+        { "label": "Model URI", "value": "oci://quay.io/redhat-ai-services/modelcar-catalog:qwen2.5-0.5b-instruct" },
+        { "label": "Validation", "value": "Registry host in the URI must match the connection's registry host" },
+        { "label": "Packaging", "value": "OCI connections deploy ModelCars only" }
+      ]
+    },
+    {
+      "t": 238,
+      "target": { "x": 220, "y": 560, "w": 950, "h": 280 },
+      "caption": "Serving runtime: pick the new fast-1 runtime — the same badges in the wizard",
+      "details": [
+        { "label": "Serving runtime", "value": "vLLM ServingRuntime for KServe (fast-1) — from a list" },
+        { "label": "Badges", "value": "Limited support · fast-1 — same as the Serving runtimes page" },
+        { "label": "Accelerators", "value": "Recommended: nvidia.com/gpu (CPU-only on this cluster)" }
+      ]
+    },
+    {
+      "t": 243,
+      "target": { "x": 1050, "y": 250, "w": 800, "h": 760 },
+      "caption": "Review: the deployment targets the fast-release runtime, token auth enabled",
+      "details": [
+        { "label": "Review", "value": "Name fast-release-demo · runtime fast-1 · token authentication on" },
+        { "label": "Generates", "value": "InferenceService CR in the project namespace" },
+        { "label": "Wizard copy", "value": "A project-scoped ServingRuntime copy is created (3.5.1 behavior)" }
+      ]
+    },
+    {
+      "t": 280,
+      "target": { "x": 300, "y": 350, "w": 1570, "h": 110 },
+      "caption": "Deployed: the model runs on the fast-1 runtime — Pending on this CPU-only cluster",
+      "details": [
+        { "label": "Status", "value": "Pending / Starting — CPU-only cluster" },
+        { "label": "Deployment runtime", "value": "vLLM ServingRuntime for KServe (fast-1)" },
+        { "label": "Honest note", "value": "Serving completes on a GPU node; the config-level arc is what this demo shows" }
+      ]
+    },
+    {
+      "t": 303,
+      "target": { "x": 330, "y": 900, "w": 1500, "h": 190 },
+      "caption": "Console verify: IngressReady=True, PredictorReady=False — honest on CPU-only",
+      "details": [
+        { "label": "IngressReady", "value": "True" },
+        { "label": "PredictorReady", "value": "False — MinimumReplicasUnavailable" },
+        { "label": "Root cause", "value": "CPU-only cluster: the vLLM CUDA image cannot infer a device" }
+      ]
+    },
+    {
+      "t": 338,
+      "target": { "x": 290, "y": 330, "w": 1540, "h": 560 },
+      "caption": "The generated InferenceService: modelcar storageUri, fast-release runtime",
+      "details": [
+        { "label": "storageUri", "value": "oci://quay.io/redhat-ai-services/modelcar-catalog:qwen2.5-0.5b-instruct" },
+        { "label": "runtime", "value": "fast-release-demo (project-scoped copy of vllm-fast-1)" },
+        { "label": "Auth", "value": "Token authentication enabled — OpenAI-compatible endpoint" }
+      ]
+    },
+    {
+      "t": 453,
+      "target": { "x": 290, "y": 330, "w": 1540, "h": 560 },
+      "caption": "The wizard copies the fast-release runtime into the project — annotations and image ride along",
+      "details": [
+        { "label": "Annotations", "value": "support-status: unsupported · fast-version: \"1\"" },
+        { "label": "Image", "value": "registry.redhat.io/rhaii-early-access/vllm-cuda-rhel9:3.5.0-ea.1-1780065492" },
+        { "label": "Copied by", "value": "The deploy wizard — project-scoped ServingRuntime on 3.5.1" }
+      ]
+    }
+  ]
+}

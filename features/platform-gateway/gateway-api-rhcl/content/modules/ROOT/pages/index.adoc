@@ -30,6 +30,8 @@ About 2 hours
 
 == Get started
 
+link:_attachments/gateway-api-rhcl-demo.html[▶ Watch the demo — interactive walkthrough,window=_blank]
+
 * xref:getting-connected.adoc[Connect to your environment]
 * xref:module-01-concepts.adoc[Core Concepts]
 * xref:module-02-hands-on.adoc[Hands-on Exercise]

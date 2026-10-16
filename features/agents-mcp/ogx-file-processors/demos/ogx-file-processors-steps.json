@@ -1,0 +1,122 @@
+{
+  "title": "OGX File Processors API — the OGX environment and the document-to-chunks path",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 32,
+      "target": { "x": 210, "y": 75, "w": 1470, "h": 250 },
+      "caption": "Module 01 — the OGX Operator registers the ogxservers.ogx.io CustomResourceDefinition",
+      "details": [
+        { "label": "CRD", "value": "ogxservers.ogx.io" },
+        { "label": "Group / version", "value": "ogx.io / v1beta1" },
+        { "label": "Scope", "value": "Namespaced" },
+        { "label": "Status", "value": "Established" }
+      ]
+    },
+    {
+      "t": 105,
+      "target": { "x": 380, "y": 570, "w": 580, "h": 120 },
+      "caption": "The DataScienceCluster has the ogx component set to managementState: Managed",
+      "details": [
+        { "label": "DSC", "value": "default-dsc" },
+        { "label": "Component", "value": "ogx" },
+        { "label": "managementState", "value": "Managed" },
+        { "label": "Effect", "value": "OGX Operator enabled" }
+      ]
+    },
+    {
+      "t": 175,
+      "target": { "x": 1060, "y": 300, "w": 480, "h": 460 },
+      "caption": "The project's OGX server is Ready — this is what exposes the File Processors API",
+      "details": [
+        { "label": "OGX server", "value": "lsd-genai-playground" },
+        { "label": "Phase", "value": "Ready" },
+        { "label": "Server version", "value": "1.2.4+rhaiv.0" },
+        { "label": "Operator version", "value": "0.13.0" }
+      ]
+    },
+    {
+      "t": 215,
+      "target": { "x": 210, "y": 110, "w": 1470, "h": 200 },
+      "caption": "Module 02 — the OGX server's service exposes port 8321: one service hosts the Files, Vector Stores and File Processors APIs",
+      "details": [
+        { "label": "Service", "value": "lsd-genai-playground-service" },
+        { "label": "Port", "value": "8321/TCP" },
+        { "label": "Managed by", "value": "ogx-operator" },
+        { "label": "Labels", "value": "app.kubernetes.io/part-of=ogx" }
+      ]
+    },
+    {
+      "t": 297,
+      "target": { "x": 210, "y": 200, "w": 1470, "h": 230 },
+      "caption": "A workbench is Ready in the project — the client environment for the document flow",
+      "details": [
+        { "label": "Workbench", "value": "ogx-docs-wb" },
+        { "label": "Image", "value": "Jupyter | Data Science | CPU | Python 3.12" },
+        { "label": "Status", "value": "Ready" }
+      ]
+    },
+    {
+      "t": 330,
+      "target": { "x": 420, "y": 95, "w": 200, "h": 220 },
+      "caption": "From the JupyterLab launcher, open a new Python 3.12 notebook",
+      "details": [
+        { "label": "IDE", "value": "JupyterLab" },
+        { "label": "Kernel", "value": "Python 3.12" },
+        { "label": "Project", "value": "abc123-user1" }
+      ]
+    },
+    {
+      "t": 395,
+      "target": { "x": 210, "y": 90, "w": 1470, "h": 200 },
+      "caption": "Connect a client to the OGX server — the OpenAI-compatible SDK points at the service root with the /v1 suffix",
+      "details": [
+        { "label": "Client", "value": "OpenAI-compatible SDK" },
+        { "label": "Base URL", "value": "lsd-genai-playground-service:8321/v1" },
+        { "label": "Note", "value": "ogx_client wraps these same endpoints" }
+      ]
+    },
+    {
+      "t": 455,
+      "target": { "x": 210, "y": 290, "w": 1470, "h": 310 },
+      "caption": "client.models.list() returns the project's models — select the embedding model by model_type",
+      "details": [
+        { "label": "Endpoint", "value": "GET /v1/models" },
+        { "label": "Embedding model", "value": "granite-embedding-125m-english" },
+        { "label": "Dimension", "value": "768" },
+        { "label": "LLM", "value": "qwen25-05b" }
+      ]
+    },
+    {
+      "t": 490,
+      "target": { "x": 210, "y": 360, "w": 1470, "h": 300 },
+      "caption": "Upload the document through the Files API — the file object returns an id used in the indexing step",
+      "details": [
+        { "label": "Endpoint", "value": "POST /v1/files" },
+        { "label": "File", "value": "sample-document.pdf" },
+        { "label": "Purpose", "value": "assistants" },
+        { "label": "Storage provider", "value": "inline::localfs" }
+      ]
+    },
+    {
+      "t": 545,
+      "target": { "x": 210, "y": 460, "w": 1470, "h": 250 },
+      "caption": "Create a vector store backed by pgvector and attach the file with a static chunking strategy — the extraction step the file processor backends power",
+      "details": [
+        { "label": "Endpoint", "value": "POST /v1/vector_stores" },
+        { "label": "Vector store provider", "value": "pgvector" },
+        { "label": "Chunking strategy", "value": "static: 700 max tokens, 100 overlap" }
+      ]
+    },
+    {
+      "t": 615,
+      "target": { "x": 210, "y": 500, "w": 1470, "h": 320 },
+      "caption": "The file status flips to completed: extracted, chunked and embedded — the document is now vector-ready for retrieval",
+      "details": [
+        { "label": "Status", "value": "completed" },
+        { "label": "Stages", "value": "extract → chunk → embed → index" },
+        { "label": "Next", "value": "file_search tool retrieves these chunks" }
+      ]
+    }
+  ]
+}

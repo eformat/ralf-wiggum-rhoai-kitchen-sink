@@ -1,0 +1,124 @@
+{
+  "title": "Distributed Inference with llm-d: priority-based flow control",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 5,
+      "target": { "x": 250, "y": 280, "w": 1650, "h": 220 },
+      "caption": "llm-d deployed in the project: LLMInferenceService maas-llmd-demo — router, scheduler, gateway, and InferencePool are Ready; the model workload itself stays Pending on this CPU-only cluster",
+      "details": [
+        { "label": "Service", "value": "maas-llmd-demo" },
+        { "label": "RouterReady / InferencePoolReady", "value": "True / True" },
+        { "label": "MainWorkloadReady", "value": "False — MinimumReplicasUnavailable (CPU-only cluster)" },
+        { "label": "Module 01 Exercise 1", "value": "Inspect your llm-d deployment and the Endpoint Picker" }
+      ]
+    },
+    {
+      "t": 30,
+      "target": { "x": 250, "y": 430, "w": 1650, "h": 100 },
+      "caption": "The Endpoint Picker pod (router-scheduler) is Running with the default four-scorer scheduler configuration — no flow control configuration yet",
+      "details": [
+        { "label": "Pod", "value": "maas-llmd-demo-kserve-router-scheduler" },
+        { "label": "Status", "value": "Running 1/1" },
+        { "label": "Default scorers", "value": "queue-scorer, kv-cache-utilization, prefix-cache, no-hit-lru (2:2:3:2)" },
+        { "label": "Flow control", "value": "not enabled — enabled via the flowControl feature gate" }
+      ]
+    },
+    {
+      "t": 65,
+      "target": { "x": 300, "y": 290, "w": 1380, "h": 310 },
+      "caption": "Enabling the flowControl feature gate and a utilization-based saturation detector in the inline EndpointPickerConfig under spec.router.scheduler (Module 01 Exercise 2)",
+      "details": [
+        { "label": "featureGates", "value": "flowControl" },
+        { "label": "saturationDetector.pluginRef", "value": "utilization-detector" },
+        { "label": "Detector thresholds", "value": "queueDepthThreshold 5, kvCacheUtilThreshold 0.8" },
+        { "label": "Save", "value": "the llm-d controller rolls the EPP with the new configuration" }
+      ]
+    },
+    {
+      "t": 150,
+      "target": { "x": 250, "y": 430, "w": 1650, "h": 100 },
+      "caption": "The EPP pod rolls to the new configuration — the old pod drains (Terminating) while the controller deploys the flowControl configuration; the replacement pod starts with flow control active",
+      "details": [
+        { "label": "Rolling update", "value": "old EPP pod Terminating, replacement starting" },
+        { "label": "Config deployed", "value": "flowControl feature gate + utilization-detector" },
+        { "label": "Verified in EPP logs", "value": "FeatureGates: {flowControl} + FlowControlConfig with priority bands" }
+      ]
+    },
+    {
+      "t": 230,
+      "target": { "x": 300, "y": 230, "w": 750, "h": 340 },
+      "caption": "The critical tier for interactive workloads: InferenceObjective interactive-critical with priority 100 — higher-priority requests dispatch before lower-priority bands",
+      "details": [
+        { "label": "Name", "value": "interactive-critical" },
+        { "label": "Priority", "value": "100" },
+        { "label": "InferencePool", "value": "maas-llmd-demo-inference-pool" },
+        { "label": "Created via", "value": "Console Import YAML (Module 02 Exercise 1)" }
+      ]
+    },
+    {
+      "t": 270,
+      "target": { "x": 300, "y": 230, "w": 1560, "h": 330 },
+      "caption": "The sheddable batch tier: batch-workload with priority -1 — queued last and the first to be dropped when the pool reaches saturation, protecting real-time SLOs",
+      "details": [
+        { "label": "Name", "value": "batch-workload" },
+        { "label": "Priority", "value": "-1 (sheddable)" },
+        { "label": "InferencePool", "value": "maas-llmd-demo-inference-pool" },
+        { "label": "Tier model", "value": "critical 100 / standard 0 / sheddable -1" }
+      ]
+    },
+    {
+      "t": 320,
+      "target": { "x": 250, "y": 230, "w": 1650, "h": 170 },
+      "caption": "Both priority tiers registered against the InferencePool — the flow control layer matches requests by objective and dispatches with strict priority ordering plus intra-band fairness",
+      "details": [
+        { "label": "interactive-critical", "value": "priority 100" },
+        { "label": "batch-workload", "value": "priority -1" },
+        { "label": "InferencePool", "value": "maas-llmd-demo-inference-pool" },
+        { "label": "Enforcement", "value": "strict priority ordering + fairness policies within a band" }
+      ]
+    },
+    {
+      "t": 410,
+      "target": { "x": 300, "y": 270, "w": 1590, "h": 165 },
+      "caption": "The flow control metric is live: llm_d_epp_flow_control_pool_saturation scraped from the EPP. 1.0 is the gating set point — with no inference traffic on this CPU-only cluster the pool reads at the threshold rather than a live load level",
+      "details": [
+        { "label": "Metric", "value": "llm_d_epp_flow_control_pool_saturation" },
+        { "label": "Value", "value": "1.0 — the gating set point where dispatch halts" },
+        { "label": "Scrape target", "value": "maas-llmd-demo-epp-service :9090 (user workload monitoring)" },
+        { "label": "Under load on a GPU cluster", "value": "values above 1.0 indicate oversubscription past the gating threshold" }
+      ]
+    },
+    {
+      "t": 520,
+      "target": { "x": 1120, "y": 690, "w": 700, "h": 240 },
+      "caption": "RHOAI Observability dashboard — cluster resource overview. The welcome tour is still open; model panels show No data on this CPU-only cluster because no inference traffic exists",
+      "details": [
+        { "label": "Page", "value": "Observe & monitor > Dashboard (Module 02 Exercise 3)" },
+        { "label": "Project filter", "value": "abc123-user1" },
+        { "label": "Live panel", "value": "Memory allocated (cluster resource usage)" },
+        { "label": "No data", "value": "Deployed models, GPU utilization, request success rate — CPU-only cluster" }
+      ]
+    },
+    {
+      "t": 925,
+      "target": { "x": 340, "y": 410, "w": 1500, "h": 230 },
+      "caption": "The LLM Traffic dashboard — where request rate, error rate, and token throughput appear under load. Empty here because no inference traffic exists; on a serving cluster these fill as requests flow",
+      "details": [
+        { "label": "Panels", "value": "Error rate, Throughput (req/s), Token throughput (tokens/s)" },
+        { "label": "Drill-down", "value": "per-model traffic breakdown" },
+        { "label": "On this cluster", "value": "no inference traffic — panels empty (honest empty state)" }
+      ]
+    },
+    {
+      "t": 965,
+      "target": { "x": 340, "y": 410, "w": 1500, "h": 250 },
+      "caption": "The LLM Performance dashboard — TTFT, E2E and inter-token latency percentiles plus KV cache hit rate and usage: the SLO panels that priority-based flow control protects under load",
+      "details": [
+        { "label": "Latency", "value": "TTFT, E2E request latency, inter-token latency (P50/P95/P99)" },
+        { "label": "KV cache", "value": "hit rate + usage" },
+        { "label": "Flow control goal", "value": "protect latency SLOs for critical workloads while maximizing GPU usage with batch" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "title": "Platform-wide direct OIDC authentication — the GatewayConfig CR, verified end to end",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 25,
+      "target": {"x": 300, "y": 90, "w": 1300, "h": 240},
+      "caption": "The GatewayConfig CR is the single control point for platform-wide authentication in RHOAI 3.5",
+      "details": [
+        {"label": "CR", "value": "default-gateway · Ready True · 1 of 1"},
+        {"label": "Group / version", "value": "services.platform.opendatahub.io / v1alpha1 — cluster-scoped"},
+        {"label": "Owned by", "value": "DSCInitialization default-dsci — the Operator reconciles it"}
+      ]
+    },
+    {
+      "t": 50,
+      "target": {"x": 300, "y": 690, "w": 1300, "h": 220},
+      "caption": "The Operator reconciles the CR — Ready, ProvisioningSucceeded, GatewayConfigReady all True",
+      "details": [
+        {"label": "Ready", "value": "True — since 15 Oct 2026"},
+        {"label": "ProvisioningSucceeded", "value": "True — observedGeneration 2"},
+        {"label": "GatewayConfigReady", "value": "True — message: Gateway is ready"}
+      ]
+    },
+    {
+      "t": 72,
+      "target": {"x": 380, "y": 270, "w": 1200, "h": 380},
+      "caption": "This cluster provisions the gateway with Kubernetes token validation — not the OIDC issuer block",
+      "details": [
+        {"label": "enableK8sTokenValidation", "value": "true — service-account bearer tokens validated at the gateway"},
+        {"label": "ingressMode", "value": "OcpRoute — Gateway API on OCP 4.19.9 or later"},
+        {"label": "spec.oidc", "value": "the module's issuer patch applies to direct-OIDC clusters — a prerequisite this cluster does not carry (authentication type is not OIDC here)"}
+      ]
+    },
+    {
+      "t": 84,
+      "target": {"x": 380, "y": 620, "w": 1200, "h": 380},
+      "caption": "The reconciled status reports Ready and ProvisioningSucceeded True",
+      "details": [
+        {"label": "Conditions", "value": "Ready True · ProvisioningSucceeded True · observedGeneration 2"},
+        {"label": "status.domain", "value": "rh-ai.apps.cluster-lmg7d.dyn.redhatworkshops.io — just below the fold"},
+        {"label": "phase", "value": "Ready"}
+      ]
+    },
+    {
+      "t": 128,
+      "target": {"x": 330, "y": 190, "w": 1300, "h": 620},
+      "caption": "kube-auth-proxy — the auth proxy the Operator provisions to front RHOAI services",
+      "details": [
+        {"label": "Deployment", "value": "kube-auth-proxy · 2 of 2 pods · openshift-ingress"},
+        {"label": "Managed by", "value": "GatewayConfig GC default-gateway"},
+        {"label": "Labels", "value": "component=authentication · managed-by=GatewayConfig · part-of=GatewayConfig"}
+      ]
+    },
+    {
+      "t": 160,
+      "target": {"x": 330, "y": 190, "w": 1300, "h": 620},
+      "caption": "The data-science-gateway (Gateway API) is PROGRAMMED — wired from the GatewayConfig",
+      "details": [
+        {"label": "Programmed", "value": "True — assigned to service(s) data-science-gateway-data-science-gateway-class.openshift-ingress.svc.cluster.local:443"},
+        {"label": "Class", "value": "data-science-gateway-class"},
+        {"label": "LoadBalancer service", "value": "pending on this CPU-only workshop cluster — the gateway address is the in-cluster service DNS; it differs per environment"}
+      ]
+    },
+    {
+      "t": 185,
+      "target": {"x": 680, "y": 380, "w": 560, "h": 460},
+      "caption": "Console authentication redirects to the platform's OpenID identity provider",
+      "details": [
+        {"label": "Identity provider", "value": "rhbk (OpenID) — Red Hat Build of Keycloak"},
+        {"label": "Client", "value": "idp-4-ocp — registered in the keycloak realm"},
+        {"label": "Callback", "value": "oauth-openshift…/oauth2callback/rhbk — successful sign-in returns to the console"}
+      ]
+    },
+    {
+      "t": 196,
+      "target": {"x": 330, "y": 20, "w": 1300, "h": 390},
+      "caption": "Verified end to end: the RHOAI dashboard loads at the gateway's reconciled domain",
+      "details": [
+        {"label": "Dashboard URL", "value": "https://rh-ai.apps.cluster-lmg7d.dyn.redhatworkshops.io — the same host the CR reports as status.domain"},
+        {"label": "Authenticated", "value": "signed in as admin — the Keycloak session carried over silently"},
+        {"label": "ConsoleLink", "value": "rhodslink → the gateway domain — the RHOAI entry point"}
+      ]
+    },
+    {
+      "t": 205,
+      "target": {"x": 330, "y": 500, "w": 1300, "h": 560},
+      "caption": "RHOAI components are accessible behind the authenticated gateway",
+      "details": [
+        {"label": "Loaded", "value": "projects, task shortcuts and learning resources — after authentication"},
+        {"label": "Authorization", "value": "stays at the service or pod level — sidecars such as kube-rbac-proxy"},
+        {"label": "One control point", "value": "the centralized auth service handles the platform login — one client, one secret"}
+      ]
+    }
+  ]
+}

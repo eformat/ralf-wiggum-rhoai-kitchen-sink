@@ -1,0 +1,116 @@
+{
+  "title": "Llama Stack / OGX core — activate the operator, deploy an OGXServer, and the RAG stack behind it",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 16,
+      "target": { "x": 390, "y": 170, "w": 320, "h": 55 },
+      "caption": "OGX ships as a component of the OpenShift AI operator — no separate operator to install",
+      "details": [
+        { "label": "Page", "value": "Operators > Installed Operators (redhat-ods-applications)" },
+        { "label": "Operator", "value": "Red Hat OpenShift AI 3.5.1 (rhods-operator)" },
+        { "label": "OGX", "value": "Component of the rhods-operator CSV — arrives with the platform" }
+      ]
+    },
+    {
+      "t": 100,
+      "target": { "x": 319, "y": 599, "w": 1548, "h": 60 },
+      "caption": "ogx managementState: Managed — the OGX operator is activated in the DataScienceCluster",
+      "details": [
+        { "label": "Page", "value": "default-dsc > YAML > spec.components" },
+        { "label": "ogx", "value": "managementState: Managed (OGXReady=True)" },
+        { "label": "llamastackoperator", "value": "Removed — mutually exclusive, OGX supersedes Llama Stack" }
+      ]
+    },
+    {
+      "t": 185,
+      "target": { "x": 314, "y": 303, "w": 1558, "h": 92 },
+      "caption": "OGXServer instances — the dashboard playground auto-provisioned one; the module's storage.sql deploy reports Failed",
+      "details": [
+        { "label": "API", "value": "ogx.io/v1beta1 OGXServer (was llamastack.io/v1alpha1 LlamaStackDistribution)" },
+        { "label": "lsd-genai-playground", "value": "Ready — provisioned by the Gen AI Studio playground" },
+        { "label": "ogx-custom-server", "value": "Failed — registry auth gap (next beat)" }
+      ]
+    },
+    {
+      "t": 250,
+      "target": { "x": 319, "y": 643, "w": 1548, "h": 100 },
+      "caption": "Module-02 storage.sql: the PostgreSQL metadata store wired via a connectionString Secret",
+      "details": [
+        { "label": "storage.sql.type", "value": "postgres" },
+        { "label": "connectionString", "value": "Secret ogx-postgres-conn (carries the ogx.io/watch: true label)" },
+        { "label": "PostgreSQL", "value": "Provisioned in-project — reachable, not the blocker" }
+      ]
+    },
+    {
+      "t": 258,
+      "target": { "x": 319, "y": 751, "w": 1548, "h": 90 },
+      "caption": "Honest failure: the operator fetches the base OGX config from registry.redhat.io — HTTP 401 on this workshop cluster",
+      "details": [
+        { "label": "Condition", "value": "ConfigGenerated=False, ConfigGenerationFailed" },
+        { "label": "Cause", "value": "OCI-label fetch of odh-ogx-core-rhel9 → 401 (needs registry.redhat.io auth)" },
+        { "label": "Reportable", "value": "Registry pull secrets are a documented cluster prerequisite" }
+      ]
+    },
+    {
+      "t": 388,
+      "target": { "x": 319, "y": 280, "w": 1548, "h": 694 },
+      "caption": "Quick create > Import YAML: an OGXServer with overrideConfig — the declarative-config path the playground itself uses",
+      "details": [
+        { "label": "spec.overrideConfig", "value": "ogx-rag-config ConfigMap (key config.yaml)" },
+        { "label": "ConfigMap label", "value": "ogx.io/watch=true — required, the operator only watches labeled ConfigMaps" },
+        { "label": "Pre-provisioned", "value": "pgvector store, provider env, and offline model cache from secrets" }
+      ]
+    },
+    {
+      "t": 420,
+      "target": { "x": 314, "y": 160, "w": 420, "h": 55 },
+      "caption": "ogx-rag-server Ready — deployment, service, and health checks all pass",
+      "details": [
+        { "label": "DeploymentReady", "value": "True — 1/1 pod Running" },
+        { "label": "ServiceReady", "value": "True — ogx-rag-server-service:8321" },
+        { "label": "ConfigGenerated", "value": "False (ConfigGenerationInactive — declarative config, reported honestly)" }
+      ]
+    },
+    {
+      "t": 560,
+      "target": { "x": 314, "y": 257, "w": 1558, "h": 760 },
+      "caption": "Project workloads: the OGX servers and the pgvector vector store side by side",
+      "details": [
+        { "label": "OGX servers", "value": "ogx-rag-server + lsd-genai-playground (dashboard playground)" },
+        { "label": "Vector store", "value": "genai-pgvector — PostgreSQL 16 with the pgvector extension" },
+        { "label": "Module-02", "value": "postgres metadata store + ogx-postgres-conn Secret" }
+      ]
+    },
+    {
+      "t": 640,
+      "target": { "x": 319, "y": 656, "w": 1548, "h": 80 },
+      "caption": "Module-03 HA and autoscaling are declared on spec.workload — HPA live at cpu 0%/75%",
+      "details": [
+        { "label": "autoscaling", "value": "minReplicas 1, maxReplicas 5, targetCPU 75%" },
+        { "label": "podDisruptionBudget", "value": "maxUnavailable 1" },
+        { "label": "Drift note", "value": "Module doc says spec.server — the real 3.5.1 surface is spec.workload" }
+      ]
+    },
+    {
+      "t": 695,
+      "target": { "x": 1450, "y": 330, "w": 340, "h": 60 },
+      "caption": "Gen AI Studio playground — the dashboard UI runs on its own OGX server",
+      "details": [
+        { "label": "Model", "value": "vllm-inference-1/Qwen2.5-0.5B-Instruct (CPU) — registered by the OGX server" },
+        { "label": "Backing OGXServer", "value": "lsd-genai-playground (Ready)" },
+        { "label": "Support", "value": "Auto-provisioned playground vector store is Technology Preview" }
+      ]
+    },
+    {
+      "t": 720,
+      "target": { "x": 470, "y": 300, "w": 840, "h": 220 },
+      "caption": "Live chat served through the OGX stack — the RAG-ready runtime, honestly on CPU",
+      "details": [
+        { "label": "Latency", "value": "2.45 s end-to-end, TTFT 577 ms, 1037 T/s" },
+        { "label": "Path", "value": "Playground → OGX server → vLLM inference (qwen25-05b)" },
+        { "label": "Honest note", "value": "The full file_search RAG loop needs a remote embedding model — none on this CPU-only cluster" }
+      ]
+    }
+  ]
+}
