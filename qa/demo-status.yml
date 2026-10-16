@@ -30,6 +30,51 @@ csv-export-model-catalog: blocked     # lmg7d defect 5
 model-registry-catalog: blocked       # lmg7d defect 5
 validated-tool-calling-config: blocked  # lmg7d defect 5 (pilot 2 pivot reason)
 
+# ---- Phase 2 batch (env-rebuild demos, grouped by shared environment — waves rebuild the env once) ----
+# llm-d group (Gateway openshift-ai-inference already rebuilt by maas-llmd-deployment — ENV partially staged)
+llmd-core: pending
+llmd-priority-flow-control: pending
+llminferenceservice-config: pending
+llmd-kv-cache-tiering: pending
+llmd-latency-routing: pending
+llmd-lora-routing: pending
+# MCP operators group
+mcp-gateway-operator: pending
+mcp-lifecycle-operator: pending
+mcp-catalog-support-tier: pending
+# Distributed-training operators group
+kueue: pending
+kubeflow-trainer-v2: pending
+kuberay: pending
+# Guardrails group (nemo-guardrails-mcp-gateway failed its run 2026-09-23 — triage at Orient)
+nemo-guardrails: pending
+nemo-guardrails-mcp-gateway: pending   # qa/status.yml says fail — re-triage
+# vLLM serving group
+maas-vllm-deployment: pending
+vllm-serving-runtime-kserve: pending
+rhai-fast-release-images: pending
+# OGX / LlamaStack group (ogx-agentic-api + ogx-remote-providers are observe-only in qa/status.yml)
+llama-stack-ogx-core: pending
+ogx-agentic-api: pending              # observe-only — decide demo framing at Orient
+ogx-file-processors: pending
+# Platform group (platform-oidc-auth is observe-only)
+gateway-api-rhcl: pending
+platform-oidc-auth: pending           # observe-only — decide demo framing at Orient
+# Solo features
+text-mode-multimodal-training: pending
+kale-jupyterlab: pending
+feature-store-feast: pending
+
+# ---- by-design CLI / terminal recordings (Phase 3) / deferred ----
+midojo-adversarial-testing: skip      # Phase 3 terminal recording
+external-metering-maas: skip          # Phase 3 terminal recording
+external-metering-per-user: skip      # Phase 3 terminal recording
+evalhub: skip                         # Phase 3 terminal recording
+opencode-coding-agent: skip           # Phase 3 terminal recording
+openclaw-starter-kit: skip            # Phase 3 terminal recording
+automl: pending
+autorag: pending                      # driver-image bug — triage at Orient (kitchen-sink plan deferred)
+
 # ---- running list of completed exercises (append one line per completed demo) ----
 running-list:
   - "[2026-10-15] pilot 1 ai-available-assets — demo built end-to-end (lossy q90, 0.26 MB); integrated (agents-mcp/ai-available-assets); quality rebuild pending"

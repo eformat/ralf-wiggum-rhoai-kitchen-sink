@@ -304,8 +304,12 @@ Never start the next wave with a child over the soft limit.
 ### 4. Update state + running list
 
 After each wave: set the feature's state in `qa/demo-status.yml` (`pass` +
-demo path, `skip` + reason, `blocked` + reason) and append one line per
-completed demo to the running list at the bottom of `qa/demo-status.yml`.
+demo path, `skip` + reason, `blocked` + reason), append one line per
+completed demo to the running list at the bottom of `qa/demo-status.yml`,
+and add the demo link to the hub catalog's **Arcade** column in
+`home/content/modules/ROOT/pages/index.adoc` (cross-component relative link
+`link:../<slug>/_attachments/<slug>-demo.html[▶ Walkthrough,window=_blank]`;
+`—` until a demo exists), then `make build` to publish it.
 Housekeeping per wave: close `-s=recording-*` playwright sessions, kill stray
 http servers, scrub /tmp frame dirs.
 
