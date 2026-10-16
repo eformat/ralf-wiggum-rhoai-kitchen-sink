@@ -1,0 +1,76 @@
+{
+  "title": "MLflow experiment tracking — workbench to dashboard",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 8,
+      "target": {"x": 930, "y": 480, "w": 300, "h": 185},
+      "caption": "The empty Experiments page",
+      "details": [
+        {"label": "Project", "value": "abc123-user1"},
+        {"label": "Navigation", "value": "Develop & train → Experiments"},
+        {"label": "Before", "value": "No experiments yet — nothing has been tracked"}
+      ]
+    },
+    {
+      "t": 115,
+      "target": {"x": 310, "y": 200, "w": 1575, "h": 375},
+      "caption": "Track an experiment from the workbench",
+      "details": [
+        {"label": "Workbench", "value": "mlflow-demo · Jupyter | Data Science | Python 3.12"},
+        {"label": "Notebook", "value": "mlflow-demo.ipynb — the module 02 exercise cells"},
+        {"label": "SDK", "value": "mlflow 3.14.0 pre-installed — no manual configuration"}
+      ]
+    },
+    {
+      "t": 128,
+      "target": {"x": 320, "y": 300, "w": 1570, "h": 82},
+      "caption": "Injected MLflow environment variables",
+      "details": [
+        {"label": "MLFLOW_TRACKING_URI", "value": "https://rh-ai.apps.cluster-lmg7d.../mlflow"},
+        {"label": "MLFLOW_K8S_INTEGRATION", "value": "true"},
+        {"label": "MLFLOW_TRACKING_AUTH", "value": "kubernetes-namespaced"}
+      ]
+    },
+    {
+      "t": 134,
+      "target": {"x": 330, "y": 636, "w": 1570, "h": 70},
+      "caption": "Parameters and metrics logged",
+      "details": [
+        {"label": "Experiment", "value": "demo-experiment — created on first call"},
+        {"label": "Run", "value": "demo-run"},
+        {"label": "Logged", "value": "2 params · accuracy + loss metrics × 5 steps"}
+      ]
+    },
+    {
+      "t": 198,
+      "target": {"x": 315, "y": 360, "w": 1575, "h": 58},
+      "caption": "The experiment appears in the dashboard",
+      "details": [
+        {"label": "Experiment", "value": "demo-experiment"},
+        {"label": "Workspace", "value": "abc123-user1 — one project maps to one MLflow workspace"},
+        {"label": "Created", "value": "10/16/2026, 10:08:30 AM"}
+      ]
+    },
+    {
+      "t": 216,
+      "target": {"x": 480, "y": 330, "w": 1030, "h": 100},
+      "caption": "The Model training runs table",
+      "details": [
+        {"label": "Run", "value": "demo-run"},
+        {"label": "Mode", "value": "Model training — classic MLflow runs"},
+        {"label": "Columns", "value": "Run Name · Created · Dataset · Duration · Source · Models"}
+      ]
+    },
+    {
+      "t": 230,
+      "target": {"x": 300, "y": 310, "w": 1000, "h": 565},
+      "caption": "Parameters, metrics, and run details",
+      "details": [
+        {"label": "Parameters", "value": "model_type=baseline · feature_count=3"},
+        {"label": "Metrics", "value": "accuracy 0.802 · loss 0.456"},
+        {"label": "Status", "value": "Finished — review charts and system metrics in the run tabs"}
+      ]
+    }
+  ]
+}

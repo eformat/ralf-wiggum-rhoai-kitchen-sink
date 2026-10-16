@@ -1,0 +1,72 @@
+{
+  "title": "MaaS multi-tenancy — one gateway per tenant",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 5.0,
+      "target": { "x": 120, "y": 128, "w": 630, "h": 80 },
+      "caption": "Two tenants, one MaaS — both Ready",
+      "details": [
+        { "label": "Default tenant", "value": "models-as-a-service · maas-default-gateway" },
+        { "label": "red-team tenant", "value": "ai-tenant-red-team · red-team gateway" }
+      ]
+    },
+    {
+      "t": 70.0,
+      "target": { "x": 385, "y": 625, "w": 640, "h": 320 },
+      "caption": "The AITenant CR — spec.gateway points at the dedicated gateway",
+      "details": [
+        { "label": "spec.gateway.name", "value": "red-team" },
+        { "label": "Status", "value": "Ready · Reconciled" },
+        { "label": "Phase", "value": "Active · tenantNamespace ai-tenant-red-team" }
+      ]
+    },
+    {
+      "t": 175.0,
+      "target": { "x": 124, "y": 112, "w": 640, "h": 95 },
+      "caption": "One gateway per tenant — default and red-team side by side",
+      "details": [
+        { "label": "maas-default-gateway", "value": "maas.apps.<cluster-domain> · Programmed" },
+        { "label": "red-team", "value": "red-team-maas.<cluster-domain> · Programmed" }
+      ]
+    },
+    {
+      "t": 215.0,
+      "target": { "x": 385, "y": 750, "w": 760, "h": 195 },
+      "caption": "The red-team Gateway — listener hostname + tenant-scoped allowedRoutes",
+      "details": [
+        { "label": "Listener", "value": "red-team-maas.<cluster-domain> · HTTPS 443" },
+        { "label": "allowedRoutes", "value": "maas.opendatahub.io/gateway-access-red-team" },
+        { "label": "gatewayClassName", "value": "data-science-gateway-class" }
+      ]
+    },
+    {
+      "t": 242.0,
+      "target": { "x": 124, "y": 185, "w": 640, "h": 90 },
+      "caption": "Per-tenant gateway auth — one AuthPolicy per gateway",
+      "details": [
+        { "label": "maas-gateway-auth", "value": "maas-default-gateway · True/True" },
+        { "label": "red-team-maas-auth", "value": "red-team · True/True" }
+      ]
+    },
+    {
+      "t": 270.0,
+      "target": { "x": 130, "y": 285, "w": 760, "h": 400 },
+      "caption": "Isolation made visible — maas-api-red-team beside the platform maas-api",
+      "details": [
+        { "label": "maas-api", "value": "tenant-name=models-as-a-service · 1/1" },
+        { "label": "maas-api-red-team", "value": "tenant-name=red-team · 1/1" },
+        { "label": "Same image", "value": "isolated tenant labels + namespace" }
+      ]
+    },
+    {
+      "t": 305.0,
+      "target": { "x": 300, "y": 275, "w": 900, "h": 80 },
+      "caption": "The controller's last bootstrap — per-tenant MaasTenantConfig, Reconciled",
+      "details": [
+        { "label": "default-tenant", "value": "ai-tenant-red-team · True · Reconciled" },
+        { "label": "infraNamespace", "value": "redhat-ai-gateway-infra" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+# qa/demo-status.yml — per-feature arcade-demo state. Updated by Mode 4 of the ralf-wiggum loop.
+# States: pending | pass | rebuild | blocked | skip
+#   pending  — in the batch, not started
+#   pass     — demo built, validated, integrated (attachment + index.adoc link committed)
+#   rebuild  — demo built but fails the quality recipe (800x450 screencast / --lossy q90) — re-record + rebuild
+#   blocked  — environment defect; see reason comment
+#   skip     — by-design not demoable; see reason comment
+#
+# Quality recipe (overrides the pilot recipe): RECORD at true 1920x1080 (playwright viewport
+# resized BEFORE video-start; ffprobe-guard the webm — never upscale), BUILD with the
+# mp4_to_demo.py default lossless WebP at native width (never --lossy).
+
+# ---- pilots (initial commit 9a50be08, reviewed by Mike: fine BUT low quality) ----
+# both built with --lossy q90 from 800x450 screencasts -> quality rebuild
+ai-available-assets: pass        # agents-mcp category; REBUILT 2026-10-16: 1920x1080 native recording, lossless WebP, 0.86 MB player (5 cues); integrated
+maas-oidc-auth: pass             # maas category; REBUILT 2026-10-16: 1920x1080 vp8 (2 segments concatenated), lossless WebP, 1.20 MB player (5 cues); integrated
+
+# ---- Phase 1 batch (lock at Orient; env-checked against cluster-lmg7d) ----
+maas-multi-tenancy: pass         # maas category; batch1 wave1 2026-10-16: 1920x1080 native (323s all-console), lossless WebP 1.23MB frames, 1.67 MB player (7 cues); tenant stack rebuilt additive (no dashboard patch/restart)
+maas-loki-showback: pass          # maas category; batch1 wave1 2026-10-16: 1920x1080 vp8 (2 segments concatenated, console 267.4s + dashboard 117.2s), lossless WebP 1.89MB frames, 2.55 MB player (9 cues); env rebuilt additive (PersesGlobalDatasource + llm-katan simulator + traffic), no dashboard patch/restart
+maas-llmd-deployment: pass          # maas category; batch1 wave2 2026-10-16: 1920x1080 vp8 (3 segments concatenated, dashboard 237.3s + console 252.2s + dashboard 52.0s), lossless WebP 1.41MB frames, 1.91 MB player (10 cues); llm-d gateway rebuilt additive per documented cluster/overlays/llmd setup, no dashboard patch/restart
+mlflow-experiment-tracking: pass        # mlops category; batch1 wave2 2026-10-16: 1920x1080 vp8 (3 segments concatenated, dashboard 19.1s + jupyter 174.1s + dashboard 47.6s), lossless WebP 1.34MB frames, 1.81 MB player (7 cues); env rebuilt additive (workbench mlflow-demo + notebook in volume, no dashboard patch/restart)
+genai-studio-saved-agent: pass          # agents-mcp category; REBUILT 2026-10-16: 1920x1080 vp8 native recording, lossless WebP, 1.71 MB player (8 cues); integrated
+maas-core: blocked                    # needs a published model — none exist on lmg7d (pilots doc)
+
+# ---- catalog-flow features blocked on lmg7d defect 5 (model-registry-ui dials its own
+# route host via the EXTERNAL IP and times out -> "Model catalog source load error") ----
+agent-catalog-ai-hub: blocked         # lmg7d defect 5
+csv-export-model-catalog: blocked     # lmg7d defect 5
+model-registry-catalog: blocked       # lmg7d defect 5
+validated-tool-calling-config: blocked  # lmg7d defect 5 (pilot 2 pivot reason)
+
+# ---- running list of completed exercises (append one line per completed demo) ----
+running-list:
+  - "[2026-10-15] pilot 1 ai-available-assets — demo built end-to-end (lossy q90, 0.26 MB); integrated (agents-mcp/ai-available-assets); quality rebuild pending"
+  - "[2026-10-15] pilot 2 maas-oidc-auth — demo built + validated (lossy q90, 0.24 MB); integrated (maas/maas-oidc-auth); quality rebuild pending"
+  - "[2026-10-16] guard machinery — qa/tools/session-guard.py (selftest PASS) + SKILL.md Mode 4 + this file"
+  - "[2026-10-16] pilot 1 ai-available-assets QUALITY REBUILD — first guard-instrumented sub-agent; 1920x1080 native recording (ffprobe-guarded, no upscale), lossless WebP 81-167KB frames, 0.86 MB player (5 cues); camera transforms exact, stepping restores, console clean; guard OK throughout 0.05->0.4 MiB no strips; child session ended 1.14 MiB (13 <=40KB thumbnails)"
+  - "[2026-10-16] pilot 2 maas-oidc-auth QUALITY REBUILD — video-start --size 1920x1080 both segments (console 85.2s + keycloak 192.4s -> concat 277.6s), lossless WebP 0.89MB frames, 1.20 MB player (5 cues); spot rects exact on all 5, stepping restores, console clean; guard OK every phase 0.50 MiB peak; child session ended 0.51 MiB (9 thumbnails); creds+playwright+http server cleaned up"
+  - "[2026-10-16] genai-studio-saved-agent — 1920x1080 native recording (ffprobe-guarded 398.2s vp8), lossless WebP 8 frames, 1.71 MB player (8 cues); camera transforms exact on all 8, stepping+End/Home restore, details rows render, console 0/0; env rebuilt additively on lmg7d (dashboard-flags agentConfigManagement + DSC ogx/trustyai/mlflow Managed, llamastackoperator Removed + IS qwen25-05b + MLflow instance in redhat-ods-applications); guard OK 0.05->0.55 MiB no strips"
+  - "[2026-10-16] maas-multi-tenancy — batch1 wave1: 1920x1080 native (323s all-console), lossless 1.23MB frames, 1.67 MB player (7 cues); transforms exact, stepping restores, console clean; guard OK no strips, child ended 1.83 MiB (7 thumbnails); tenant stack rebuilt additive (no dashboard patch/restart); gotcha: keycloak form re-renders between fills (refill + 1s wait), Deployments page ~5-8s skeleton after nav"
+  - "[2026-10-16] maas-loki-showback — batch1 wave1: 1920x1080 vp8 (2 segments concatenated, console 267.4s + dashboard 117.2s), lossless WebP 1.89MB frames, 2.55 MB player (9 cues); spotlight pixel-exact (DOM cue1 + visual cue9), End/Home restore exact, autoplay advances, console clean (favicon 404 only); guard OK every phase 0.1->0.4 MiB no strips; env rebuilt additive per documented setup: PersesGlobalDatasource re-applied (gold-standard fix, cluster was 17h old), llm-katan simulator deployed (showroom manifests/05-maas, 5 models 200s), 15 gateway calls -> authorized_hits_total flowing with user/subscription/model labels; NO dashboard patch/restart; gotchas: oauth2-proxy session expired mid-run (403 on rh-ai vanity URL, segment B re-logged), View-by has no By user option on 3.5.1 (By model/By subscription only), module-02 Export-as-CSV button absent on 3.5.1 Usage tab (cue skipped honestly)"
+  - "[2026-10-16] maas-llmd-deployment — batch1 wave2: 1920x1080 vp8 (3 segments concatenated, dashboard wizard 237.3s + console verify/governance 252.2s + dashboard AI asset endpoints 52.0s), lossless WebP 1.41MB frames, 1.91 MB player (10 cues); spotlight on llm-d radio block (visual cue4), stepping+End/Home restore, details rows render, console clean (favicon 404 only); guard OK every phase 0.08->0.9 MiB no strips; env rebuilt additive per documented cluster setup: cluster/overlays/llmd gateway pieces applied (GatewayClass+Gateway openshift-ai-inference, Programmed True via documented service-status patch), workshop-users group created, OCI storage connection created via wizard inline; wizard deploy validated out-of-video first (LLMInferenceService+MaaSModelRef+connection created), deleted, then recorded clean; model stays Starting on CPU-only (vllm-cuda image, GPU-TRACKING observe-only) — captions honest; console CRD drift: authpolicies are openshift-ingress-scoped on lmg7d (not project-scoped as module-02 says), TokenRateLimitPolicy IS project-scoped"
+  - "[2026-10-16] mlflow-experiment-tracking — batch1 wave2: 1920x1080 vp8 (3 segments concatenated, dashboard-before 19.1s + jupyter 174.1s + dashboard-after 47.6s), lossless WebP 7 frames 1.34MB, 1.81 MB player (7 cues); camera transforms exact on all 7, End/ArrowLeft/Home restore exact, autoplay advances, console clean (favicon 404 only); guard OK every phase 0.05->1.87 MiB no strips (17 thumbnails); env rebuilt additive per documented setup: MLflow instance from the mlflow module docs (staged by setup agent, CR Available, mlflow 3.14.0), workbench mlflow-demo created via the dashboard learner flow in abc123-user1 (auto mlflow-instance annotation, Data Science CPU image, Ready in ~60s), module-02 exercise notebook copied into the workbench volume; arc: empty Experiments page -> run the two exercise cells in Jupyter (env vars + params/metrics logged) -> demo-experiment appears -> Model training runs table -> run detail; NO dashboard patch/restart; gotchas: JupyterLab fires beforeunload on leaving (dialog-accept needed, handled off-camera), dashboard experiment page needs the Model training toggle to show the classic runs table (GenAI view is observability-only), MLflow 3.14 UI has no classic Runs tab — runs live under the experiment Model training mode"

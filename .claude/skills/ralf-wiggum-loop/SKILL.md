@@ -4,9 +4,10 @@ description: >
   Iterate over the RHOAI feature matrix and scaffold or enrich workshop content
   for every feature. Mode 1: bulk scaffold all unscaffolded features into Antora
   components. Mode 2: enrich a specific feature with real, tested exercises. Mode 3:
-  version bump for a new RHOAI release (e.g. 3.6). Use when asked to "run the ralf
+  version bump for a new RHOAI release (e.g. 3.6). Mode 4: batch arcade demo
+  production per feature as self-correcting sub-agents. Use when asked to "run the ralf
   wiggum loop", "scaffold all features", "bulk scaffold", "enrich feature X",
-  "bump to 3.6", or "kitchen sink loop".
+  "bump to 3.6", "arcade demo batch", or "kitchen sink loop".
 ---
 
 # Ralf Wiggum Loop
@@ -230,3 +231,107 @@ on": labs assume the state base + their mapped overlays provide.
   changed, and update `feature-overlays.yml` (`rhoai_version`) — same two-tier
   pattern as the content. Check the RHBoK ≤1.3 Trainer-v2 constraint before
   bumping (see `cluster/overlays/distributed/dsc-patch.yaml`).
+
+## Mode 4: Arcade demo batch
+
+Produce an interactive arcade demo (`arcade-demo` skill,
+`~/.agents/skills/arcade-demo/`) for every feature in the batch, as
+self-correcting sub-agents. Recipe and gotchas live in
+`qa/arcade-demos-pilots-2026-10-15.md` (pilots complete, Mike-reviewed); demo
+state is tracked in `qa/demo-status.yml` (`pending | pass | rebuild | blocked |
+skip`), which makes the loop idempotent like Modes 1–3.
+
+### 1. Orient — lock the batch list
+
+Read `qa/demo-status.yml`; the batch is every feature marked `pending`. Verify
+environment availability per feature against `qa/runs/<slug>/` and the cluster
+(`KUBECONFIG=~/.kube/config.fde`): mark features whose env is broken
+(catalog-flow features blocked on the lmg7d route-hairpin defect,
+inference-dependent features with no model serving) as `blocked` with a reason
+comment. Report: "N features to demo, M blocked."
+
+### 2. Waves of sub-agents (3 per wave)
+
+Each feature gets ONE sub-agent (agent type `general`) that owns the full
+locked recipe: ENV → RECORD → AUTHOR → BUILD → VALIDATE → INTEGRATE. Spawn with
+the subagent tool from the repo root; keep waves to 3 so cluster-side env
+rebuilds stay serialized enough.
+
+**Sub-agent prompt template** — include ALL of this:
+
+```
+Arcade demo for feature <slug> (ralf-wiggum-loop Mode 4).
+session-tag: arcade-<batch>-<slug>-<unix-ts>     <- unique, never reused
+
+Work in ~/git/ralf-wiggum-rhoai-kitchen-sink. Follow the locked recipe in
+qa/arcade-demos-pilots-2026-10-15.md (steps 1-7 + gotchas 1-7). Quality recipe
+overrides: RECORD with the playwright viewport resized to 1920x1080 BEFORE
+video-start (ffprobe the webm — if it is smaller than 1920x1080, STOP and
+re-record, never upscale); BUILD with mp4_to_demo.py DEFAULT lossless WebP at
+native width (never --lossy); extract frames from the webm source.
+
+MaaS gateway 4MiB hygiene (mandatory — see SKILL.md section):
+- NEVER read a full-res image: downscale first
+  (ffmpeg -i in.png -vf scale=640:-1 -q:v 5 out.jpg, read only the <=40KB jpg)
+- <= 20 thumbnail reads this session; prefer text (ffmpeg cut reports,
+  playwright JS-state assertions) over screenshots
+- BEFORE each image read and after each recipe phase run:
+    python3 qa/tools/session-guard.py --find-tag <session-tag> --check
+  exit 0 -> proceed; exit 2 -> python3 qa/tools/session-guard.py --find-tag
+  <session-tag> --strip (automatic), continue with thumbnails only; exit 3 ->
+  strip, stop image reads, finish with text assertions
+- never re-read a stripped placeholder — regenerate a downscaled thumbnail
+
+Use your own named playwright session (-s=recording-<slug>), NEVER the default.
+Login before recording starts; no credentials on screen. Final response: at
+most 30 lines of text — artifact paths + verdicts only, NEVER base64 or
+screenshots.
+```
+
+### 3. Between waves — orchestrator guard check
+
+The orchestrator knows each child's sessionID (subagent tool result). After
+each wave completes:
+
+```bash
+python3 qa/tools/session-guard.py check --session <child-id>
+```
+
+If a child returned an error or 500'd, run `--strip` on its session and continue
+it with the subagent tool (pass its sessionID) and a short resumption note.
+Never start the next wave with a child over the soft limit.
+
+### 4. Update state + running list
+
+After each wave: set the feature's state in `qa/demo-status.yml` (`pass` +
+demo path, `skip` + reason, `blocked` + reason) and append one line per
+completed demo to the running list at the bottom of `qa/demo-status.yml`.
+Housekeeping per wave: close `-s=recording-*` playwright sessions, kill stray
+http servers, scrub /tmp frame dirs.
+
+## MaaS gateway 4MiB hygiene (all modes)
+
+Any opencode session whose stored history exceeds 4 MiB fails every model call
+with an empty-body HTTP 500 (RHOAIENG-99765 — the gateway's payload processor
+has a hard-coded 4 MiB gRPC receive limit; the full history replays per
+request). Images are the only realistic way to get there. Hard rules:
+
+1. **Never `read` a full-res image.** Downscale first:
+   `ffmpeg -i in.png -vf scale=640:-1 -q:v 5 out.jpg` (10–40 KB) and read only
+   the JPEG. Full-res reads are 150–750 KB of base64 each and accumulate.
+2. **Budget ~20 thumbnail reads per session.** With the 2.0 MiB soft limit that
+   leaves ample margin for text history.
+3. **Text before pixels.** ffmpeg cut/detect reports, playwright JS-state
+   assertions (`getBoundingClientRect`, `classList`, `textContent`) over
+   screenshots; screenshot only the 2–3 frames that genuinely need eyes.
+4. **Guard before image reads in long sessions.**
+   `qa/tools/session-guard.py --find-tag <tag> --check` → exit 0 proceed,
+   exit 2 `--strip` then continue, exit 3 strip + no more images. The strip is
+   fully automatic: one-shot backup to `/tmp/opencode/`, data: file items
+   replaced by text placeholders pointing at the on-disk originals. Never
+   re-read a placeholder — regenerate a downscaled thumbnail instead.
+5. **Sub-agents return compact text.** Their final response lands in the
+   orchestrator's history — never base64, never screenshots.
+
+If RHOAIENG-99765 (product-side fix raising the gRPC receive limit) ever lands,
+the guard simply never fires — keep it in place as a safety net either way.

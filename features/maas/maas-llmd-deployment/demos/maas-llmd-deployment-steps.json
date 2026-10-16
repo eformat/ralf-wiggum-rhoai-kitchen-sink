@@ -1,0 +1,108 @@
+{
+  "title": "MaaS deployment/routing path for llm-d — deploy and publish a model",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 15,
+      "target": { "x": 300, "y": 140, "w": 730, "h": 350 },
+      "caption": "Deploy model wizard — Model details",
+      "details": [
+        { "label": "Page", "value": "Projects > abc123-user1 > Deploy model" },
+        { "label": "Step 1", "value": "Model details — location + model type" },
+        { "label": "Wizard", "value": "Model details > Model deployment > Advanced > Review" }
+      ]
+    },
+    {
+      "t": 45,
+      "target": { "x": 560, "y": 270, "w": 1310, "h": 330 },
+      "caption": "Model location — OCI compliant registry",
+      "details": [
+        { "label": "Model location", "value": "OCI compliant registry" },
+        { "label": "Access type", "value": "Pull secret" },
+        { "label": "Registry host", "value": "quay.io" }
+      ]
+    },
+    {
+      "t": 125,
+      "target": { "x": 290, "y": 110, "w": 1300, "h": 750 },
+      "caption": "Model details complete — modelcar-catalog connection",
+      "details": [
+        { "label": "Secret", "value": "quay-pull-secret.json (dockerconfigjson)" },
+        { "label": "Model URI", "value": "oci://quay.io/redhat-ai-services/modelcar-catalog:qwen2.5-0.5b-instruct" },
+        { "label": "Connection", "value": "modelcar-catalog" },
+        { "label": "Model type", "value": "Generative AI model (Example, LLM)" }
+      ]
+    },
+    {
+      "t": 150,
+      "target": { "x": 280, "y": 340, "w": 1320, "h": 460 },
+      "caption": "Deployment method — LLM inference service with llm-d",
+      "details": [
+        { "label": "Method", "value": "LLM inference service with llm-d" },
+        { "label": "Topology", "value": "Single node + Single node (default)" },
+        { "label": "Routing", "value": "Default optimized routing" },
+        { "label": "Hardware profile", "value": "default-profile" }
+      ]
+    },
+    {
+      "t": 175,
+      "target": { "x": 280, "y": 245, "w": 1320, "h": 270 },
+      "caption": "Publish as MaaS — model exposed through the gateway",
+      "details": [
+        { "label": "Add as AI asset endpoint", "value": "checked" },
+        { "label": "Publish as MaaS", "value": "checked" },
+        { "label": "Token authentication", "value": "governed by MaaS policies" }
+      ]
+    },
+    {
+      "t": 212,
+      "target": { "x": 290, "y": 345, "w": 1300, "h": 160 },
+      "caption": "maas-llmd-demo deployed with Distributed inference with llm-d",
+      "details": [
+        { "label": "Deployment", "value": "maas-llmd-demo" },
+        { "label": "Resource", "value": "Distributed inference with llm-d" },
+        { "label": "Status", "value": "Starting" }
+      ]
+    },
+    {
+      "t": 285,
+      "target": { "x": 300, "y": 310, "w": 1580, "h": 690 },
+      "caption": "LLMInferenceService — the llm-d router binds the MaaS gateway",
+      "details": [
+        { "label": "kind", "value": "LLMInferenceService (serving.kserve.io/v1alpha2)" },
+        { "label": "spec.router.gateway", "value": "maas-default-gateway (openshift-ingress)" },
+        { "label": "model", "value": "modelcar-catalog:qwen2.5-0.5b-instruct" }
+      ]
+    },
+    {
+      "t": 395,
+      "target": { "x": 780, "y": 460, "w": 640, "h": 250 },
+      "caption": "Governance — MaaSSubscription + MaaSAuthPolicy created",
+      "details": [
+        { "label": "MaaSSubscription", "value": "workshop-models-subscription (Active)" },
+        { "label": "MaaSAuthPolicy", "value": "workshop-models-access (Active)" },
+        { "label": "Token rate limit", "value": "10000 tokens / 1m window" }
+      ]
+    },
+    {
+      "t": 465,
+      "target": { "x": 290, "y": 270, "w": 1600, "h": 90 },
+      "caption": "Controller-generated TokenRateLimitPolicy — Accepted/Enforced",
+      "details": [
+        { "label": "Policy", "value": "maas-trlp-maas-llmd-demo" },
+        { "label": "Accepted / Enforced", "value": "True / True" },
+        { "label": "Target", "value": "HTTPRoute maas-llmd-demo-kserve-route" }
+      ]
+    },
+    {
+      "t": 525,
+      "target": { "x": 530, "y": 330, "w": 860, "h": 420 },
+      "caption": "AI asset endpoints — the MaaS gateway URL",
+      "details": [
+        { "label": "External endpoint", "value": "https://maas.apps.../abc123-user1/maas-llmd-demo" },
+        { "label": "Status", "value": "Inactive (pods need a GPU hardware profile on CPU clusters)" },
+        { "label": "Note", "value": "MaaS badge + API key generation activate when the deployment is Ready" }
+      ]
+    }
+  ]
+}

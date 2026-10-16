@@ -1,0 +1,93 @@
+{
+  "title": "MaaS showback — usage dashboards for Models-as-a-Service",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 12,
+      "target": { "x": 300, "y": 314, "w": 1380, "h": 50 },
+      "caption": "MaaS CRDs installed — aitenants.maas.opendatahub.io",
+      "details": [
+        { "label": "CRD", "value": "aitenants.maas.opendatahub.io" },
+        { "label": "Group", "value": "maas.opendatahub.io v1alpha1" },
+        { "label": "Maturity", "value": "Technology Preview" }
+      ]
+    },
+    {
+      "t": 40,
+      "target": { "x": 300, "y": 390, "w": 1380, "h": 105 },
+      "caption": "Tenant verified — models-as-a-service is Ready",
+      "details": [
+        { "label": "AITenant", "value": "models-as-a-service" },
+        { "label": "Ready", "value": "True" },
+        { "label": "Gateway", "value": "maas-default-gateway" }
+      ]
+    },
+    {
+      "t": 115,
+      "target": { "x": 310, "y": 305, "w": 1600, "h": 740 },
+      "caption": "The tenant binds the MaaS gateway",
+      "details": [
+        { "label": "kind", "value": "AITenant" },
+        { "label": "spec.gateway.name", "value": "maas-default-gateway" }
+      ]
+    },
+    {
+      "t": 185,
+      "target": { "x": 310, "y": 305, "w": 1600, "h": 740 },
+      "caption": "Switch 1 — Kuadrant observability feeds Limitador metrics",
+      "details": [
+        { "label": "spec.observability.enable", "value": "true" },
+        { "label": "PodMonitor", "value": "kuadrant-limitador-monitor" },
+        { "label": "Kuadrant status", "value": "Ready" }
+      ]
+    },
+    {
+      "t": 250,
+      "target": { "x": 310, "y": 305, "w": 1600, "h": 740 },
+      "caption": "Switch 2 — MaaS telemetry labels usage per user",
+      "details": [
+        { "label": "TelemetryPolicy", "value": "maas-telemetry (openshift-ingress)" },
+        { "label": "user label", "value": "auth.identity.userid" },
+        { "label": "subscription label", "value": "auth.identity.selected_subscription" }
+      ]
+    },
+    {
+      "t": 288,
+      "target": { "x": 300, "y": 78, "w": 720, "h": 150 },
+      "caption": "The observability dashboard lives in Observe & monitor",
+      "details": [
+        { "label": "Path", "value": "Observe & monitor → Dashboard" },
+        { "label": "Tabs", "value": "Cluster · Models · LLM Traffic · LLM Utilization · Usage · LLM Performance" }
+      ]
+    },
+    {
+      "t": 308,
+      "target": { "x": 300, "y": 375, "w": 1620, "h": 215 },
+      "caption": "Usage tab — MaaS showback metrics in real time",
+      "details": [
+        { "label": "Total tokens", "value": "116" },
+        { "label": "Total requests", "value": "7" },
+        { "label": "Success rate", "value": "100% · 0 rate limited · 1 active user" }
+      ]
+    },
+    {
+      "t": 332,
+      "target": { "x": 705, "y": 278, "w": 190, "h": 145 },
+      "caption": "Break the view down by model or subscription",
+      "details": [
+        { "label": "View by", "value": "By model · By subscription" },
+        { "label": "Filters", "value": "User · Subscription · Model" }
+      ]
+    },
+    {
+      "t": 370,
+      "target": { "x": 300, "y": 885, "w": 1620, "h": 185 },
+      "caption": "Token consumption per user, subscription and model",
+      "details": [
+        { "label": "User", "value": "admin" },
+        { "label": "Subscription", "value": "sim-models-subscription" },
+        { "label": "Models", "value": "sim-azure-openai · sim-bedrock · sim-openai · sim-vertex-openai" }
+      ]
+    }
+  ]
+}

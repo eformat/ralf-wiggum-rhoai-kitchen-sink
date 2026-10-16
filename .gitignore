@@ -13,3 +13,4 @@ www-*/
 *.jks
 kubeconfig*
 qa/runs/
+.playwright-cli/

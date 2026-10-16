@@ -12,18 +12,27 @@
       ]
     },
     {
-      "t": 40.0,
-      "target": { "x": 340, "y": 610, "w": 780, "h": 280 },
+      "t": 78.0,
+      "target": { "x": 320, "y": 710, "w": 780, "h": 320 },
       "caption": "The AITenant CR — the OIDC config lives in its spec",
       "details": [
         { "label": "Phase", "value": "Active" },
-        { "label": "Gateway ref", "value": "maas-default-gateway · openshift-ingress" },
+        { "label": "Gateway ref", "value": "maas-default-gateway" },
         { "label": "Status", "value": "Reconciled · True" }
       ]
     },
     {
-      "t": 72.0,
-      "target": { "x": 800, "y": 160, "w": 630, "h": 250 },
+      "t": 140.0,
+      "target": { "x": 290, "y": 95, "w": 680, "h": 400 },
+      "caption": "Keycloak admin console — the master realm",
+      "details": [
+        { "label": "Provider", "value": "Red Hat build of Keycloak" },
+        { "label": "Realm", "value": "master · temp-admin" }
+      ]
+    },
+    {
+      "t": 236.0,
+      "target": { "x": 790, "y": 160, "w": 640, "h": 280 },
       "caption": "The external OIDC provider — the keycloak realm",
       "details": [
         { "label": "Provider", "value": "Red Hat build of Keycloak" },
@@ -31,8 +40,8 @@
       ]
     },
     {
-      "t": 95.0,
-      "target": { "x": 310, "y": 320, "w": 850, "h": 400 },
+      "t": 256.0,
+      "target": { "x": 300, "y": 295, "w": 1580, "h": 500 },
       "caption": "Registered clients — the OpenShift IdP client among them",
       "details": [
         { "label": "Clients", "value": "7 · OpenID Connect" },
