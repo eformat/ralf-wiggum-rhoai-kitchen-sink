@@ -1,0 +1,74 @@
+{
+  "title": "Text-mode training for multimodal models — the Training Hub TrainJob surface",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 140.0,
+      "target": { "x": 290, "y": 70, "w": 640, "h": 440 },
+      "caption": "Home → Search: the unified training surface is one resource type away",
+      "details": [
+        { "label": "Search", "value": "Resources list → ClusterTrainingRuntime" },
+        { "label": "API group", "value": "trainer.kubeflow.org" }
+      ]
+    },
+    {
+      "t": 162.0,
+      "target": { "x": 320, "y": 560, "w": 1560, "h": 420 },
+      "caption": "12 pre-built ClusterTrainingRuntimes ship with RHOAI 3.5.1",
+      "details": [
+        { "label": "Key rows", "value": "training-hub · training-hub-cpu · training-hub-th09-*" },
+        { "label": "Algorithms", "value": "Built-in OSFT + SFT fine-tuning" }
+      ]
+    },
+    {
+      "t": 210.0,
+      "target": { "x": 320, "y": 280, "w": 1520, "h": 720 },
+      "caption": "training-hub: the infrastructure template every TrainJob references",
+      "details": [
+        { "label": "apiVersion", "value": "trainer.kubeflow.org/v1alpha1" },
+        { "label": "mlPolicy", "value": "torch · numProcPerNode: auto · numNodes: 1" },
+        { "label": "Managed by", "value": "default-trainer (Trainer component)" }
+      ]
+    },
+    {
+      "t": 295.0,
+      "target": { "x": 300, "y": 190, "w": 1500, "h": 480 },
+      "caption": "TrainJob appears as a creatable resource — and one job exists, submitted via the CLI",
+      "details": [
+        { "label": "TrainJob", "value": "text-mode-osft-demo" },
+        { "label": "Namespace", "value": "abc123-user1" },
+        { "label": "Created", "value": "17 Oct 2026, 14:57" }
+      ]
+    },
+    {
+      "t": 325.0,
+      "target": { "x": 300, "y": 280, "w": 980, "h": 500 },
+      "caption": "The TrainJob stays simple — the runtime encapsulates the distributed training",
+      "details": [
+        { "label": "Name", "value": "text-mode-osft-demo" },
+        { "label": "State", "value": "- (no conditions reported yet)" },
+        { "label": "Owner", "value": "No owner (CLI-submitted)" }
+      ]
+    },
+    {
+      "t": 373.0,
+      "target": { "x": 300, "y": 160, "w": 1000, "h": 720 },
+      "caption": "Lifecycle check: the node pod is Evicted — lmg7d is CPU-only with no GPU nodes",
+      "details": [
+        { "label": "Status", "value": "Evicted" },
+        { "label": "Node", "value": "worker-cluster-lmg7d-1 (10.10.10.30)" },
+        { "label": "Image", "value": "odh-th-torch-cuda-py312 (~10 GB CUDA)" }
+      ]
+    },
+    {
+      "t": 418.0,
+      "target": { "x": 320, "y": 320, "w": 1560, "h": 680 },
+      "caption": "Honest state: the fine-tuning run can't start on this CPU-only cluster",
+      "details": [
+        { "label": "Image pull", "value": "no space left on device (ephemeral-storage)" },
+        { "label": "Errors", "value": "ErrImagePull → ImagePullBackOff" },
+        { "label": "To run it", "value": "GPU nodes + RWX PVC per module prerequisites" }
+      ]
+    }
+  ]
+}

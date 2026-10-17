@@ -1,0 +1,95 @@
+{
+  "title": "KubeRay on OpenShift AI — Ray clusters, managed and secured",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 12.0,
+      "target": {"x": 400, "y": 595, "w": 1490, "h": 105},
+      "caption": "Distributed workloads operators — Red Hat build of Kueue installed",
+      "details": [
+        {"label": "operator", "value": "Red Hat build of Kueue 1.3.2"},
+        {"label": "status", "value": "Succeeded"},
+        {"label": "install scope", "value": "All Namespaces"}
+      ]
+    },
+    {
+      "t": 150.0,
+      "target": {"x": 280, "y": 307, "w": 1627, "h": 720},
+      "caption": "DataScienceCluster component map — distributed workloads managed here",
+      "details": [
+        {"label": "llamastackoperator", "value": "Removed"},
+        {"label": "mcplifecycleoperator", "value": "Managed"},
+        {"label": "ray", "value": "Managed — enabled for this workshop"}
+      ]
+    },
+    {
+      "t": 240.0,
+      "target": {"x": 280, "y": 307, "w": 1610, "h": 700},
+      "caption": "A LocalQueue in your project — the default queue for workloads",
+      "details": [
+        {"label": "name", "value": "workshop-lq"},
+        {"label": "clusterQueue", "value": "workshop-cq"},
+        {"label": "default-queue annotation", "value": "'true'"}
+      ]
+    },
+    {
+      "t": 310.0,
+      "target": {"x": 293, "y": 340, "w": 1570, "h": 150},
+      "caption": "ray: Managed — the KubeRay operator manages Ray clusters",
+      "details": [
+        {"label": "spec.components.ray", "value": "managementState: Managed"},
+        {"label": "operator pod", "value": "kuberay-operator (Running)"}
+      ]
+    },
+    {
+      "t": 370.0,
+      "target": {"x": 280, "y": 270, "w": 1610, "h": 600},
+      "caption": "Create the Ray cluster from YAML — console Import YAML",
+      "details": [
+        {"label": "kind", "value": "RayCluster (ray.io/v1)"},
+        {"label": "name", "value": "ray-lab"},
+        {"label": "image", "value": "rayproject/ray:2.41.0-py311-cpu"}
+      ]
+    },
+    {
+      "t": 385.0,
+      "target": {"x": 280, "y": 307, "w": 1627, "h": 720},
+      "caption": "The KubeRay operator reconciles the RayCluster live",
+      "details": [
+        {"label": "name", "value": "ray-lab"},
+        {"label": "queue-name label", "value": "workshop-lq"},
+        {"label": "head pod IP", "value": "10.233.0.53"}
+      ]
+    },
+    {
+      "t": 426.0,
+      "target": {"x": 280, "y": 200, "w": 1610, "h": 200},
+      "caption": "ray-lab ready — head + 1 worker on CPU",
+      "details": [
+        {"label": "status", "value": "ready"},
+        {"label": "workers", "value": "1 desired / 1 available"},
+        {"label": "age", "value": "3 minutes ago"}
+      ]
+    },
+    {
+      "t": 479.0,
+      "target": {"x": 280, "y": 307, "w": 1610, "h": 700},
+      "caption": "RayCluster anatomy — head group, worker group, public CPU Ray image",
+      "details": [
+        {"label": "headGroupSpec", "value": "ray head — 1 CPU / 2Gi"},
+        {"label": "workerGroupSpecs", "value": "small-group x 1 — 1 CPU / 1Gi"},
+        {"label": "image", "value": "rayproject/ray:2.41.0-py311-cpu"}
+      ]
+    },
+    {
+      "t": 532.0,
+      "target": {"x": 280, "y": 107, "w": 1627, "h": 295},
+      "caption": "Queued through Kueue — the workload admitted by workshop-cq",
+      "details": [
+        {"label": "workload", "value": "raycluster-ray-lab-0ab4d"},
+        {"label": "localQueue", "value": "workshop-lq"},
+        {"label": "admitted", "value": "True"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "title": "NeMo Guardrails on the MCP gateway — discovery status + tool-call payload enforcement",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 15,
+      "target": {"x": 300, "y": 265, "w": 1620, "h": 100},
+      "caption": "MCP gateway config surface: the MCPGatewayExtension CRD — mcp-gateway-one Ready on the workshop cluster",
+      "details": [
+        {"label": "Extension", "value": "mcp-gateway-one — Ready True"},
+        {"label": "Namespace", "value": "abc123-mcp-system (facilitator-deployed operator)"},
+        {"label": "CRD", "value": "mcp.kuadrant.io/v1alpha1"}
+      ]
+    },
+    {
+      "t": 75,
+      "target": {"x": 340, "y": 640, "w": 560, "h": 190},
+      "caption": "The extension's targetRef resolves to the Kubernetes Gateway — the operator's named lookup matches this value",
+      "details": [
+        {"label": "targetRef", "value": "Gateway mcp-gateway — gateway.networking.k8s.io"},
+        {"label": "sectionName", "value": "mcp"},
+        {"label": "Gateway address", "value": "mcp-gateway-abc123-gateway.apps... (Programmed True)"}
+      ]
+    },
+    {
+      "t": 160,
+      "target": {"x": 300, "y": 265, "w": 1620, "h": 220},
+      "caption": "Apply the NemoGuardrails CR with the mcpGateway field — guardrails-mcp reuses the Module 01 rails config",
+      "details": [
+        {"label": "CR", "value": "guardrails-mcp — created 17 Oct 2026, 15:05"},
+        {"label": "nemoConfigs", "value": "nemo-quickstart-config (Module 01 quickstart)"},
+        {"label": "Sibling CRs", "value": "nemo-policies, nemo-quickstart, nemo-simple"}
+      ]
+    },
+    {
+      "t": 195,
+      "target": {"x": 340, "y": 745, "w": 560, "h": 70},
+      "caption": "The mcpGateway field names the Gateway resource and the extension namespace — the operator discovers the gateway",
+      "details": [
+        {"label": "mcpGateway.name", "value": "mcp-gateway — the Kubernetes Gateway resource"},
+        {"label": "mcpGateway.namespace", "value": "abc123-mcp-system — extension namespace"},
+        {"label": "Reconcile", "value": "operator discovers gateway + BBR plugin, provisions EnvoyFilter"}
+      ]
+    },
+    {
+      "t": 235,
+      "target": {"x": 340, "y": 810, "w": 560, "h": 130},
+      "caption": "Honest status on this cluster: gateway discovered, BBR plugin EnvoyFilter NOT present — the documented true/false state",
+      "details": [
+        {"label": "mcpGatewayFound", "value": "true — extension + Gateway resolved"},
+        {"label": "bbrPluginFound", "value": "false — nemo-request/response-guard EnvoyFilters absent"},
+        {"label": "Documented state", "value": "true/false: install the BBR plugin in the gateway namespace"}
+      ]
+    },
+    {
+      "t": 462,
+      "target": {"x": 30, "y": 60, "w": 1020, "h": 410},
+      "caption": "Guardrails API on a tool-call payload: safe arguments pass all rails — detectors run in-pod, llm_calls_count 0",
+      "details": [
+        {"label": "status", "value": "success — both built-in rails pass"},
+        {"label": "llm_calls_count", "value": "0 — detectors run inside the guardrails pod"},
+        {"label": "Endpoint", "value": "POST /v1/guardrail/checks on guardrails-mcp"}
+      ]
+    },
+    {
+      "t": 500,
+      "target": {"x": 30, "y": 555, "w": 1830, "h": 400},
+      "caption": "The email address trips the Presidio detector — status blocked before any model call",
+      "details": [
+        {"label": "status", "value": "blocked — 'detect sensitive data on input'"},
+        {"label": "activated_rails", "value": "[\"detect sensitive data on input\"]"},
+        {"label": "llm_calls_count", "value": "0 — blocked before the model is called"}
+      ]
+    },
+    {
+      "t": 570,
+      "target": {"x": 30, "y": 930, "w": 1830, "h": 150},
+      "caption": "Security keyword 'password' is blocked by the regex rail — the same built-in detectors that enforce tool-call traffic",
+      "details": [
+        {"label": "status", "value": "blocked — 'regex check input'"},
+        {"label": "Patterns", "value": "password|secret|api[_-]?key|token + SSN, case-insensitive"},
+        {"label": "Honest note", "value": "BBR interception absent on this cluster — API validates the same rails"}
+      ]
+    }
+  ]
+}

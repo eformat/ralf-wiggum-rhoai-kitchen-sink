@@ -1,0 +1,126 @@
+{
+  "title": "Queue and manage batch workloads with Kueue (Red Hat build of Kueue) — clusterqueues, localqueues, and the admission decision",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 15,
+      "target": { "x": 300, "y": 190, "w": 1580, "h": 700 },
+      "caption": "Kueue infrastructure — the kueue.x-k8s.io CRDs are registered",
+      "details": [
+        { "label": "Page", "value": "Administration > CustomResourceDefinitions, filter kueue" },
+        { "label": "CRDs", "value": "clusterqueues, localqueues, resourceflavors, workloads + admissionchecks, cohorts (10 total)" },
+        { "label": "Operator", "value": "Red Hat build of Kueue (RHBoK) 1.3.2, controllers in openshift-operators" }
+      ]
+    },
+    {
+      "t": 60,
+      "target": { "x": 300, "y": 230, "w": 1600, "h": 700 },
+      "caption": "The Red Hat build of Kueue operator — CSV Succeeded, Provided APIs: Kueue",
+      "details": [
+        { "label": "Page", "value": "Ecosystem > Installed Operators > Red Hat build of Kueue" },
+        { "label": "Status", "value": "Succeeded - Up to date (v1.3.2, stable-v1.3 channel)" },
+        { "label": "Activation", "value": "The operator waits for the Kueue CR (name: cluster), then rolls out the controllers + CRDs" }
+      ]
+    },
+    {
+      "t": 100,
+      "target": { "x": 310, "y": 280, "w": 1560, "h": 580 },
+      "caption": "Create the queue objects — ClusterQueue defines the quota, LocalQueue exposes it to your project",
+      "details": [
+        { "label": "ClusterQueue", "value": "arcade-demos-cq: BestEffortFIFO, nominalQuota 8 CPU / 32Gi on flavor default-flavor" },
+        { "label": "LocalQueue", "value": "arcade-demos-lq in this project, points to arcade-demos-cq" },
+        { "label": "Note", "value": "The cluster already provides the default-flavor ResourceFlavor (auto-provisioned at activation)" }
+      ]
+    },
+    {
+      "t": 375,
+      "target": { "x": 310, "y": 300, "w": 1560, "h": 560 },
+      "caption": "LocalQueue arcade-demos-lq — the default-queue annotation marks it as the project default",
+      "details": [
+        { "label": "Annotation", "value": "kueue.x-k8s.io/default-queue: 'true' — workloads that omit a queue name still get queued" },
+        { "label": "spec.clusterQueue", "value": "arcade-demos-cq" },
+        { "label": "Status", "value": "Active / Ready — 'Can submit new workloads to localQueue'" }
+      ]
+    },
+    {
+      "t": 463,
+      "target": { "x": 310, "y": 300, "w": 1560, "h": 560 },
+      "caption": "ClusterQueue arcade-demos-cq — the quota pool your workloads draw from",
+      "details": [
+        { "label": "nominalQuota", "value": "8 CPU / 32Gi on flavor default-flavor" },
+        { "label": "queueingStrategy", "value": "BestEffortFIFO" },
+        { "label": "namespaceSelector", "value": "kubernetes.io/metadata.name: arcade-demos — scopes the queue to this project" }
+      ]
+    },
+    {
+      "t": 494,
+      "target": { "x": 310, "y": 280, "w": 1560, "h": 580 },
+      "caption": "Submit a workload — a batch Job bound to the queue with the queue-name label",
+      "details": [
+        { "label": "Label", "value": "kueue.x-k8s.io/queue-name: arcade-demos-lq" },
+        { "label": "Request", "value": "cpu: '1', memory: 512Mi — must fit within the ClusterQueue quota" },
+        { "label": "Note", "value": "Kueue manages any Job framework in its integrations list; the modules use PyTorchJob via the Training Operator" }
+      ]
+    },
+    {
+      "t": 616,
+      "target": { "x": 310, "y": 300, "w": 1560, "h": 560 },
+      "caption": "Kueue admits the workload — the Workload resource records the admission decision",
+      "details": [
+        { "label": "Workload", "value": "job-kueue-demo-small-63b46 (created by Kueue for the Job)" },
+        { "label": "admission.clusterQueue", "value": "arcade-demos-cq, podSetAssignments count 1, flavor default-flavor" },
+        { "label": "Quota", "value": "1 CPU of the 8-CPU nominalQuota reserved while the pod runs" }
+      ]
+    },
+    {
+      "t": 633,
+      "target": { "x": 300, "y": 190, "w": 1580, "h": 420 },
+      "caption": "The admitted job runs — Kueue unsuspended the Job and its pod starts",
+      "details": [
+        { "label": "Pod", "value": "kueue-demo-small-t8bc5 - Running 1/1" },
+        { "label": "Mechanics", "value": "Kueue sets spec.suspend until quota is reserved, then unsuspends" },
+        { "label": "Next", "value": "Now submit a second job that exceeds the quota" }
+      ]
+    },
+    {
+      "t": 668,
+      "target": { "x": 310, "y": 280, "w": 1560, "h": 580 },
+      "caption": "Exceed the quota — the same Job with cpu: '50', far above the 8-CPU ClusterQueue quota",
+      "details": [
+        { "label": "Job", "value": "kueue-demo-xl, same queue-name label" },
+        { "label": "Request", "value": "cpu: '50', memory: 8Gi" },
+        { "label": "Expectation", "value": "Kueue creates the Workload but cannot admit it" }
+      ]
+    },
+    {
+      "t": 715,
+      "target": { "x": 700, "y": 500, "w": 1180, "h": 200 },
+      "caption": "The admission decision — small job ADMITTED True, oversized job not admitted",
+      "details": [
+        { "label": "job-kueue-demo-small", "value": "ADMITTED True (arcade-demos-cq)" },
+        { "label": "job-kueue-demo-xl", "value": "no admission — queued, waiting for quota that never fits" },
+        { "label": "Mechanics", "value": "1-2 of 2 workloads queued against the same LocalQueue" }
+      ]
+    },
+    {
+      "t": 770,
+      "target": { "x": 310, "y": 300, "w": 1560, "h": 560 },
+      "caption": "Why it is held — the Workload condition explains the insufficient quota",
+      "details": [
+        { "label": "Condition", "value": "QuotaReserved: False" },
+        { "label": "Message", "value": "couldn't assign flavors to pod set main: insufficient quota for cpu in flavor default-flavor (requests 0 + 50 > maximum capacity 8)" },
+        { "label": "Pod", "value": "None — the Job stays suspended until the workload is admitted or removed" }
+      ]
+    },
+    {
+      "t": 850,
+      "target": { "x": 700, "y": 500, "w": 1180, "h": 200 },
+      "caption": "Queueing in one view — quota decides what runs; conditions explain what waits",
+      "details": [
+        { "label": "Workloads", "value": "2 queued against arcade-demos-lq: 1 admitted, 1 held" },
+        { "label": "Next steps", "value": "Raise the quota, shrink the request, or remove the held workload" },
+        { "label": "Module", "value": "Module 02: watch Kueue make scheduling decisions (BatchJob adaptation)" }
+      ]
+    }
+  ]
+}

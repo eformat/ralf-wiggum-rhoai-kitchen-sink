@@ -44,7 +44,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 
 |xref:genai-studio-saved-agent::index.adoc[Gen AI Studio saved-agent configuration] |DP |xref:genai-studio-saved-agent::index.adoc[Start →] |link:../genai-studio-saved-agent/_attachments/genai-studio-saved-agent-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:kale-jupyterlab::index.adoc[Kale JupyterLab extension] |DP |xref:kale-jupyterlab::index.adoc[Start →] |—
+|xref:kale-jupyterlab::index.adoc[Kale JupyterLab extension] |DP |xref:kale-jupyterlab::index.adoc[Start →] |link:../kale-jupyterlab/_attachments/kale-jupyterlab-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:midojo-adversarial-testing::index.adoc[MiDojo adversarial testing engine] |DP |xref:midojo-adversarial-testing::index.adoc[Start →] |—
 
@@ -52,7 +52,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 
 |xref:openshell-agent-sandboxing::index.adoc[OpenShell (secure agent sandboxing and policy enforcement)] |DP |xref:openshell-agent-sandboxing::index.adoc[Start →] |—
 
-|xref:text-mode-multimodal-training::index.adoc[Text-mode training for multimodal models in Training Hub] |DP |xref:text-mode-multimodal-training::index.adoc[Start →] |—
+|xref:text-mode-multimodal-training::index.adoc[Text-mode training for multimodal models in Training Hub] |DP |xref:text-mode-multimodal-training::index.adoc[Start →] |link:../text-mode-multimodal-training/_attachments/text-mode-multimodal-training-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:view-agent-deployments::index.adoc[View running agent deployments in dashboard] |DP |xref:view-agent-deployments::index.adoc[Start →] |—
 
@@ -79,11 +79,11 @@ the kustomize `cluster/` config and which overlays each lab needs.
 |===
 |Feature |Maturity |Workshop |Arcade
 
-|xref:kuberay::index.adoc[KubeRay (CodeFlare Operator successor)] |GA |xref:kuberay::index.adoc[Start →] |—
+|xref:kuberay::index.adoc[KubeRay (CodeFlare Operator successor)] |GA |xref:kuberay::index.adoc[Start →] |link:../kuberay/_attachments/kuberay-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:kueue::index.adoc[Kueue (Red Hat build of Kueue Operator)] |GA |xref:kueue::index.adoc[Start →] |—
+|xref:kueue::index.adoc[Kueue (Red Hat build of Kueue Operator)] |GA |xref:kueue::index.adoc[Start →] |link:../kueue/_attachments/kueue-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:kubeflow-trainer-v2::index.adoc[Kubeflow Trainer v2] |GA |xref:kubeflow-trainer-v2::index.adoc[Start →] |—
+|xref:kubeflow-trainer-v2::index.adoc[Kubeflow Trainer v2] |GA |xref:kubeflow-trainer-v2::index.adoc[Start →] |link:../kubeflow-trainer-v2/_attachments/kubeflow-trainer-v2-demo.html[▶ Walkthrough,window=_blank]
 
 |===
 
@@ -105,7 +105,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 
 |xref:feature-store-feast::index.adoc[Feature Store (Feast-based)] |GA |xref:feature-store-feast::index.adoc[Start →] |—
 
-|xref:automl::index.adoc[AutoML] |TP |xref:automl::index.adoc[Start →] |—
+|xref:automl::index.adoc[AutoML] |TP |xref:automl::index.adoc[Start →] |link:../automl/_attachments/automl-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:autorag::index.adoc[AutoRAG] |TP |xref:autorag::index.adoc[Start →] |—
 
@@ -116,9 +116,9 @@ the kustomize `cluster/` config and which overlays each lab needs.
 |===
 |Feature |Maturity |Workshop |Arcade
 
-|xref:nemo-guardrails::index.adoc[NeMo Guardrails] |GA |xref:nemo-guardrails::index.adoc[Start →] |—
+|xref:nemo-guardrails::index.adoc[NeMo Guardrails] |GA |xref:nemo-guardrails::index.adoc[Start →] |link:../nemo-guardrails/_attachments/nemo-guardrails-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:nemo-guardrails-mcp-gateway::index.adoc[NeMo Guardrails integration with MCP Gateway] |TP |xref:nemo-guardrails-mcp-gateway::index.adoc[Start →] |—
+|xref:nemo-guardrails-mcp-gateway::index.adoc[NeMo Guardrails integration with MCP Gateway] |TP |xref:nemo-guardrails-mcp-gateway::index.adoc[Start →] |link:../nemo-guardrails-mcp-gateway/_attachments/nemo-guardrails-mcp-gateway-demo.html[▶ Walkthrough,window=_blank]
 
 |===
 
@@ -194,8 +194,8 @@ the kustomize `cluster/` config and which overlays each lab needs.
 |===
 |Feature |Maturity |Workshop |Arcade
 
-|xref:gateway-api-rhcl::index.adoc[Gateway API and Red Hat Connectivity Link (RHCL)] |GA |xref:gateway-api-rhcl::index.adoc[Start →] |—
+|xref:gateway-api-rhcl::index.adoc[Gateway API and Red Hat Connectivity Link (RHCL)] |GA |xref:gateway-api-rhcl::index.adoc[Start →] |link:../gateway-api-rhcl/_attachments/gateway-api-rhcl-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:platform-oidc-auth::index.adoc[Platform-wide direct OIDC authentication (GatewayConfig CR)] |GA |xref:platform-oidc-auth::index.adoc[Start →] |—
+|xref:platform-oidc-auth::index.adoc[Platform-wide direct OIDC authentication (GatewayConfig CR)] |GA |xref:platform-oidc-auth::index.adoc[Start →] |link:../platform-oidc-auth/_attachments/platform-oidc-auth-demo.html[▶ Walkthrough,window=_blank]
 
 |===

@@ -1,0 +1,101 @@
+{
+  "title": "AutoML — surface the Tech Preview, enable the pipeline server, read the honest states",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 6,
+      "target": { "x": 0, "y": 220, "w": 300, "h": 360 },
+      "caption": "AutoML appears in the dashboard under Develop & train — Technology Preview",
+      "details": [
+        { "label": "Nav item", "value": "Develop & train > AutoML (Tech Preview badge)" },
+        { "label": "Flag source", "value": "OdhDashboardConfig dashboardConfig.automl — already true" },
+        { "label": "Note", "value": "RHOAI 3.5.1 — DSC spec.dashboardConfig is an unknown field on this version" }
+      ]
+    },
+    {
+      "t": 20,
+      "target": { "x": 640, "y": 120, "w": 640, "h": 200 },
+      "caption": "AutoML runs live on your project's pipeline server — here it is initializing",
+      "details": [
+        { "label": "Project", "value": "abc123-user1" },
+        { "label": "Pipeline server", "value": "data-science-pipelines (DataSciencePipelinesApplication)" },
+        { "label": "State", "value": "Starting pipeline server — being initialized, reported as-is" },
+        { "label": "Managed pipelines", "value": "enabled via oc patch (module 01, exercise 2)" }
+      ]
+    },
+    {
+      "t": 47,
+      "target": { "x": 400, "y": 560, "w": 1120, "h": 260 },
+      "caption": "Without a pipeline server, AutoML asks you to configure one",
+      "details": [
+        { "label": "Project", "value": "abc123-gateway — no DSPA in this namespace" },
+        { "label": "Prerequisite", "value": "a DataSciencePipelinesApplication with AutoML pipelines enabled" },
+        { "label": "Action", "value": "Configure pipeline server button opens the DSPA form" }
+      ]
+    },
+    {
+      "t": 95,
+      "target": { "x": 330, "y": 420, "w": 1200, "h": 260 },
+      "caption": "The AutoML and AutoRAG flags are set in the OdhDashboardConfig — not the DSC",
+      "details": [
+        { "label": "dashboardConfig.automl", "value": "true (line 96) — surfaces the AutoML nav item" },
+        { "label": "dashboardConfig.autorag", "value": "true (line 89) — surfaces AutoRAG too" },
+        { "label": "Doc-vs-reality", "value": "module 01 says dsc spec.dashboardConfig — the 3.5.1 CRD rejects it as unknown" },
+        { "label": "Kind", "value": "OdhDashboardConfig (opendatahub.io/v1alpha), redhat-ods-applications" }
+      ]
+    },
+    {
+      "t": 135,
+      "target": { "x": 330, "y": 430, "w": 1100, "h": 220 },
+      "caption": "AutoML pipelines are switched on with spec.apiServer.managedPipelines",
+      "details": [
+        { "label": "Field", "value": "spec.apiServer.managedPipelines: {} (line 140)" },
+        { "label": "Set via", "value": "oc patch dspa data-science-pipelines --type merge (module 01, exercise 2 CLI)" },
+        { "label": "Namespace", "value": "abc123-user1" }
+      ]
+    },
+    {
+      "t": 148,
+      "target": { "x": 330, "y": 430, "w": 1100, "h": 260 },
+      "caption": "AutoML training data must live in the pipeline server's object storage",
+      "details": [
+        { "label": "Host", "value": "s3.openshift-storage.svc:443 (spec.objectStorage.externalStorage)" },
+        { "label": "Bucket", "value": "kale-demo-pipelines" },
+        { "label": "Credentials", "value": "noobaa-creds-kale secret" },
+        { "label": "Limit", "value": "CSV only — 100 MB max from S3, 32 MiB via dashboard upload" }
+      ]
+    },
+    {
+      "t": 170,
+      "target": { "x": 640, "y": 120, "w": 640, "h": 200 },
+      "caption": "Back on the AutoML page — the dashboard polls pipeline-server health",
+      "details": [
+        { "label": "State", "value": "Starting pipeline server — initialization can take several minutes" },
+        { "label": "Dashboard message", "value": "the process should take less than five minutes" },
+        { "label": "Reality on lmg7d", "value": "object storage unreachable — see the next step" }
+      ]
+    },
+    {
+      "t": 193,
+      "target": { "x": 700, "y": 400, "w": 960, "h": 420 },
+      "caption": "Honest state: the pipeline server failed — object storage is unreachable",
+      "details": [
+        { "label": "Error", "value": "Could not connect to (s3.openshift-storage.svc:443)" },
+        { "label": "Root cause", "value": "Noobaa stuck in Creating for 2+ days (pre-existing cluster defect)" },
+        { "label": "Impact", "value": "AutoML optimization runs cannot fetch CSV training data" },
+        { "label": "Fix", "value": "platform-level object storage repair — not a workload change" }
+      ]
+    },
+    {
+      "t": 214,
+      "target": { "x": 330, "y": 380, "w": 1300, "h": 320 },
+      "caption": "The DSPA conditions show exactly what is broken: ObjectStoreAvailable=False",
+      "details": [
+        { "label": "DatabaseAvailable", "value": "True — MariaDB connectivity verified" },
+        { "label": "ObjectStoreAvailable", "value": "False — reason FailingToDeploy" },
+        { "label": "APIServerReady", "value": "Unknown — node churn on the shared cluster" },
+        { "label": "Ready", "value": "False — reported as-is, never faked" }
+      ]
+    }
+  ]
+}

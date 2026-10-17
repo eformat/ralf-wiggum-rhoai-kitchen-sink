@@ -1,0 +1,129 @@
+{
+ "title": "Kale JupyterLab extension — from annotated notebook to AI Pipeline",
+ "dwell": 4.5,
+ "steps": [
+  {
+   "t": 4.0,
+   "target": {"x": 320, "y": 225, "w": 1010, "h": 340},
+   "caption": "Data science projects — the abc123-user1 project hosts the Kale workbench for this lab",
+   "details": [
+    {"label": "Project", "value": "abc123-user1"},
+    {"label": "Entry point", "value": "Data Science Projects"},
+    {"label": "Cluster", "value": "lmg7d · RHOAI 3.5.1 (CPU-only)"}
+   ]
+  },
+  {
+   "t": 22.0,
+   "target": {"x": 330, "y": 395, "w": 930, "h": 230},
+   "caption": "Workbenches tab — the kale-demo workbench runs a default data science notebook image that ships Kale",
+   "details": [
+    {"label": "Workbench", "value": "Kale pipeline demo (Ready)"},
+    {"label": "Notebook image", "value": "Jupyter | Data Science | CPU | Python 3.12"},
+    {"label": "Kale", "value": "pre-installed · disabled by default"}
+   ]
+  },
+  {
+   "t": 56.0,
+   "target": {"x": 300, "y": 45, "w": 900, "h": 640},
+   "caption": "The workbench opens JupyterLab — the Kale extension ships inside the standard data science image",
+   "details": [
+    {"label": "JupyterLab", "value": "v4.5.9"},
+    {"label": "Notebook image", "value": "s2i-generic-data-science-notebook:3.5"},
+    {"label": "Kale", "value": "hidden until enabled from the terminal"}
+   ]
+  },
+  {
+   "t": 104.0,
+   "target": {"x": 340, "y": 40, "w": 1400, "h": 160},
+   "caption": "New Terminal (command palette, the File → New → Terminal equivalent) — Kale is enabled from the workbench terminal",
+   "details": [
+    {"label": "Palette", "value": "Ctrl+Shift+C → New Terminal"},
+    {"label": "Terminal", "value": "shell inside the workbench container"}
+   ]
+  },
+  {
+   "t": 121.0,
+   "target": {"x": 340, "y": 40, "w": 1400, "h": 120},
+   "caption": "Enable the Kale extension — jupyter labextension enable jupyterlab-kubeflow-kale",
+   "details": [
+    {"label": "Command", "value": "jupyter labextension enable jupyterlab-kubeflow-kale"},
+    {"label": "Ships as", "value": "disabled by default in the notebook image"}
+   ]
+  },
+  {
+   "t": 126.0,
+   "target": {"x": 340, "y": 55, "w": 1400, "h": 140},
+   "caption": "The extension registers — jupyterlab-kubeflow-kale v2.1.1 enabled OK",
+   "details": [
+    {"label": "Extension", "value": "jupyterlab-kubeflow-kale v2.1.1"},
+    {"label": "Status", "value": "enabled OK"}
+   ]
+  },
+  {
+   "t": 330.0,
+   "target": {"x": 340, "y": 40, "w": 1580, "h": 620},
+   "caption": "The documented verify step — jupyter labextension list shows Kale enabled among the image extensions",
+   "details": [
+    {"label": "Verify", "value": "jupyter labextension list"},
+    {"label": "Kale", "value": "listed enabled"}
+   ]
+  },
+  {
+   "t": 395.0,
+   "target": {"x": 300, "y": 40, "w": 1620, "h": 260},
+   "caption": "Browser refresh — the Kale UI registers in JupyterLab and the demo notebook opens",
+   "details": [
+    {"label": "Notebook", "value": "kale-demo.ipynb"},
+    {"label": "Kale UI", "value": "registered after refresh"}
+   ]
+  },
+  {
+   "t": 410.0,
+   "target": {"x": 300, "y": 40, "w": 1300, "h": 230},
+   "caption": "Run All Cells — Kale converts the notebook as it was executed, so cells run cleanly first",
+   "details": [
+    {"label": "Cells", "value": "2 executed"},
+    {"label": "Execution counts", "value": "[1]: [2]:"}
+   ]
+  },
+  {
+   "t": 490.0,
+   "target": {"x": 0, "y": 40, "w": 300, "h": 700},
+   "caption": "Kubeflow Pipelines Deployment Panel — Kale reports its KFP connection status here",
+   "details": [
+    {"label": "Panel", "value": "Kale side panel (sidebar tab)"},
+    {"label": "Indicator", "value": "Disconnected ⚠️ — stays yellow on this build even though the DSPA is Ready (content-vs-platform gap, reported as-is)"}
+   ]
+  },
+  {
+   "t": 506.0,
+   "target": {"x": 0, "y": 40, "w": 300, "h": 620},
+   "caption": "The Enable toggle switches on for this notebook and opens the Kale metadata editor",
+   "details": [
+    {"label": "Toggle", "value": "Enable — switched on"},
+    {"label": "Editor", "value": "Pipeline Metadata fields open"},
+    {"label": "Compile and Run", "value": "disabled while Kale reports KFP disconnected — upload-and-run handoff not demonstrable, reported as-is"}
+   ]
+  },
+  {
+   "t": 535.0,
+   "target": {"x": 0, "y": 40, "w": 300, "h": 620},
+   "caption": "Annotate the notebook — experiment and pipeline metadata drive the conversion without Kubeflow Pipelines SDK code",
+   "details": [
+    {"label": "Pipeline Name", "value": "kale-notebook-pipeline"},
+    {"label": "Annotations", "value": "experiment · pipeline name · description"},
+    {"label": "SDK code", "value": "none — annotations drive the conversion"}
+   ]
+  },
+  {
+   "t": 693.0,
+   "target": {"x": 690, "y": 285, "w": 560, "h": 140},
+   "caption": "Pipeline server configuration — the object storage connection behind the converted pipeline, from Pipeline server actions",
+   "details": [
+    {"label": "Endpoint", "value": "https://s3.openshift-storage.svc"},
+    {"label": "Bucket", "value": "kale-demo-pipelines"},
+    {"label": "Pipeline server", "value": "DSPA data-science-pipelines (Ready) · NooBaa externalStorage"}
+   ]
+  }
+ ]
+}

@@ -1,0 +1,120 @@
+{
+ "title": "Kubeflow Trainer v2 \u2014 TrainJob anatomy, lifecycle, and a genuine CPU run",
+ "dwell": 4.5,
+ "steps": [
+  {
+   "t": 4,
+   "target": {"x": 280, "y": 80, "w": 1620, "h": 620},
+   "caption": "TrainJobs \u2014 the Kubeflow Trainer v2 CRD list",
+   "details": [
+    {"label": "Page", "value": "Console > TrainJob resource list (trainer.kubeflow.org/v1alpha1)"},
+    {"label": "CRDs", "value": "trainjobs + trainingruntimes + clustertrainingruntimes.trainer.kubeflow.org installed"},
+    {"label": "Enabled", "value": "DSC trainer component set to Managed (per-component merge patch)"},
+    {"label": "State", "value": "No TrainJobs found \u2014 the empty starting point"}
+   ]
+  },
+  {
+   "t": 45,
+   "target": {"x": 320, "y": 240, "w": 1530, "h": 780},
+   "caption": "torch-distributed-cpu \u2014 the pre-built ClusterTrainingRuntime",
+   "details": [
+    {"label": "Page", "value": "Console > ClusterTrainingRuntime details > torch-distributed-cpu > YAML"},
+    {"label": "Runtimes", "value": "12 pre-built: torch-distributed, torch-distributed-cpu, torch-distributed-rocm, training-hub + pinned variants"},
+    {"label": "mlPolicy", "value": "numNodes: 1, torch numProcPerNode: auto"},
+    {"label": "Image", "value": "registry.redhat.io/rhoai/odh-th-torch-cpu-py312-rhel9 (pinned digest)"}
+   ]
+  },
+  {
+   "t": 86,
+   "target": {"x": 320, "y": 100, "w": 1540, "h": 890},
+   "caption": "Import YAML \u2014 the training-script ConfigMap",
+   "details": [
+    {"label": "Page", "value": "Console > Quick create > Import YAML (project abc123-user1)"},
+    {"label": "ConfigMap", "value": "minimal-train-script \u2014 train.py key mounted as a file"},
+    {"label": "Script", "value": "gloo backend \u2014 the CPU variant of the module's nccl script"},
+    {"label": "Loop", "value": "45 steps, all_reduce every 2s \u2014 applied before the TrainJob"}
+   ]
+  },
+  {
+   "t": 132,
+   "target": {"x": 280, "y": 80, "w": 1620, "h": 620},
+   "caption": "The TrainJob appears",
+   "details": [
+    {"label": "Page", "value": "Console > TrainJobs list"},
+    {"label": "Name", "value": "pytorch-minimal-example"},
+    {"label": "Created", "value": "oc apply \u2014 the module's documented CLI path"}
+   ]
+  },
+  {
+   "t": 160,
+   "target": {"x": 460, "y": 420, "w": 860, "h": 530},
+   "caption": "The TrainJob CR anatomy",
+   "details": [
+    {"label": "Page", "value": "Console > TrainJob details > pytorch-minimal-example > YAML"},
+    {"label": "runtimeRef", "value": "torch-distributed-cpu (kind: ClusterTrainingRuntime)"},
+    {"label": "numNodes", "value": "1 \u2014 replaces Training Operator v1's separate Master/Worker replicas"},
+    {"label": "podTemplateOverrides", "value": "mounts minimal-train-script at /workspace in the node container"}
+   ]
+  },
+  {
+   "t": 185,
+   "target": {"x": 280, "y": 60, "w": 1620, "h": 420},
+   "caption": "The OpenShift AI Jobs page \u2014 Running",
+   "details": [
+    {"label": "Page", "value": "Dashboard > Develop & train > Jobs"},
+    {"label": "Job", "value": "pytorch-minimal-example \u2014 Nodes 1, Type TrainJob"},
+    {"label": "Status", "value": "Running \u2014 real CPU training (gloo all_reduce loop)"}
+   ]
+  },
+  {
+   "t": 230,
+   "target": {"x": 280, "y": 60, "w": 1620, "h": 420},
+   "caption": "Suspend \u2014 spec.suspend=true",
+   "details": [
+    {"label": "Action", "value": "oc patch trainjob --type=merge -p '{\"spec\":{\"suspend\":true}}' (module-02's CLI path; the dashboard Pause button does the same)"},
+    {"label": "State", "value": "Paused \u2014 the training pods are terminated"},
+    {"label": "Resume", "value": "the dashboard Resume button / spec.suspend=false"}
+   ]
+  },
+  {
+   "t": 290,
+   "target": {"x": 340, "y": 340, "w": 520, "h": 520},
+   "caption": "The training pod logs \u2014 real all_reduce outputs",
+   "details": [
+    {"label": "Page", "value": "Console > Workloads > Pods > pytorch-minimal-example-node-0-0 > Logs"},
+    {"label": "Rank", "value": "0/1 \u2014 world_size from numNodes"},
+    {"label": "PyTorch", "value": "2.11.0 (odh-th-torch-cpu-py312-rhel9)"},
+    {"label": "Note", "value": "this is the run after resume \u2014 the minimal example has no checkpointing, so the loop restarts from scratch"}
+   ]
+  },
+  {
+   "t": 362,
+   "target": {"x": 280, "y": 60, "w": 1620, "h": 420},
+   "caption": "Complete \u2014 the CPU-only TrainJob genuinely finishes",
+   "details": [
+    {"label": "Condition", "value": "Complete / AllJobsCompleted \u2014 jobset completed successfully"},
+    {"label": "Runtime", "value": "~2.5 min on CPU (45-step loop, run twice after suspend/resume)"},
+    {"label": "Honest framing", "value": "workshop cluster lmg7d is CPU-only \u2014 module-02's GPU-requests TrainJob (nvidia.com/gpu per node) stays Pending here"}
+   ]
+  },
+  {
+   "t": 380,
+   "target": {"x": 280, "y": 80, "w": 1620, "h": 620},
+   "caption": "State: Complete in the console",
+   "details": [
+    {"label": "Page", "value": "Console > TrainJobs list"},
+    {"label": "State", "value": "Complete \u2014 the console maps the AllJobsCompleted condition"},
+    {"label": "Age", "value": "created 17 Oct 2026, 09:13"}
+   ]
+  },
+  {
+   "t": 395,
+   "target": {"x": 280, "y": 80, "w": 1620, "h": 620},
+   "caption": "Delete \u2014 resources released",
+   "details": [
+    {"label": "Action", "value": "oc delete trainjob/pytorch-minimal-example -n abc123-user1 \u2014 module-02's final lifecycle step"},
+    {"label": "State", "value": "No TrainJobs found \u2014 training resources released"}
+   ]
+  }
+ ]
+}
