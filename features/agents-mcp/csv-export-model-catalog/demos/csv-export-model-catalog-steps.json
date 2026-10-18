@@ -1,0 +1,93 @@
+{
+  "videoWidth": 1920,
+  "videoHeight": 1080,
+  "title": "CSV export for Model Catalog data",
+  "subtitle": "Export Model Catalog metadata as RFC 4180 CSV with the standalone model_catalog_export.py script — live API, real output",
+  "steps": [
+    {
+      "t": 20,
+      "target": { "x": 170, "y": 320, "w": 740, "h": 190 },
+      "caption": "The Model Catalog REST API — the model-catalog-https Route",
+      "details": [
+        { "label": "Route", "value": "model-catalog-https (rhoai-model-registries)" },
+        { "label": "Service", "value": "model-catalog" },
+        { "label": "Managed by", "value": "model-registry-operator" },
+        { "label": "Script", "value": "model_catalog_export.py (tools/csv-exporter)" }
+      ]
+    },
+    {
+      "t": 28,
+      "target": { "x": 200, "y": 550, "w": 900, "h": 260 },
+      "caption": "The endpoint the export script queries — reencrypt through the kube-rbac-proxy",
+      "details": [
+        { "label": "spec.host", "value": "model-catalog.apps.cluster-lmg7d.dyn.redhatworkshops.io" },
+        { "label": "port.targetPort", "value": "https-api" },
+        { "label": "tls.termination", "value": "reencrypt" },
+        { "label": "Auth", "value": "kube-rbac-proxy — 401 without a Bearer token" }
+      ]
+    },
+    {
+      "t": 42,
+      "target": { "x": 170, "y": 320, "w": 740, "h": 190 },
+      "caption": "The model-catalog backend the export reads from",
+      "details": [
+        { "label": "Deployment", "value": "model-catalog" },
+        { "label": "Owner", "value": "Component/model-registry" },
+        { "label": "Replicas", "value": "1" },
+        { "label": "Labels", "value": "app.kubernetes.io/component: model-catalog" }
+      ]
+    },
+    {
+      "t": 52,
+      "target": { "x": 25, "y": 120, "w": 850, "h": 160 },
+      "caption": "--list-sources: the catalog sources the export can filter on",
+      "details": [
+        { "label": "Sources", "value": "other_models, redhat_ai_models, redhat_ai_validated_models" },
+        { "label": "Status", "value": "all available" },
+        { "label": "Command", "value": "model_catalog_export.py --list-sources --header \"Authorization: Bearer $(oc whoami -t)\"" }
+      ]
+    },
+    {
+      "t": 56,
+      "target": { "x": 25, "y": 270, "w": 900, "h": 145 },
+      "caption": "The export run — real output against the live catalog API",
+      "details": [
+        { "label": "Command", "value": "model_catalog_export.py --url \"$CATALOG_URL\" --limit 10 --output catalog-export.csv" },
+        { "label": "Result", "value": "Exported 10 models (30 columns) to catalog-export.csv" },
+        { "label": "Pagination", "value": "100 models per page by default" },
+        { "label": "Writes", "value": "RFC 4180 CSV, atomic — a failed run leaves no partial file" }
+      ]
+    },
+    {
+      "t": 60,
+      "target": { "x": 25, "y": 415, "w": 900, "h": 145 },
+      "caption": "--source redhat_ai_models — a filtered export",
+      "details": [
+        { "label": "Command", "value": "model_catalog_export.py --source redhat_ai_models --limit 5 --output catalog-export-rh.csv" },
+        { "label": "Result", "value": "Exported 5 models (13 columns) to catalog-export-rh.csv" },
+        { "label": "Rows", "value": "only models from the selected source" }
+      ]
+    },
+    {
+      "t": 65,
+      "target": { "x": 0, "y": 0, "w": 1500, "h": 280 },
+      "caption": "The RFC 4180 CSV — real catalog metadata, atomically written",
+      "details": [
+        { "label": "File", "value": "catalog-export.csv (2.7 KB)" },
+        { "label": "Rows", "value": "10 models" },
+        { "label": "Encoding", "value": "UTF-8 BOM, quoted fields per RFC 4180" },
+        { "label": "Verify", "value": "head -n 1 · tail -n +2 | wc -l" }
+      ]
+    },
+    {
+      "t": 83,
+      "target": { "x": 0, "y": 0, "w": 700, "h": 250 },
+      "caption": "30 metadata columns — standard fields plus custom properties",
+      "details": [
+        { "label": "Standard", "value": "id, name, description, provider, license, source_id, createTimeSinceEpoch…" },
+        { "label": "Custom props", "value": "chart, docling, granite, model_type, ocr, safetensors, text-generation…" },
+        { "label": "Header", "value": "one column per custom property, after the standard metadata" }
+      ]
+    }
+  ]
+}

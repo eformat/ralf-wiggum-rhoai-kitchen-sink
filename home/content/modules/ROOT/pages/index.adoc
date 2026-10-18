@@ -38,7 +38,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 
 |xref:agent-catalog-ai-hub::index.adoc[Agent Catalog in AI Hub] |DP |xref:agent-catalog-ai-hub::index.adoc[Start →] |—
 
-|xref:csv-export-model-catalog::index.adoc[CSV export for Model Catalog data] |DP |xref:csv-export-model-catalog::index.adoc[Start →] |—
+|xref:csv-export-model-catalog::index.adoc[CSV export for Model Catalog data] |DP |xref:csv-export-model-catalog::index.adoc[Start →] |link:../csv-export-model-catalog/_attachments/csv-export-model-catalog-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:claude-code-starter-kit::index.adoc[Claude Code agent starter kit] |DP |xref:claude-code-starter-kit::index.adoc[Start →] |—
 
