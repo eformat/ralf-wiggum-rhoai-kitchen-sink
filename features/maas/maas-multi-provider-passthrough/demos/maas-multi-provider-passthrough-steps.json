@@ -1,0 +1,133 @@
+{
+  "title": "Multi-provider API passthrough for external models (MaaS)",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 140,
+      "target": { "x": 294, "y": 270, "w": 1598, "h": 504 },
+      "caption": "Module 01 creation beat: the ExternalProvider is created from the console Import YAML editor and goes Ready immediately - the controller reconciles the endpoint and the apikey auth from the labeled provider secret.",
+      "details": [
+        { "label": "Resource", "value": "anthropic-provider (ExternalProvider)" },
+        { "label": "Provider", "value": "anthropic - injects the x-api-key header" },
+        { "label": "Endpoint", "value": "in-cluster Anthropic Messages stand-in (documented substitution)" },
+        { "label": "Auth", "value": "apikey from the ipp-managed provider secret" },
+        { "label": "Phase", "value": "Ready - all resources created successfully" }
+      ]
+    },
+    {
+      "t": 205,
+      "target": { "x": 294, "y": 270, "w": 1598, "h": 504 },
+      "caption": "The ExternalModel maps the client-facing model name claude-sonnet to the provider with the passthrough-eligible apiFormat: messages and path /v1/messages - Ready with its HTTPRoute created successfully.",
+      "details": [
+        { "label": "Model", "value": "claude-sonnet (ExternalModel)" },
+        { "label": "apiFormat", "value": "messages (Anthropic Messages API, /v1/messages)" },
+        { "label": "Target model", "value": "claude-sonnet-4-20250514" },
+        { "label": "Weight", "value": "100" },
+        { "label": "Condition", "value": "Ready - HTTPRoute created successfully" }
+      ]
+    },
+    {
+      "t": 250,
+      "target": { "x": 294, "y": 270, "w": 1598, "h": 504 },
+      "caption": "Publishing to MaaS: the MaaSModelRef references kind ExternalModel and pairs with an active subscription - here it stays Pending, Awaiting governance pairing, until the subscription and auth policy exist. The video's honest pairing beat.",
+      "details": [
+        { "label": "Resource", "value": "claude-sonnet (MaaSModelRef)" },
+        { "label": "modelRef", "value": "kind ExternalModel, name claude-sonnet" },
+        { "label": "HTTPRoute", "value": "claude-sonnet" },
+        { "label": "Gateway", "value": "maas-default-gateway" },
+        { "label": "Phase", "value": "Pending - Awaiting governance pairing" }
+      ]
+    },
+    {
+      "t": 355,
+      "target": { "x": 294, "y": 270, "w": 1598, "h": 504 },
+      "caption": "The MaaS subscription governs the external model: modelRefs lists claude-sonnet in p2w15-llm with a 100-token/1-minute limit - Active as soon as it is created.",
+      "details": [
+        { "label": "Subscription", "value": "p2w15-maas-external-demo" },
+        { "label": "Model ref", "value": "claude-sonnet in p2w15-llm" },
+        { "label": "Token limit", "value": "100 tokens / 1 minute" },
+        { "label": "Groups", "value": "system:authenticated:oauth" },
+        { "label": "Phase", "value": "Active - successfully reconciled" }
+      ]
+    },
+    {
+      "t": 408,
+      "target": { "x": 294, "y": 270, "w": 1598, "h": 504 },
+      "caption": "The MaaS auth policy grants the user group access - Active with no conflicting AuthPolicies, completing the pairing: the Pending MaaSModelRef flips to Ready, Governed and runtime-healthy.",
+      "details": [
+        { "label": "Auth policy", "value": "p2w15-maas-external-auth" },
+        { "label": "Model ref", "value": "claude-sonnet in p2w15-llm" },
+        { "label": "Subjects", "value": "group system:authenticated:oauth" },
+        { "label": "Conflict check", "value": "No conflicting AuthPolicies on MaaS-managed HTTPRoutes" },
+        { "label": "Result", "value": "MaaSModelRef now Ready - Governed and runtime-healthy" }
+      ]
+    },
+    {
+      "t": 455,
+      "target": { "x": 314, "y": 447, "w": 1558, "h": 86 },
+      "caption": "MaaS governance in the dashboard: the p2w15-maas-external-demo subscription appears alongside the workshop subscriptions - all Active.",
+      "details": [
+        { "label": "Page", "value": "Settings > MaaS governance > Subscriptions" },
+        { "label": "Subscription", "value": "p2w15-maas-external-demo" },
+        { "label": "Status", "value": "Active" },
+        { "label": "Models", "value": "1 (the external model)" }
+      ]
+    },
+    {
+      "t": 480,
+      "target": { "x": 314, "y": 856, "w": 1558, "h": 59 },
+      "caption": "The payoff: the subscription's Models section lists the external model - claude-sonnet (target model claude-sonnet-4-20250514) in p2w15-llm with its token limit, exactly as the module 02 dashboard verification documents.",
+      "details": [
+        { "label": "Model", "value": "claude-sonnet" },
+        { "label": "Target model", "value": "claude-sonnet-4-20250514" },
+        { "label": "Project", "value": "p2w15-llm" },
+        { "label": "Token limits", "value": "100 / 1 minute" }
+      ]
+    },
+    {
+      "t": 555,
+      "target": { "x": 294, "y": 313, "w": 1598, "h": 551 },
+      "caption": "Honest drift: module 02's External models tab does not exist on RHOAI 3.5.1 - project p2w15-llm shows no deployed models, because the external model is governed through MaaS governance, not Model deployments. Never faked.",
+      "details": [
+        { "label": "Page", "value": "AI hub > Models > Deployments (project p2w15-llm)" },
+        { "label": "Module 02 arc", "value": "External models tab - drifted on RHOAI 3.5.1" },
+        { "label": "Empty state", "value": "No deployed models" },
+        { "label": "Why", "value": "external models are governed via MaaS governance" }
+      ]
+    },
+    {
+      "t": 650,
+      "target": { "x": 314, "y": 434, "w": 1558, "h": 685 },
+      "caption": "MaaS API keys: keys minted from the dashboard are listed with their status, subscription, owner, and expiration - the keys used for the passthrough test are scoped to p2w15-maas-external-demo.",
+      "details": [
+        { "label": "Page", "value": "Gen AI studio > API keys" },
+        { "label": "Keys", "value": "p2w15-maasmp-* - Active, scoped to p2w15-maas-external-demo" },
+        { "label": "Columns", "value": "Status, Subscription, Owner, Created, Last used, Expires" },
+        { "label": "Hygiene", "value": "key values are never displayed on screen" }
+      ]
+    },
+    {
+      "t": 670,
+      "target": { "x": 540, "y": 233, "w": 840, "h": 615 },
+      "caption": "Creating a persistent key: a key needs a name, description, and the subscription that scopes it - the key will work only with models that belong to the selected subscription.",
+      "details": [
+        { "label": "Dialog", "value": "Create API key" },
+        { "label": "Fields", "value": "Name, Description, Subscription, Expiration (1-365 days)" },
+        { "label": "Scoping", "value": "works only with models in the selected subscription" }
+      ]
+    },
+    {
+      "t": 721,
+      "target": { "x": 314, "y": 856, "w": 1558, "h": 59 },
+      "caption": "Full arc verified: the external model is published, governed, and routable - a native Anthropic Messages request to /v1/messages on the gateway returns HTTP 200 with a content array and stop_reason end_turn (upstream: the documented in-cluster stand-in, success real, never faked).",
+      "details": [
+        { "label": "Passthrough call", "value": "POST <gateway>/v1/messages - HTTP 200" },
+        { "label": "Response", "value": "Anthropic Messages JSON: content array, stop_reason end_turn" },
+        { "label": "Model", "value": "claude-sonnet-4-20250514 (target model ID)" },
+        { "label": "Routing", "value": "gateway detects /v1/messages, matches apiFormat: messages, forwards unchanged" },
+        { "label": "Auth", "value": "MaaS API key via Authorization: Bearer (gateway AuthPolicy rule)" },
+        { "label": "Upstream", "value": "in-cluster stand-in - documented substitution" }
+      ]
+    }
+  ]
+}

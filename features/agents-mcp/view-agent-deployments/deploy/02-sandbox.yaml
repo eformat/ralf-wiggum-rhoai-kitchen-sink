@@ -1,0 +1,29 @@
+# Sandbox custom resource (agent deployment) for the view-agent-deployments workshop.
+# Part 2 of the deploy flow — apply AFTER 01-agent-sandbox-manifest.yaml (the CRD must exist first).
+# This is the OpenShell-managed Sandbox CR that the RHOAI dashboard's running agent
+# deployments view (Agents -> Deployments tab) lists.
+#
+# The dashboard's agent-ops backend lists Sandboxes at group agents.x-k8s.io/v1beta1
+# with label selector openshell.ai/managed-by=openshell — both are REQUIRED for the
+# entry to appear. Display name, description, and framework come from the annotations.
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: p2w15-agent-runtime
+  labels:
+    # The agent-ops backend lists only sandboxes matching this selector.
+    openshell.ai/managed-by: openshell
+  annotations:
+    # The columns shown in the dashboard's Deployments view.
+    openshift.io/display-name: p2w15-agent-runtime
+    openshift.io/description: Workshop agent runtime deployed as an OpenShell-managed Sandbox CR
+    opendatahub.io/agent-framework: LangGraph
+spec:
+  podTemplate:
+    spec:
+      containers:
+      - name: agent-runtime
+        # Minimal long-running container so the agent deployment is verifiably Running.
+        # (echoserver:1.10 was tried first — its nginx entrypoint needs writable
+        # /var/lib/nginx dirs that this image does not provide; pause is reliable.)
+        image: registry.k8s.io/pause:3.10

@@ -1,0 +1,9 @@
+# Model namespace for the external-model resources (module-01 exercise 3).
+# The documentation examples use `llm`; this workshop uses the guid-prefixed
+# `p2w15-llm` to keep users isolated.
+apiVersion: project.openshift.io/v1
+kind: Project
+metadata:
+  name: p2w15-llm
+  labels:
+    opendatahub.io/dashboard: "true"

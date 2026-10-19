@@ -22,7 +22,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 
 |xref:ai-available-assets::index.adoc[AI Available Assets page] |GA |xref:ai-available-assets::index.adoc[Start →] |link:../ai-available-assets/_attachments/ai-available-assets-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:automated-tool-calling-eval::index.adoc[Automated tool-calling evaluation-data generation for custom MCP servers] |GA |xref:automated-tool-calling-eval::index.adoc[Start →] |—
+|xref:automated-tool-calling-eval::index.adoc[Automated tool-calling evaluation-data generation for custom MCP servers] |GA |xref:automated-tool-calling-eval::index.adoc[Start →] |link:../automated-tool-calling-eval/_attachments/automated-tool-calling-eval-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:opencode-coding-agent::index.adoc[OpenCode coding-agent deployment] |TP |xref:opencode-coding-agent::index.adoc[Start →] |—
 
@@ -50,17 +50,17 @@ the kustomize `cluster/` config and which overlays each lab needs.
 
 |xref:openclaw-starter-kit::index.adoc[OpenClaw agent starter kit] |DP |xref:openclaw-starter-kit::index.adoc[Start →] |—
 
-|xref:openshell-agent-sandboxing::index.adoc[OpenShell (secure agent sandboxing and policy enforcement)] |DP |xref:openshell-agent-sandboxing::index.adoc[Start →] |—
+|xref:openshell-agent-sandboxing::index.adoc[OpenShell (secure agent sandboxing and policy enforcement)] |DP |xref:openshell-agent-sandboxing::index.adoc[Start →] |link:../openshell-agent-sandboxing/_attachments/openshell-agent-sandboxing-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:text-mode-multimodal-training::index.adoc[Text-mode training for multimodal models in Training Hub] |DP |xref:text-mode-multimodal-training::index.adoc[Start →] |link:../text-mode-multimodal-training/_attachments/text-mode-multimodal-training-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:view-agent-deployments::index.adoc[View running agent deployments in dashboard] |DP |xref:view-agent-deployments::index.adoc[Start →] |—
+|xref:view-agent-deployments::index.adoc[View running agent deployments in dashboard] |DP |xref:view-agent-deployments::index.adoc[Start →] |link:../view-agent-deployments/_attachments/view-agent-deployments-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:mcp-catalog-admin::index.adoc[MCP Catalog administrative interface] |DP |xref:mcp-catalog-admin::index.adoc[Start →] |—
+|xref:mcp-catalog-admin::index.adoc[MCP Catalog administrative interface] |DP |xref:mcp-catalog-admin::index.adoc[Start →] |link:../mcp-catalog-admin/_attachments/mcp-catalog-admin-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:ogx-file-processors::index.adoc[OGX File Processors API] |DP |xref:ogx-file-processors::index.adoc[Start →] |link:../ogx-file-processors/_attachments/ogx-file-processors-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:ogx-remote-providers::index.adoc[OGX remote::anthropic and remote::gemini providers] |DP |xref:ogx-remote-providers::index.adoc[Start →] |—
+|xref:ogx-remote-providers::index.adoc[OGX remote::anthropic and remote::gemini providers] |DP |xref:ogx-remote-providers::index.adoc[Start →] |link:../ogx-remote-providers/_attachments/ogx-remote-providers-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:external-metering-maas::index.adoc[External metering integration for MaaS] |DP |xref:external-metering-maas::index.adoc[Start →] |—
 
@@ -92,7 +92,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 |===
 |Feature |Maturity |Workshop |Arcade
 
-|xref:automated-red-teaming-garak::index.adoc[Automated Red Teaming (powered by Garak)] |GA |xref:automated-red-teaming-garak::index.adoc[Start →] |—
+|xref:automated-red-teaming-garak::index.adoc[Automated Red Teaming (powered by Garak)] |GA |xref:automated-red-teaming-garak::index.adoc[Start →] |link:../automated-red-teaming-garak/_attachments/automated-red-teaming-garak-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:evalhub::index.adoc[Evaluation Stack (EvalHub)] |GA |xref:evalhub::index.adoc[Start →] |—
 
@@ -146,7 +146,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 
 |xref:maas-multi-tenancy::index.adoc[MaaS multi-tenancy with per-tenant gateway and identity isolation] |TP |xref:maas-multi-tenancy::index.adoc[Start →] |link:../maas-multi-tenancy/_attachments/maas-multi-tenancy-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:maas-multi-provider-passthrough::index.adoc[Multi-provider API passthrough for external models (MaaS)] |TP |xref:maas-multi-provider-passthrough::index.adoc[Start →] |—
+|xref:maas-multi-provider-passthrough::index.adoc[Multi-provider API passthrough for external models (MaaS)] |TP |xref:maas-multi-provider-passthrough::index.adoc[Start →] |link:../maas-multi-provider-passthrough/_attachments/maas-multi-provider-passthrough-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:maas-vllm-deployment::index.adoc[vLLM model deployment directly through MaaS] |TP |xref:maas-vllm-deployment::index.adoc[Start →] |link:../maas-vllm-deployment/_attachments/maas-vllm-deployment-demo.html[▶ Walkthrough,window=_blank]
 

@@ -1,0 +1,5 @@
+# Namespace p2w15-ogxrp — replaces the workshop's `oc new-project p2w15-ogxrp`
+apiVersion: project.openshift.io/v1
+kind: Project
+metadata:
+  name: p2w15-ogxrp

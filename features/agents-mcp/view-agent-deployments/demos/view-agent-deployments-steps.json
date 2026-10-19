@@ -1,0 +1,63 @@
+{
+  "steps": [
+    {
+      "t": 8,
+      "target": { "x": 300, "y": 400, "w": 1520, "h": 100 },
+      "caption": "Running agent deployments listed directly in the dashboard",
+      "details": [
+        { "label": "Name", "value": "p2w15-agent-runtime" },
+        { "label": "Framework", "value": "LangGraph" },
+        { "label": "Sandbox", "value": "Sandboxed" },
+        { "label": "Status", "value": "Ready — Pod is Ready" }
+      ]
+    },
+    {
+      "t": 24,
+      "target": { "x": 780, "y": 320, "w": 640, "h": 180 },
+      "caption": "Scoped per namespace — switch projects with the selector",
+      "details": [
+        { "label": "Project", "value": "ai-tenants" },
+        { "label": "State", "value": "No agent deployments" },
+        { "label": "Reason", "value": "No agent sandboxes were found in this project" }
+      ]
+    },
+    {
+      "t": 34,
+      "target": { "x": 300, "y": 400, "w": 1520, "h": 100 },
+      "caption": "Switch back — the deployment is listed again",
+      "details": [
+        { "label": "Project", "value": "p2w15-view" },
+        { "label": "Listed", "value": "1 - 1 of 1" },
+        { "label": "Status", "value": "Ready" }
+      ]
+    },
+    {
+      "t": 52,
+      "target": { "x": 310, "y": 320, "w": 400, "h": 140 },
+      "caption": "Filter by name to find a specific agent",
+      "details": [
+        { "label": "Filter", "value": "Name: p2w15" },
+        { "label": "Result", "value": "p2w15-agent-runtime listed — 1 - 1 of 1" }
+      ]
+    },
+    {
+      "t": 66,
+      "target": { "x": 780, "y": 550, "w": 640, "h": 230 },
+      "caption": "No matches shows the filtered empty state",
+      "details": [
+        { "label": "Filter", "value": "Name: nomatch" },
+        { "label": "Result", "value": "No agent deployments found" },
+        { "label": "Action", "value": "Clear all filters" }
+      ]
+    },
+    {
+      "t": 88,
+      "target": { "x": 300, "y": 400, "w": 1520, "h": 100 },
+      "caption": "Clear the filter — the running deployment is back",
+      "details": [
+        { "label": "Filter", "value": "cleared" },
+        { "label": "Listed", "value": "p2w15-agent-runtime — Ready" }
+      ]
+    }
+  ]
+}

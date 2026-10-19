@@ -1,0 +1,71 @@
+# Probe pod running the documented curl flow (40-demo-sequence.sh) — output is
+# captured by the console pod Logs view in the demo arc (module-02 Ex 3).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ogxrp-demo-sequence
+  namespace: p2w15-ogxrp
+data:
+  ogxrp-demo-sequence.sh: |
+    #!/bin/bash
+    set -u
+    OGX_URL="http://p2w15-ogxrp-service.p2w15-ogxrp.svc.cluster.local:8321"
+    sleep 20
+    echo "=== ogx-remote-providers demo sequence — module-02 Ex 2-3 ==="
+    echo
+    echo "--- Exercise 3: explore the remote model through the OpenAI-compatible surface ---"
+    echo "\$ export OGX_URL=\"http://p2w15-ogxrp-service.p2w15-ogxrp.svc.cluster.local:8321\""
+    echo
+    echo "\$ curl -s \"\$OGX_URL/v1/models\" | jq -r '.data[].id'"
+    sleep 3
+    curl -s --max-time 30 "$OGX_URL/v1/models"
+    echo
+    echo
+    echo "NOTE: with placeholder credentials, model discovery fails closed — the"
+    echo "remote providers are registered, but no models are listed yet."
+    sleep 4
+    echo
+    echo "--- Select a model backed by the remote provider and send a chat completion ---"
+    echo "\$ curl -s -X POST \"\$OGX_URL/v1/chat/completions\" -H \"Content-Type: application/json\" \\"
+    echo "  -d '{\"model\": \"anthropic-inference/claude-sonnet-4-5\", ...}'"
+    sleep 3
+    curl -s --max-time 40 -X POST "$OGX_URL/v1/chat/completions" \
+      -H "Content-Type: application/json" \
+      -d '{"model": "anthropic-inference/claude-sonnet-4-5", "messages": [{"role": "user", "content": "Which planet do humans live on?"}], "stream": false}'
+    echo
+    echo
+    echo "Module-02 verify: if the call fails with an authentication error, re-check"
+    echo "that the Secret is labeled ogx.io/watch: \"true\" and that the pods rolled."
+    sleep 4
+    echo
+    echo "--- Same call through the Gemini provider ---"
+    echo "\$ ... \"model\": \"gemini-inference/gemini-2.5-flash\" ..."
+    sleep 3
+    curl -s --max-time 40 -X POST "$OGX_URL/v1/chat/completions" \
+      -H "Content-Type: application/json" \
+      -d '{"model": "gemini-inference/gemini-2.5-flash", "messages": [{"role": "user", "content": "Which planet do humans live on?"}], "stream": false}'
+    echo
+    echo
+    echo "=== demo sequence complete — calls fail closed with real auth errors ==="
+    echo "=== real grounded responses need real external API keys (workshop Prerequisites) ==="
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ogxrp-demo-sequence
+  namespace: p2w15-ogxrp
+  labels:
+    app: ogxrp-demo
+spec:
+  restartPolicy: Never
+  containers:
+  - name: ogxrp-demo
+    image: image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/s2i-generic-data-science-notebook:3.5
+    command: ["/bin/sh", "-c", "bash /tmp/ogxrp-demo-sequence.sh"]
+    volumeMounts:
+    - name: sequence
+      mountPath: /tmp
+  volumes:
+  - name: sequence
+    configMap:
+      name: ogxrp-demo-sequence

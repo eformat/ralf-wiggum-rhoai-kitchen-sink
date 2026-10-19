@@ -1,0 +1,126 @@
+{
+  "title": "MCP Catalog admin — add, edit, and remove catalog entries from the dashboard",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 3,
+      "target": { "x": 300, "y": 240, "w": 1620, "h": 230 },
+      "caption": "The MCP Catalog administrative interface lives at Settings → MCP resources → MCP catalog sources — restricted strictly to OpenShift AI administrators; regular users see the entries but cannot change them.",
+      "details": [
+        { "label": "Location", "value": "Settings → MCP resources → MCP catalog sources" },
+        { "label": "Properties", "value": "administrator-only · YAML-based · catalog-wide" },
+        { "label": "Sources", "value": "Community · Red Hat · Red Hat Partner MCP Servers" }
+      ]
+    },
+    {
+      "t": 57,
+      "target": { "x": 300, "y": 180, "w": 770, "h": 620 },
+      "caption": "Add source — the YAML-based creation flow that previously required a hand-edited Kubernetes ConfigMap, with form validation and no cluster CLI round-trip.",
+      "details": [
+        { "label": "Location", "value": "MCP catalog sources → Add source" },
+        { "label": "Fields", "value": "Name · YAML file · Server filters · Enable source" },
+        { "label": "Enable source", "value": "checked — keep it disabled to hide servers while authoring" }
+      ]
+    },
+    {
+      "t": 75,
+      "target": { "x": 1120, "y": 60, "w": 800, "h": 1020 },
+      "caption": "Each source is a YAML file: an optional source label and an mcp_servers list — the same style as the Model Catalog administrative interface, so skills transfer between them.",
+      "details": [
+        { "label": "Format", "value": "source label + mcp_servers list" },
+        { "label": "Required", "value": "name · provider · description · version" },
+        { "label": "Optional", "value": "license · transports · deploymentMode · tools" }
+      ]
+    },
+    {
+      "t": 90,
+      "target": { "x": 300, "y": 180, "w": 770, "h": 420 },
+      "caption": "Author the entry as YAML — add multiple servers under mcp_servers to publish a bundle from one source file; server names appear in the catalog preview after upload.",
+      "details": [
+        { "label": "Name", "value": "Workshop MCP servers" },
+        { "label": "Bundle", "value": "Prometheus · Kubernetes (one source file)" },
+        { "label": "Tools", "value": "read-only toolsets with named access types" }
+      ]
+    },
+    {
+      "t": 104,
+      "target": { "x": 1070, "y": 185, "w": 850, "h": 260 },
+      "caption": "MCP catalog preview — complete all required fields, then click Preview to see which servers will appear in the catalog: 2 of 2 MCP servers included.",
+      "details": [
+        { "label": "Preview", "value": "2 of 2 MCP servers included" },
+        { "label": "Servers", "value": "Prometheus · Kubernetes" },
+        { "label": "Tabs", "value": "MCP servers included / excluded" }
+      ]
+    },
+    {
+      "t": 120,
+      "target": { "x": 300, "y": 430, "w": 1620, "h": 90 },
+      "caption": "Add — the Workshop MCP servers source appears in the list and validation reports honest status (Starting) while the operator reconciles the catalog source configuration.",
+      "details": [
+        { "label": "Source", "value": "Workshop MCP servers" },
+        { "label": "Server visibility", "value": "All servers" },
+        { "label": "Validation", "value": "Starting — honest status, then Ready" }
+      ]
+    },
+    {
+      "t": 145,
+      "target": { "x": 1195, "y": 645, "w": 720, "h": 430 },
+      "caption": "The payoff from the developer's point of view: the Prometheus and Kubernetes servers appear in the AI Hub MCP Catalog (Other MCP servers) — the discovery surface developers browse when deploying MCP servers.",
+      "details": [
+        { "label": "Catalog", "value": "AI hub → MCP servers (Other MCP servers)" },
+        { "label": "New servers", "value": "Prometheus · Kubernetes" },
+        { "label": "Labels", "value": "Verified source · Secure endpoint" }
+      ]
+    },
+    {
+      "t": 175,
+      "target": { "x": 300, "y": 180, "w": 770, "h": 620 },
+      "caption": "Edit — open the source from the list: the YAML and the catalog preview load prefilled; changes apply to the catalog source configuration without touching any ConfigMap resource.",
+      "details": [
+        { "label": "Location", "value": "MCP catalog sources → Manage source" },
+        { "label": "Prefilled", "value": "Name · YAML · catalog preview" },
+        { "label": "Server filters", "value": "optional filters limit which servers appear" }
+      ]
+    },
+    {
+      "t": 192,
+      "target": { "x": 1070, "y": 395, "w": 850, "h": 125 },
+      "caption": "Update the YAML and save — the form detects the change and asks to refresh the preview; the operator applies it without a cluster CLI round-trip.",
+      "details": [
+        { "label": "Edited", "value": "description updated inline" },
+        { "label": "Form banner", "value": "Source configuration changed. Refresh the preview." },
+        { "label": "No CLI", "value": "no oc apply round-trip" }
+      ]
+    },
+    {
+      "t": 200,
+      "target": { "x": 300, "y": 430, "w": 1620, "h": 90 },
+      "caption": "Saved — validation status Ready. From your side no ConfigMap was touched: the interface performed the configuration changes for you.",
+      "details": [
+        { "label": "Validation", "value": "Ready" },
+        { "label": "From your side", "value": "no ConfigMap touched — the interface performed the change" },
+        { "label": "UX", "value": "aligned with Model catalog settings" }
+      ]
+    },
+    {
+      "t": 232,
+      "target": { "x": 815, "y": 470, "w": 680, "h": 350 },
+      "caption": "Remove — deleting a source requires typed confirmation; the entry and its servers disappear from the AI Hub MCP Catalog. Coordinate with your team before deleting entries others are browsing.",
+      "details": [
+        { "label": "Confirm", "value": "type the source name" },
+        { "label": "Effect", "value": "servers removed from the MCP catalog" },
+        { "label": "Cleanup", "value": "catalog source configuration cleaned up for you" }
+      ]
+    },
+    {
+      "t": 260,
+      "target": { "x": 300, "y": 240, "w": 1620, "h": 230 },
+      "caption": "The lifecycle is complete — add, edit, and remove with guided dialogs; the only oc apply in this workshop is the old-way ConfigMap contrast the interface replaces.",
+      "details": [
+        { "label": "List", "value": "3 built-in sources (Workshop source deleted)" },
+        { "label": "Lifecycle", "value": "add → edit → remove" },
+        { "label": "Round trip", "value": "the old-way oc apply — the contrast" }
+      ]
+    }
+  ]
+}

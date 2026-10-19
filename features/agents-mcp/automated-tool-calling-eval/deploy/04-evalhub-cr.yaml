@@ -1,0 +1,27 @@
+# The EvalHub CR with the spec.mcp configuration (module-02 Exercise 1).
+# authSecret is the real deployment prerequisite (missing from workshop content):
+# the evalhub-mcp server needs a Secret whose `token` key holds a token the
+# EvalHub API accepts — see 05-evalhub-mcp-auth-secret.sh.
+#
+# Doc-vs-CRD drift (verified on qn8tx 2026-10-19): the workshop example uses
+# database.type postgresql, but the CRD requires a PRE-COMPOSED db-url key in
+# the referenced secret (an external PostgreSQL — the operator does not deploy
+# one; without it the server pod fails `FailedMount: references non-existent
+# secret key: db-url` and the CR stays Pending/False). sqlite is the CRD's
+# documented lightweight path and the proven-Ready backend — the CR uses it.
+apiVersion: trustyai.opendatahub.io/v1
+kind: EvalHub
+metadata:
+  name: evalhub
+spec:
+  replicas: 1
+  database:
+    type: sqlite
+  providers:
+    - lm-evaluation-harness
+    - garak
+  mcp:
+    enabled: true
+    transport: http
+    port: 3001
+    authSecret: evalhub-mcp-auth

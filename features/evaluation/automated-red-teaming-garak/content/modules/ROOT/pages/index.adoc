@@ -65,3 +65,5 @@ About 2 hours
 * xref:module-02-hands-on.adoc[Run a Risk Assessment]
 * xref:module-03-advanced.adoc[Advanced Usage]
 * xref:conclusion.adoc[Conclusion]
+
+link:_attachments/automated-red-teaming-garak-demo.html[▶ Watch the demo — interactive walkthrough,window=_blank]

@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+"""
+intents-scan.py — Automated Red Teaming (powered by Garak)
+
+Standalone Kubeflow Pipelines SDK path (module 03 of the workshop): submits the
+Garak red-teaming pipeline directly to the Data Science Pipelines server, with
+no EvalHub required. The pipeline component runs the Red Hat RHAIV build of the
+Garak scanner (garak 0.15.0+rhaiv.6, from the RHOAI 3.5 package index) against
+the OpenAI-compatible endpoint of the served target model, scoped to the
+single-probe `quick` profile so the assessment completes in about a minute on
+a CPU node.
+
+Target model:   p2w14-llama32-3b (vLLM, RawDeployment, namespace p2w13-autorag)
+Judge model:    p2w14-qwen3-4b (used by the intents multi-class judge in the
+                connected EvalHub flow; the standalone quick profile scores
+                attempts with the probe's built-in detectors)
+"""
+
+import kfp
+from kfp import dsl
+
+DSPA_HOST = "https://ds-pipeline-p2w13-autorag.p2w13-autorag.svc.cluster.local:8443"
+NAMESPACE = "p2w13-autorag"
+NOTEBOOK_IMAGE = (
+    "image-registry.openshift-image-registry.svc:5000/"
+    "redhat-ods-applications/s2i-generic-data-science-notebook:3.5"
+)
+TARGET_URL = "http://p2w14-llama32-3b-predictor.p2w13-autorag.svc.cluster.local:8080/v1"
+TARGET_NAME = "p2w14-llama32-3b"
+PROBES = "dan.Dan_11_0"  # the `quick` profile: a single DAN jailbreak probe
+
+
+@dsl.component(base_image=NOTEBOOK_IMAGE)
+def garak_red_team_scan(target_url: str, target_name: str, probes: str) -> str:
+    import json
+    import os
+    import subprocess
+
+    # Garak scan configuration (the `quick` profile deep-merge equivalent)
+    scan_config = {
+        "run": {"generations": 1, "seed": 42},
+        "plugins": {
+            "generators": {
+                "openai": {"OpenAICompatible": {"uri": target_url}}
+            }
+        },
+    }
+    with open("/tmp/garak-scan-config.yaml", "w") as handle:
+        json.dump(scan_config, handle)
+
+    subprocess.run(["pip", "install", "--quiet", "garak"], check=True)
+
+    scan_env = dict(os.environ, OPENAICOMPATIBLE_API_KEY="dummy")
+    scan = subprocess.run(
+        [
+            "python3", "-m", "garak",
+            "--config", "/tmp/garak-scan-config.yaml",
+            "--model_type", "openai.OpenAICompatible",
+            "--model_name", target_name,
+            "--probes", probes,
+        ],
+        env=scan_env, capture_output=True, text=True, timeout=900,
+    )
+    print(scan.stdout[-4000:])
+    if scan.returncode != 0:
+        print(scan.stderr[-2000:])
+        raise RuntimeError("garak scan failed")
+
+    asr_lines = [
+        line for line in scan.stdout.splitlines()
+        if "attack success rate" in line
+    ]
+    return asr_lines[-1].strip() if asr_lines else "attack success rate: n/a"
+
+
+@dsl.pipeline(name="garak-red-teaming-intents-scan")
+def garak_red_teaming_pipeline(target_url: str, target_name: str, probes: str):
+    garak_red_team_scan(
+        target_url=target_url, target_name=target_name, probes=probes
+    )
+
+
+client = kfp.Client(
+    host=DSPA_HOST,
+    # kfp 2.17 sends no token with a custom host unless one is passed — use
+    # the in-cluster ServiceAccount token (the namespace's `edit` RoleBinding
+    # is what authorises pipeline submissions).
+    existing_token=pathlib.Path(
+        "/var/run/secrets/kubernetes.io/serviceaccount/token"
+    ).read_text().strip(),
+    verify_ssl=False,  # matches the workshop kfp_config (`verify_ssl: false`)
+    namespace=NAMESPACE,
+)
+
+run = client.create_run_from_pipeline_func(
+    garak_red_teaming_pipeline,
+    arguments={
+        "target_url": TARGET_URL,
+        "target_name": TARGET_NAME,
+        "probes": PROBES,
+    },
+    # fresh executor run — KFP task caching would find the earlier identical
+    # run and skip the scan executor entirely
+    enable_caching=False,
+    run_name="intents-scan",
+    namespace=NAMESPACE,
+)
+job_id = run.run_id
+print(f"Job ID: {job_id}")
+
+completed = client.wait_for_run_completion(job_id, timeout=1200)
+print(f"Status: {completed.state}")

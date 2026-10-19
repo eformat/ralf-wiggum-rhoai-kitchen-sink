@@ -1,0 +1,10 @@
+# Publish the external model to MaaS (module-02 exercise 1, step 6).
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSModelRef
+metadata:
+  name: claude-sonnet
+  namespace: p2w15-llm
+spec:
+  modelRef:
+    kind: ExternalModel
+    name: claude-sonnet

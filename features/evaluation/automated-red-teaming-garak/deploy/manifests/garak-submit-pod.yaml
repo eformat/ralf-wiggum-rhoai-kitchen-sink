@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: p2w15-garak-submit
+  namespace: p2w13-autorag
+  labels:
+    app: p2w15-garak-submit
+spec:
+  containers:
+    - name: submit
+      image: image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/s2i-generic-data-science-notebook:3.5
+      command:
+        - sh
+        - -c
+        - >-
+          HOME=/tmp/home pip install --quiet --no-input kfp
+          && python3 /scripts/intents-scan.py
+      env:
+        - name: HOME
+          value: /tmp/home
+      volumeMounts:
+        - name: script
+          mountPath: /scripts
+          readOnly: true
+  volumes:
+    - name: script
+      configMap:
+        name: p2w15-garak-submit-script
+  restartPolicy: Never

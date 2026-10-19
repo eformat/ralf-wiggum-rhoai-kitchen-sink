@@ -41,3 +41,7 @@ About 30 minutes
 * xref:getting-connected.adoc[Connect to your environment]
 * xref:module-01-hands-on.adoc[Hands-on Exercise]
 * xref:conclusion.adoc[Conclusion]
+
+== Watch the demo
+
+link:_attachments/mcp-catalog-admin-demo.html[▶ Watch the demo — interactive walkthrough,window=_blank]

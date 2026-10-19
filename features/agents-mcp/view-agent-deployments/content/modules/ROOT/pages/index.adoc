@@ -34,4 +34,5 @@ About 45 minutes
 
 * xref:getting-connected.adoc[Connect to your environment]
 * xref:module-01-hands-on.adoc[Hands-on Exercise]
+* link:_attachments/view-agent-deployments-demo.html[▶ Watch the demo — interactive walkthrough,window=_blank]
 * xref:conclusion.adoc[Conclusion]

@@ -1,0 +1,87 @@
+# HONEST-STATE SUBSTITUTION for the external provider endpoint.
+# The workshop's real flow points ExternalProvider at api.anthropic.com; no
+# Anthropic credentials are available for captures, so this in-cluster stand-in
+# serves the Anthropic Messages API shape (POST /v1/messages -> native
+# Anthropic Messages JSON). The passthrough mechanism demonstrated through it
+# is real; only the upstream model is a stand-in (documented in deploy/README).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-anthropic-messages
+  namespace: p2w15-llm
+  labels:
+    app: mock-anthropic-messages
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-anthropic-messages
+  template:
+    metadata:
+      labels:
+        app: mock-anthropic-messages
+    spec:
+      containers:
+      - name: mock
+        image: registry.access.redhat.com/ubi9/python-312:latest
+        command: ["python3", "-c"]
+        args:
+        - "import json\nfrom http.server import BaseHTTPRequestHandler, HTTPServer\n\nclass H(BaseHTTPRequestHandler):\n    def _send(self, code, body):\n        self.send_response(code)\n        self.send_header('Content-Type', 'application/json')\n        self.end_headers()\n        self.wfile.write(json.dumps(body).encode())\n    def do_GET(self):\n        self._send(200, {'status': 'ok'})\n    def do_POST(self):\n        n = int(self.headers.get('Content-Length', 0) or 0)\n        try:\n            req = json.loads(self.rfile.read(n) or b'{}')\n        except Exception:\n            req = {}\n        self._send(200, {\n            'id': 'msg_mock_0001',\n            'type': 'message',\n            'role': 'assistant',\n            'model': 'claude-sonnet-4-20250514',\n            'content': [{'type': 'text', 'text': 'Hello from the in-cluster Anthropic Messages stand-in endpoint.'}],\n            'stop_reason': 'end_turn',\n            'stop_sequence': None,\n            'usage': {'input_tokens': 10, 'output_tokens': 12}\n        })\n    def log_message(self, *a):\n        pass\n\nHTTPServer(('0.0.0.0', 8080), H).serve_forever()"
+        ports:
+        - containerPort: 8080
+          name: http
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        hostUsers: false
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-anthropic-messages
+  namespace: p2w15-llm
+  labels:
+    app: mock-anthropic-messages
+spec:
+  selector:
+    app: mock-anthropic-messages
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+---
+# Edge-TLS route so the MaaS gateway reaches the stand-in with plain HTTPS
+# (the gateway's TLS origination to the endpoint host terminates here).
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: mock-anthropic-messages
+  namespace: p2w15-llm
+  labels:
+    app: mock-anthropic-messages
+spec:
+  to:
+    kind: Service
+    name: mock-anthropic-messages
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

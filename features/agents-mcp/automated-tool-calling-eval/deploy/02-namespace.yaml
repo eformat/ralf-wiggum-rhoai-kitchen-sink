@@ -1,0 +1,7 @@
+# The workshop's `{guid}-evalhub` working project (replaces `oc new-project`).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: p2w15-evalhub
+  labels:
+    app.kubernetes.io/created-by: automated-tool-calling-eval-deploy

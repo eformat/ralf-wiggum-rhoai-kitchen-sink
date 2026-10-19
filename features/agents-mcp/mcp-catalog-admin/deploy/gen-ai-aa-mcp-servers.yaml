@@ -1,0 +1,17 @@
+# The old way: manual ConfigMap edits (module-01, "The old way: manual ConfigMap edits")
+# One dedicated ConfigMap holding one entry per MCP server, applied by a cluster
+# administrator; each case-sensitive key holds a JSON definition for one MCP server.
+# <1> name — a dedicated ConfigMap applied by a cluster administrator
+# <2> entry key — case-sensitive and unique; the value must be valid JSON
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: gen-ai-aa-mcp-servers
+  namespace: redhat-ods-applications
+data:
+  GitHub-MCP-Server: |
+    {
+      "url": "https://api.githubcopilot.com/mcp/x/repos/readonly",
+      "description": "The GitHub MCP server enables exploration and interaction with
+      repositories, code, and developer resources on GitHub."
+    }

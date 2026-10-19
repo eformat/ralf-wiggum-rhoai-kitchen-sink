@@ -1,0 +1,45 @@
+# OGXServer for the remote providers arc. Two enablement paths combined
+# (module-02 Exercise 2): Path 2 — the CRD-structured providers declaration
+# (providers.inference.inline.custom[] accepts any remote::/inline:: type;
+# the operator expands it to exactly the docs' config.yaml provider shape) —
+# this ALSO triggers the operator-generated config (spec.baseConfig ALONE
+# does NOT: generation needs one declarative field, else the container falls
+# back to the image's baked postgres-demo config and crashes). Path 1 —
+# workload.overrides.env wires the Secret-backed credential injection
+# (Secrets -> ${env.ANTHROPIC_API_KEY} / ${env.GEMINI_API_KEY} resolution).
+apiVersion: ogx.io/v1beta1
+kind: OGXServer
+metadata:
+  name: p2w15-ogxrp
+  namespace: p2w15-ogxrp
+spec:
+  baseConfig:
+    key: config.yaml
+    name: p2w15-ogxrp-base-config
+  distribution:
+    name: rh-dev
+  providers:
+    inference:
+      inline:
+        custom:
+        - id: anthropic-inference
+          type: remote::anthropic
+          settings:
+            api_key: ${env.ANTHROPIC_API_KEY:=}
+        - id: gemini-inference
+          type: remote::gemini
+          settings:
+            api_key: ${env.GEMINI_API_KEY:=}
+  workload:
+    overrides:
+      env:
+      - name: ANTHROPIC_API_KEY
+        valueFrom:
+          secretKeyRef:
+            key: api-key
+            name: anthropic-creds
+      - name: GEMINI_API_KEY
+        valueFrom:
+          secretKeyRef:
+            key: api-key
+            name: gemini-creds

@@ -1,0 +1,14 @@
+# MaaS auth policy granting user-group access to the external model
+# (module-02 exercise 2, step 4).
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSAuthPolicy
+metadata:
+  name: p2w15-maas-external-auth
+  namespace: models-as-a-service
+spec:
+  modelRefs:
+  - name: claude-sonnet
+    namespace: p2w15-llm
+  subjects:
+    groups:
+    - name: system:authenticated:oauth

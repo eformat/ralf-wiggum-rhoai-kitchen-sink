@@ -1,0 +1,21 @@
+# MaaS subscription governing the external model (module-02 exercise 2).
+# MaaSModelRef pairs with an active subscription + auth policy; adding the
+# external model to the subscription modelRefs is what "add the model to a
+# subscription" means (the dashboard MaaS governance subscription Models
+# list is the UI equivalent).
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSSubscription
+metadata:
+  name: p2w15-maas-external-demo
+  namespace: models-as-a-service
+spec:
+  modelRefs:
+  - name: claude-sonnet
+    namespace: p2w15-llm
+    tokenRateLimits:
+    - limit: 100
+      window: "1m"
+  owner:
+    groups:
+    - name: system:authenticated:oauth
+  priority: 0

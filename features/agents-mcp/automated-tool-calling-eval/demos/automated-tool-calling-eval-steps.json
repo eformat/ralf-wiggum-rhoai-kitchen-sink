@@ -1,0 +1,57 @@
+{"steps": [
+ {"t": 14.0,
+  "target": {"x": 300, "y": 640, "w": 1350, "h": 110},
+  "caption": "DataScienceCluster: the trustyai component set to Managed — the TrustyAI operator deploys EvalHub, its providers, and the evalhub-mcp server",
+  "details": [
+    {"label": "Cluster component", "value": "trustyai.managementState: Managed"},
+    {"label": "Operator", "value": "trustyai-service-operator v1.37.0 (reconciles the CRs)"},
+    {"label": "DSC", "value": "default-dsc phase Ready, observedGeneration 7"}
+  ]},
+ {"t": 31.5,
+  "target": {"x": 300, "y": 300, "w": 1600, "h": 160},
+  "caption": "EvalHub CR — the spec.mcp block is the only configuration change needed to make EvalHub agent-accessible (transport http, port 3001, authSecret)",
+  "details": [
+    {"label": "Kind", "value": "EvalHub (trustyai.opendatahub.io/v1)"},
+    {"label": "spec.mcp.enabled", "value": "true — deploys the evalhub-mcp container"},
+    {"label": "spec.mcp.transport", "value": "http (Streamable HTTP, port 3001)"},
+    {"label": "spec.mcp.authSecret", "value": "evalhub-mcp-auth (real prerequisite — the server's own SA token is rejected 401 by the EvalHub API)"},
+    {"label": "Doc-vs-CRD drift", "value": "postgresql requires a pre-composed db-url; the CR uses sqlite (proven-Ready lightweight path)"}
+  ]},
+ {"t": 66.0,
+  "target": {"x": 300, "y": 440, "w": 1620, "h": 190},
+  "caption": "EvalHub pods: the API server and the separate evalhub-mcp deployment both 2/2 Running in the p2w15-evalhub namespace",
+  "details": [
+    {"label": "evalhub pod", "value": "Running 2/2 — api=true kube-rbac-proxy=true"},
+    {"label": "evalhub-mcp pod", "value": "Running 2/2 — evalhub-mcp=true kube-rbac-proxy=true"},
+    {"label": "Route", "value": "evalhub-mcp-p2w15-evalhub.apps... (operator-created, reencrypt/Redirect)"}
+  ]},
+ {"t": 82.0,
+  "target": {"x": 270, "y": 290, "w": 1640, "h": 740},
+  "caption": "EvalHub pod details — app=eval-hub labels, control-plane node, Always restart policy",
+  "details": [
+    {"label": "Pod", "value": "evalhub-5bcbcdfb66-992hj (Running)"},
+    {"label": "Labels", "value": "app=eval-hub, component=api, instance=evalhub"},
+    {"label": "Node", "value": "control-plane-cluster-qn8tx-1"},
+    {"label": "Owner", "value": "ReplicaSet evalhub-5bcbcdfb66"}
+  ]},
+ {"t": 96.0,
+  "target": {"x": 20, "y": 130, "w": 1880, "h": 860},
+  "caption": "The documented datageneration sequence, driven live through the MCP server — HONEST: the garak runner 401s at the model call (upstream evalhub auth wiring), so the job reaches failed, and the terminal response still adds result_interpretation from agent metadata exactly as module-02 documents",
+  "details": [
+    {"label": "Handshake", "value": "initialize → 200 → session id issued (Authorization Bearer + x-tenant headers)"},
+    {"label": "Tools", "value": "cancel_job, discover_providers, get_job_status, submit_evaluation"},
+    {"label": "discover_providers", "value": "Found 2 providers — lm_evaluation_harness + garak, full agent metadata (evaluates, hints, recommended_when, result_interpretation)"},
+    {"label": "submit_evaluation", "value": "job 558aebdb-5219-4482-bd4c-77a290331bb9 (state: pending) against the verified qwen25-05b endpoint"},
+    {"label": "get_job_status", "value": "pending → running → failed (the documented state table)"},
+    {"label": "Terminal response", "value": "adds result_interpretation + complements from the provider's agent metadata (100% complete)"}
+  ]},
+ {"t": 112.0,
+  "target": {"x": 20, "y": 990, "w": 1880, "h": 240},
+  "caption": "REST/CLI assertion from the workstation: the evalhub CLI reads the same job store the MCP tool calls wrote (module-02 takeaway) — State failed with the runner error, honestly",
+  "details": [
+    {"label": "CLI", "value": "evalhub eval status 558aebdb-5219-4482-bd4c-77a290331bb9"},
+    {"label": "State", "value": "failed — benchmark quick (garak): runner AuthenticationError"},
+    {"label": "Results", "value": "No metric results available — the completed-results table is blocked upstream, reported as-is"},
+    {"label": "Retry condition", "value": "garak runner receives the secret credential → job completed with attack_success_rate"}
+  ]}
+]}

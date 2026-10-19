@@ -1,0 +1,96 @@
+{
+  "title": "OGX remote::anthropic + remote::gemini providers — enablement and OpenAI-compatible surface",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 10,
+      "target": {"x": 200, "y": 90, "w": 1400, "h": 600},
+      "caption": "RHOAI 3.5.1 dashboard home — the OGX-enabled landing (cluster-qn8tx)",
+      "details": [
+        {"label": "RHOAI", "value": "3.5.1 — DSC default-dsc READY True"},
+        {"label": "OGX component", "value": "Managed — ogxservers.ogx.io CRD registered"},
+        {"label": "Prerequisites", "value": "External API keys — this environment is staged with placeholder credentials"}
+      ]
+    },
+    {
+      "t": 55,
+      "target": {"x": 240, "y": 95, "w": 1300, "h": 580},
+      "caption": "Console: the OGX Operator is installed — the OGXServer CRD is registered",
+      "details": [
+        {"label": "CRD", "value": "ogxservers.ogx.io · apiVersion ogx.io/v1beta1"},
+        {"label": "Established", "value": "Yes — Technology Preview"},
+        {"label": "Scope", "value": "Namespaced — one OGXServer CR per project"}
+      ]
+    },
+    {
+      "t": 145,
+      "target": {"x": 370, "y": 620, "w": 1480, "h": 380},
+      "caption": "The remote providers are declared in the OGXServer CR — remote::anthropic + remote::gemini",
+      "details": [
+        {"label": "anthropic-inference", "value": "provider_type remote::anthropic"},
+        {"label": "gemini-inference", "value": "provider_type remote::gemini — via providers.inference.inline.custom[]"},
+        {"label": "Generation", "value": "spec.baseConfig alone does NOT trigger it — at least one declarative field required"}
+      ]
+    },
+    {
+      "t": 205,
+      "target": {"x": 240, "y": 280, "w": 1500, "h": 400},
+      "caption": "Exercise 1: the credentials are stored in Kubernetes Secrets — anthropic-creds + gemini-creds",
+      "details": [
+        {"label": "anthropic-creds", "value": "Opaque · 1 key · placeholder credential"},
+        {"label": "gemini-creds", "value": "Opaque · 1 key · placeholder credential"},
+        {"label": "Label", "value": "ogx.io/watch: \"true\" required for operator cache detection"}
+      ]
+    },
+    {
+      "t": 240,
+      "target": {"x": 240, "y": 230, "w": 1500, "h": 450},
+      "caption": "The Secret carries the ogx.io/watch: \"true\" label — Secrets are never stored in the OGXServer CR spec itself",
+      "details": [
+        {"label": "name", "value": "anthropic-creds · namespace p2w15-ogxrp"},
+        {"label": "labels", "value": "ogx.io/watch: 'true' — rotation triggers an immediate pod roll"},
+        {"label": "Injection", "value": "the operator injects the value as an env var at pod startup"}
+      ]
+    },
+    {
+      "t": 270,
+      "target": {"x": 240, "y": 230, "w": 1500, "h": 450},
+      "caption": "The operator serves the merged config.yaml — generated with the ogx.io/generated-config label",
+      "details": [
+        {"label": "apis", "value": "[inference, models] — only APIs whose providers are explicitly configured"},
+        {"label": "distro_name", "value": "rh-dev — the operator transforms image_name from the base config"},
+        {"label": "Precedence", "value": "spec.baseConfig (labeled ConfigMap) TAKES PRECEDENCE over operator OCI resolution"}
+      ]
+    },
+    {
+      "t": 288,
+      "target": {"x": 240, "y": 230, "w": 1500, "h": 450},
+      "caption": "The merged config declares the remote providers — the enablement path is now visible in the served config",
+      "details": [
+        {"label": "api_key (anthropic)", "value": "${env.ANTHROPIC_API_KEY:=} — resolved from the injected env var"},
+        {"label": "api_key (gemini)", "value": "${env.GEMINI_API_KEY:=} — wired via workload.overrides.env secretKeyRefs"},
+        {"label": "Path", "value": "Secret → OGXServer reference → env injection → ${env.*} resolution at startup"}
+      ]
+    },
+    {
+      "t": 312,
+      "target": {"x": 240, "y": 290, "w": 1500, "h": 380},
+      "caption": "The OGX server is Running — 1 of 1 pods, managed by the OGX Operator",
+      "details": [
+        {"label": "Deployment", "value": "p2w15-ogxrp · 1 of 1 pods"},
+        {"label": "Managed by", "value": "app.kubernetes.io/managed-by=ogx-operator · part-of=ogx"},
+        {"label": "Service", "value": "p2w15-ogxrp-service :8321 — the OpenAI-compatible surface"}
+      ]
+    },
+    {
+      "t": 395,
+      "target": {"x": 320, "y": 330, "w": 1520, "h": 480},
+      "caption": "Exercise 3: the documented curl flow — remote inference egresses the cluster and fails closed with real auth errors",
+      "details": [
+        {"label": "/v1/models", "value": "{\"object\":\"list\",\"data\":[]} — model discovery fails closed with placeholder keys"},
+        {"label": "anthropic-inference/claude-sonnet-4-5", "value": "401 — Invalid Anthropic API Key (real error from api.anthropic.com)"},
+        {"label": "Retry condition", "value": "real external API keys in the Secrets → chat completions return Earth"}
+      ]
+    }
+  ]
+}

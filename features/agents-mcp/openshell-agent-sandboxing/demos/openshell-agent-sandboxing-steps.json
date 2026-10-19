@@ -1,0 +1,80 @@
+{
+  "steps": [
+    {
+      "t": 20,
+      "target": { "x": 300, "y": 400, "w": 1540, "h": 100 },
+      "caption": "OpenShell-managed Sandbox CRs listed directly in the dashboard",
+      "details": [
+        { "label": "Name", "value": "osh15-agent-runtime" },
+        { "label": "Framework", "value": "LangGraph" },
+        { "label": "Sandbox", "value": "Sandboxed" },
+        { "label": "Status", "value": "Ready — Pod is Ready" }
+      ]
+    },
+    {
+      "t": 56,
+      "target": { "x": 760, "y": 350, "w": 640, "h": 170 },
+      "caption": "Scoped per namespace — no Sandboxes in this project",
+      "details": [
+        { "label": "Project", "value": "ai-tenants" },
+        { "label": "State", "value": "No agent deployments" },
+        { "label": "Reason", "value": "No agent sandboxes were found in this project" }
+      ]
+    },
+    {
+      "t": 92,
+      "target": { "x": 300, "y": 300, "w": 1560, "h": 110 },
+      "caption": "The sandboxed agent pod and the egress-allowed control pod, both Running",
+      "details": [
+        { "label": "Pod", "value": "osh15-agent-runtime" },
+        { "label": "Status", "value": "Running 1/1" },
+        { "label": "Control pod", "value": "osh15-egress-allowed — Running 1/1" },
+        { "label": "Project", "value": "osh15-sandbox" }
+      ]
+    },
+    {
+      "t": 104,
+      "target": { "x": 300, "y": 240, "w": 1560, "h": 340 },
+      "caption": "Controlled egress enforced — the sandboxed agent's probe is denied",
+      "details": [
+        { "label": "Pod", "value": "osh15-agent-runtime" },
+        { "label": "Probe", "value": "https://example.com" },
+        { "label": "Result", "value": "BLOCKED (curl exit 28)" },
+        { "label": "Enforcement", "value": "NetworkPolicy osh15-controlled-egress" }
+      ]
+    },
+    {
+      "t": 150,
+      "target": { "x": 300, "y": 330, "w": 1560, "h": 300 },
+      "caption": "The control pod — no sandbox policy, egress still succeeds",
+      "details": [
+        { "label": "Pod", "value": "osh15-egress-allowed" },
+        { "label": "Pod label", "value": "app: osh15-egress-allowed (no managed-by key)" },
+        { "label": "Probe", "value": "https://example.com" },
+        { "label": "Result", "value": "HTTP 200" }
+      ]
+    },
+    {
+      "t": 200,
+      "target": { "x": 690, "y": 450, "w": 550, "h": 190 },
+      "caption": "Removing the Sandbox CR tears down the agent pod with it",
+      "details": [
+        { "label": "CR", "value": "osh15-agent-runtime" },
+        { "label": "Namespace", "value": "osh15-sandbox" },
+        { "label": "Status", "value": "Ready True — Pod is Ready" },
+        { "label": "Action", "value": "Delete Sandbox" }
+      ]
+    },
+    {
+      "t": 246,
+      "target": { "x": 300, "y": 220, "w": 1560, "h": 190 },
+      "caption": "The agent pod is torn down with the Sandbox CR",
+      "details": [
+        { "label": "Pods listed", "value": "1 - 1 of 1" },
+        { "label": "Remaining pod", "value": "osh15-egress-allowed (control pod)" },
+        { "label": "Deleted", "value": "osh15-agent-runtime with the Sandbox CR" },
+        { "label": "Lifecycle", "value": "pod garbage-collected with the CR" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+# ExternalModel with a passthrough-eligible apiFormat (module-02 exercise 1).
+apiVersion: inference.opendatahub.io/v1alpha1
+kind: ExternalModel
+metadata:
+  name: claude-sonnet
+  namespace: p2w15-llm
+spec:
+  externalProviderRefs:
+  - ref:
+      name: anthropic-provider
+    targetModel: claude-sonnet-4-20250514
+    apiFormat: messages
+    path: /v1/messages
+    weight: 100

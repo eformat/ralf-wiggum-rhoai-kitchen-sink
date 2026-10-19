@@ -1,0 +1,22 @@
+# Custom OGX baseConfig (module-02 Exercise 2, Path 2 — the docs' remote
+# provider config shape). Label ogx.io/watch: "true" — the operator's
+# registry-auth gap means this labeled ConfigMap TAKES PRECEDENCE over OCI
+# resolution. Providers are declared CRD-structured (see 30-ogxserver.yaml):
+# the operator's merge REPLACES base providers by API type, and this base
+# config carries the API list + version. Only APIs whose providers are
+# explicitly configured are enabled (a missing provider KeyErrors the OGX
+# lifespan).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: p2w15-ogxrp-base-config
+  namespace: p2w15-ogxrp
+  labels:
+    ogx.io/watch: "true"
+data:
+  config.yaml: |
+    version: '2'
+    image_name: p2w15-ogxrp
+    apis:
+    - inference
+    - models

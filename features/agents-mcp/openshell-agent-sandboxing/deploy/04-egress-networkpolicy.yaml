@@ -1,0 +1,30 @@
+# Controlled-egress NetworkPolicy for the openshell-agent-sandboxing workshop.
+# Part 4 of the deploy flow — the enforcement object for the workshop's controlled
+# network egress beat. OpenShell's Kubernetes setup requires a CNI that enforces
+# NetworkPolicy; on OpenShift, OVN-Kubernetes enforces this policy for real.
+#
+# It selects the sandboxed agent pod by the pod label set in 02-sandbox.yaml
+# (openshell.ai/managed-by: openshell) and allows egress to DNS only — so the
+# agent's probe of https://example.com resolves but cannot leave the sandbox,
+# while the control pod (03-egress-control-pod.yaml, not selected) keeps full egress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: osh15-controlled-egress
+  labels:
+    app: osh15-controlled-egress
+spec:
+  podSelector:
+    matchLabels:
+      openshell.ai/managed-by: openshell
+  policyTypes:
+  - Egress
+  egress:
+  # DNS only — the allow-list the sandboxed agent may reach. (A ports-53
+  # constraint was tried first: OVN in this environment still denied the
+  # cluster-DNS service traffic, so the rule is the whole namespace with no
+  # ports filter — the deny is then visible on connect, curl exit 28.)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: openshift-dns

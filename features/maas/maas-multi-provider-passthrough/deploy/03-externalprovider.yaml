@@ -1,0 +1,19 @@
+# Provider reference to the ExternalProvider (module-01 exercise 4).
+# The provider secret (created via `oc create secret generic`, see
+# deploy/README) holds a DUMMY placeholder key — the stand-in endpoint ignores
+# credentials; with a real provider replace it with a genuine Anthropic key.
+apiVersion: inference.opendatahub.io/v1alpha1
+kind: ExternalProvider
+metadata:
+  name: anthropic-provider
+  namespace: p2w15-llm
+spec:
+  provider: anthropic
+  # HONEST-STATE SUBSTITUTION: the workshop's real flow uses
+  # `endpoint: api.anthropic.com`; this demo points at the in-cluster
+  # Anthropic Messages stand-in (documented in deploy/README).
+  endpoint: mock-anthropic-messages-p2w15-llm.apps.cluster-qn8tx.dyn.redhatworkshops.io
+  auth:
+    type: apikey
+    secretRef:
+      name: anthropic-api-key
