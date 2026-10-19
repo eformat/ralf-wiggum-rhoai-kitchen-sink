@@ -26,7 +26,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 
 |xref:opencode-coding-agent::index.adoc[OpenCode coding-agent deployment] |TP |xref:opencode-coding-agent::index.adoc[Start →] |—
 
-|xref:validated-tool-calling-config::index.adoc[Validated tool-calling configuration in Model Catalog] |TP |xref:validated-tool-calling-config::index.adoc[Start →] |—
+|xref:validated-tool-calling-config::index.adoc[Validated tool-calling configuration in Model Catalog] |TP |xref:validated-tool-calling-config::index.adoc[Start →] |link:../validated-tool-calling-config/_attachments/validated-tool-calling-config-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:mcp-catalog-support-tier::index.adoc[MCP Catalog support-tier labeling] |TP |xref:mcp-catalog-support-tier::index.adoc[Start →] |link:../mcp-catalog-support-tier/_attachments/mcp-catalog-support-tier-demo.html[▶ Walkthrough,window=_blank]
 
@@ -36,7 +36,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 
 |xref:ogx-agentic-api::index.adoc[OGX-native agentic API surface (Tool Runtime, Responses, Conversations)] |TP |xref:ogx-agentic-api::index.adoc[Start →] |link:../ogx-agentic-api/_attachments/ogx-agentic-api-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:agent-catalog-ai-hub::index.adoc[Agent Catalog in AI Hub] |DP |xref:agent-catalog-ai-hub::index.adoc[Start →] |—
+|xref:agent-catalog-ai-hub::index.adoc[Agent Catalog in AI Hub] |DP |xref:agent-catalog-ai-hub::index.adoc[Start →] |link:../agent-catalog-ai-hub/_attachments/agent-catalog-ai-hub-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:csv-export-model-catalog::index.adoc[CSV export for Model Catalog data] |DP |xref:csv-export-model-catalog::index.adoc[Start →] |link:../csv-export-model-catalog/_attachments/csv-export-model-catalog-demo.html[▶ Walkthrough,window=_blank]
 
@@ -103,7 +103,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 |===
 |Feature |Maturity |Workshop |Arcade
 
-|xref:feature-store-feast::index.adoc[Feature Store (Feast-based)] |GA |xref:feature-store-feast::index.adoc[Start →] |—
+|xref:feature-store-feast::index.adoc[Feature Store (Feast-based)] |GA |xref:feature-store-feast::index.adoc[Start →] |link:../feature-store-feast/_attachments/feature-store-feast-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:automl::index.adoc[AutoML] |TP |xref:automl::index.adoc[Start →] |link:../automl/_attachments/automl-demo.html[▶ Walkthrough,window=_blank]
 
@@ -138,7 +138,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 
 |xref:maas-oidc-auth::index.adoc[MaaS-specific external OIDC user authentication] |GA |xref:maas-oidc-auth::index.adoc[Start →] |link:../maas-oidc-auth/_attachments/maas-oidc-auth-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:maas-core::index.adoc[Models-as-a-Service (MaaS) core: access model and token mechanism] |GA |xref:maas-core::index.adoc[Start →] |—
+|xref:maas-core::index.adoc[Models-as-a-Service (MaaS) core: access model and token mechanism] |GA |xref:maas-core::index.adoc[Start →] |link:../maas-core/_attachments/maas-core-demo.html[▶ Walkthrough,window=_blank]
 
 |xref:maas-loki-showback::index.adoc[Loki-based showback and user-scoped usage dashboards (MaaS)] |TP |xref:maas-loki-showback::index.adoc[Start →] |link:../maas-loki-showback/_attachments/maas-loki-showback-demo.html[▶ Walkthrough,window=_blank]
 
@@ -157,7 +157,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 |===
 |Feature |Maturity |Workshop |Arcade
 
-|xref:model-registry-catalog::index.adoc[Model registry and model catalog] |GA |xref:model-registry-catalog::index.adoc[Start →] |—
+|xref:model-registry-catalog::index.adoc[Model registry and model catalog] |GA |xref:model-registry-catalog::index.adoc[Start →] |link:../model-registry-catalog/_attachments/model-registry-catalog-demo.html[▶ Walkthrough,window=_blank]
 
 |===
 

@@ -1,0 +1,89 @@
+{
+  "title": "Validated tool-calling configuration in the RHOAI model catalog",
+  "dwell": 7,
+  "steps": [
+    {
+      "t": 10,
+      "target": { "x": 330, "y": 655, "w": 950, "h": 185 },
+      "caption": "Enable the feature: the toolCalling dashboard flag in OdhDashboardConfig",
+      "details": [
+        { "label": "Resource", "value": "OdhDashboardConfig odh-dashboard-config" },
+        { "label": "Namespace", "value": "redhat-ods-applications" },
+        { "label": "Flag", "value": "spec.dashboardConfig.toolCalling: true" },
+        { "label": "Applied via", "value": "oc patch --type=merge (Module 01, Ex 1)" }
+      ]
+    },
+    {
+      "t": 20,
+      "target": { "x": 330, "y": 780, "w": 620, "h": 60 },
+      "caption": "toolCalling: true — switches on the Validated arguments UI",
+      "details": [
+        { "label": "YAML line", "value": "spec.dashboardConfig.toolCalling: true" },
+        { "label": "Effect", "value": "Validated arguments filter in the model catalog" },
+        { "label": "Scope", "value": "cluster-wide — all dashboard users" }
+      ]
+    },
+    {
+      "t": 32,
+      "target": { "x": 660, "y": 770, "w": 900, "h": 230 },
+      "caption": "Model catalog loads end-to-end — validated models listed",
+      "details": [
+        { "label": "Models", "value": "Apertus-8B-Instruct-2509, DeepSeek-R1-0528, Devstral-Small-2-24B, diffusiongemma-26B-A4B" },
+        { "label": "Benchmarks", "value": "View 40-61 benchmarks per model" },
+        { "label": "Catalog alerts", "value": "None — no source load error" }
+      ]
+    },
+    {
+      "t": 44,
+      "target": { "x": 300, "y": 895, "w": 420, "h": 95 },
+      "caption": "The Validated arguments filter — check Tool calling",
+      "details": [
+        { "label": "Filter group", "value": "Validated arguments" },
+        { "label": "Option", "value": "Tool calling" },
+        { "label": "Narrows to", "value": "models with confirmed tool-calling support" }
+      ]
+    },
+    {
+      "t": 60,
+      "target": { "x": 660, "y": 760, "w": 900, "h": 230 },
+      "caption": "Filtered: every card now carries the Tool calling label",
+      "details": [
+        { "label": "Matching models", "value": "gemma-4 variants, gpt-oss-20b, Qwen3.6-35B-A3B" },
+        { "label": "Card labels", "value": "Tool calling on each validated card" },
+        { "label": "Filter chip", "value": "Reset all filters appears" }
+      ]
+    },
+    {
+      "t": 88,
+      "target": { "x": 640, "y": 235, "w": 720, "h": 130 },
+      "caption": "Devstral Small 2 details page — Validated badge",
+      "details": [
+        { "label": "Model", "value": "Devstral-Small-2-24B-Instruct-2512" },
+        { "label": "Provider", "value": "Mistral AI" },
+        { "label": "Badge", "value": "Validated" }
+      ]
+    },
+    {
+      "t": 100,
+      "target": { "x": 1370, "y": 440, "w": 460, "h": 540 },
+      "caption": "Model details sidebar — validated infrastructure fields",
+      "details": [
+        { "label": "Labels", "value": "mistral-common" },
+        { "label": "Tensor type", "value": "FP8" },
+        { "label": "Parameter size", "value": "24.0B params" },
+        { "label": "Minimum vRAM", "value": "29.70 GB" },
+        { "label": "Provider", "value": "Mistral AI" }
+      ]
+    },
+    {
+      "t": 120,
+      "target": { "x": 1370, "y": 480, "w": 460, "h": 220 },
+      "caption": "Honest note: no Tool-calling panel in RHOAI 3.5.1 — the catalog filter is the shipped UI",
+      "details": [
+        { "label": "Shipped UI", "value": "Validated arguments filter in the catalog" },
+        { "label": "Details page", "value": "no Tool-calling panel or label in 3.5.1" },
+        { "label": "Workshop docs", "value": "module-01 prose matches the shipped UI" }
+      ]
+    }
+  ]
+}

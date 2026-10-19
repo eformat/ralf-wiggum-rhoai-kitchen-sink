@@ -1,0 +1,92 @@
+{
+  "steps": [
+    {
+      "t": 8,
+      "target": { "x": 20, "y": 170, "w": 300, "h": 100 },
+      "caption": "The OpenShift AI dashboard — the Agents catalog lives in the AI hub section",
+      "details": [
+        { "label": "Dashboard", "value": "OpenShift AI 3.5 (rh-ai.apps route)" },
+        { "label": "Section", "value": "AI hub → Agents (Dev Preview)" },
+        { "label": "Cluster", "value": "RHOAI 3.5.1 · OpenShift 4.22 · CPU-only" },
+        { "label": "Catalog backend", "value": "model-catalog (Red Hat Agents source)" }
+      ]
+    },
+    {
+      "t": 25,
+      "target": { "x": 20, "y": 120, "w": 300, "h": 130 },
+      "caption": "AI hub → Agents (Dev Preview) — a dashboard feature flag gates the menu item",
+      "details": [
+        { "label": "Menu item", "value": "Agents (Dev Preview) — /ai-hub/agents" },
+        { "label": "Flag", "value": "spec.dashboardConfig.agentsCatalog: true (OdhDashboardConfig)" },
+        { "label": "No-restart refresh", "value": "GET /api/config with Cache-Control: no-cache re-reads the CR" },
+        { "label": "Doc step", "value": "module-01 Ex 2: oc patch odhdashboardconfig --type=merge" }
+      ]
+    },
+    {
+      "t": 32,
+      "target": { "x": 600, "y": 280, "w": 1180, "h": 560 },
+      "caption": "The Agents catalog ships pre-loaded agent starter kits — browse before you build",
+      "details": [
+        { "label": "Templates", "value": "10 pre-loaded starter kits" },
+        { "label": "Frameworks", "value": "LangGraph ×4, CrewAI, LlamaIndex, OpenAI, AutoGen MCP, Google ADK, Langflow" },
+        { "label": "Source", "value": "Red Hat Agents (model-catalog API)" },
+        { "label": "Bad state", "value": "'Agents catalog configuration required' = sources API failed — check the sources call" }
+      ]
+    },
+    {
+      "t": 104,
+      "target": { "x": 20, "y": 230, "w": 390, "h": 360 },
+      "caption": "Framework filter — narrow the catalog by agentic framework",
+      "details": [
+        { "label": "Filter UI", "value": "Framework checkbox group (left sidebar)" },
+        { "label": "Visible chips", "value": "A2A, Autogen, Claude Code, CrewAI, Google ADK" },
+        { "label": "Show more", "value": "+ Langflow, LangGraph, LlamaIndex, OpenClaw, OpenCode, Python" },
+        { "label": "Behavior", "value": "multi-select — selected frameworks show as removable chips" }
+      ]
+    },
+    {
+      "t": 130,
+      "target": { "x": 600, "y": 270, "w": 1160, "h": 390 },
+      "caption": "One click narrows the grid — LangGraph checked, 4 LangGraph starter kits remain",
+      "details": [
+        { "label": "Filter", "value": "LangGraph (checkbox)" },
+        { "label": "Result", "value": "4 templates — ReAct, Agentic RAG, Database Memory, Human-in-the-Loop" },
+        { "label": "Indicators", "value": "Result of filters + LangGraph × chip" },
+        { "label": "Clear", "value": "uncheck the framework or click the chip ×" }
+      ]
+    },
+    {
+      "t": 190,
+      "target": { "x": 590, "y": 225, "w": 600, "h": 420 },
+      "caption": "Search by name, keyword, or description — 'WebSearch' matches 2 kits",
+      "details": [
+        { "label": "Search box", "value": "name, keyword, or description" },
+        { "label": "Query", "value": "WebSearch" },
+        { "label": "Matches", "value": "CrewAI WebSearch Agent · LlamaIndex WebSearch Agent" },
+        { "label": "Reset", "value": "clears the query and restores the full grid" }
+      ]
+    },
+    {
+      "t": 243,
+      "target": { "x": 720, "y": 180, "w": 1060, "h": 420 },
+      "caption": "Every kit opens a catalog entry — description, README, prerequisites",
+      "details": [
+        { "label": "Entry URL", "value": "/ai-hub/agents/catalog/<id>/overview" },
+        { "label": "Header", "value": "description + Open repository button" },
+        { "label": "Template details", "value": "Framework: LangGraph" },
+        { "label": "README", "value": "What this agent does · How it works · Prerequisites" }
+      ]
+    },
+    {
+      "t": 272,
+      "target": { "x": 600, "y": 280, "w": 1180, "h": 560 },
+      "caption": "Back in the catalog — filter, search, and entry pages are the starter-kit discovery workflow",
+      "details": [
+        { "label": "Workflow", "value": "browse → filter → search → open entry" },
+        { "label": "Enabled by", "value": "agentsCatalog flag + model-catalog sources" },
+        { "label": "Honest state", "value": "CPU-only cluster; states shown as-is" },
+        { "label": "Next", "value": "pick a kit and deploy it as an agent" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "title": "Feature Store (Feast) on OpenShift AI — enable, create, and connect",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 27,
+      "target": { "x": 310, "y": 480, "w": 1300, "h": 280 },
+      "caption": "Module 01 — enable the Feast operator in the DataScienceCluster",
+      "details": [
+        { "label": "Component", "value": "feastoperator" },
+        { "label": "managementState", "value": "Managed" },
+        { "label": "CRDs installed", "value": "featurestores.feast.dev" }
+      ]
+    },
+    {
+      "t": 63,
+      "target": { "x": 310, "y": 350, "w": 1300, "h": 130 },
+      "caption": "The Feast operator controller is Running",
+      "details": [
+        { "label": "Deployment", "value": "feast-operator-controller-manager" },
+        { "label": "Namespace", "value": "redhat-ods-applications" },
+        { "label": "Pods", "value": "1/1 Ready" }
+      ]
+    },
+    {
+      "t": 80,
+      "target": { "x": 220, "y": 550, "w": 1100, "h": 190 },
+      "caption": "Create a FeatureStore instance from the sample Git repository",
+      "details": [
+        { "label": "FeatureStore", "value": "sample-git" },
+        { "label": "Status", "value": "Ready" },
+        { "label": "Conditions", "value": "Authorization / OnlineStore / Registry — True" }
+      ]
+    },
+    {
+      "t": 135,
+      "target": { "x": 310, "y": 330, "w": 1550, "h": 200 },
+      "caption": "Inside the pod, the registry already knows the entities",
+      "details": [
+        { "label": "Command", "value": "feast entities list" },
+        { "label": "zipcode", "value": "INT64" },
+        { "label": "dob_ssn", "value": "STRING" }
+      ]
+    },
+    {
+      "t": 162,
+      "target": { "x": 310, "y": 490, "w": 1550, "h": 200 },
+      "caption": "Feature views are live and the online store is populated",
+      "details": [
+        { "label": "credit_history", "value": "FeatureView · AVAILABLE_ONLINE" },
+        { "label": "zipcode_features", "value": "FeatureView · AVAILABLE_ONLINE" },
+        { "label": "total_debt_calc", "value": "OnDemandFeatureView" }
+      ]
+    },
+    {
+      "t": 216,
+      "target": { "x": 310, "y": 520, "w": 1550, "h": 340 },
+      "caption": "Local provider: SQLite online store, file registry, kubernetes auth",
+      "details": [
+        { "label": "Project", "value": "credit_scoring_local" },
+        { "label": "Online store", "value": "sqlite · /feast-data/online_store.db" },
+        { "label": "Auth", "value": "kubernetes" }
+      ]
+    },
+    {
+      "t": 234,
+      "target": { "x": 310, "y": 320, "w": 1550, "h": 250 },
+      "caption": "The dashboard Feature Store UI reads the live registry",
+      "details": [
+        { "label": "Entities", "value": "3" },
+        { "label": "Features", "value": "16" },
+        { "label": "Feature views", "value": "3" }
+      ]
+    },
+    {
+      "t": 261,
+      "target": { "x": 310, "y": 340, "w": 1550, "h": 320 },
+      "caption": "Entities group features by domain",
+      "details": [
+        { "label": "dob_ssn", "value": "STRING · 1 feature view" },
+        { "label": "zipcode", "value": "INT64 · 1 feature view" },
+        { "label": "Feature store", "value": "credit_scoring_local" }
+      ]
+    },
+    {
+      "t": 288,
+      "target": { "x": 310, "y": 350, "w": 1550, "h": 260 },
+      "caption": "Feature views ship features to the online store",
+      "details": [
+        { "label": "credit_history", "value": "2 features · Online" },
+        { "label": "zipcode_features", "value": "6 features · Online" },
+        { "label": "total_debt_calc", "value": "On-demand" }
+      ]
+    },
+    {
+      "t": 362,
+      "target": { "x": 310, "y": 700, "w": 1550, "h": 300 },
+      "caption": "Connect a workbench — feast-configs mounted automatically",
+      "details": [
+        { "label": "Connected", "value": "credit_scoring_local · p2w12-feast-user" },
+        { "label": "Example code", "value": "Create a FeatureStore object per connected store" },
+        { "label": "Client mount", "value": "feast-configs/<my_project>" }
+      ]
+    }
+  ]
+}

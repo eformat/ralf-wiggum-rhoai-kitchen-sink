@@ -1,0 +1,106 @@
+{
+  "title": "Model registry and model catalog — RHOAI 3.5",
+  "dwell": 4.5,
+  "steps": [
+    {
+      "t": 22,
+      "target": { "x": 330, "y": 630, "w": 490, "h": 70 },
+      "caption": "DataScienceCluster default-dsc: modelregistry Managed, registries in rhoai-model-registries",
+      "details": [
+        { "label": "DSC", "value": "default-dsc (Ready)" },
+        { "label": "modelregistry", "value": "managementState: Managed" },
+        { "label": "registriesNamespace", "value": "rhoai-model-registries" }
+      ]
+    },
+    {
+      "t": 50,
+      "target": { "x": 310, "y": 385, "w": 1560, "h": 50 },
+      "caption": "model-registry-operator pod Running 1/1 — pods list filtered by name",
+      "details": [
+        { "label": "Pod", "value": "model-registry-operator-controller-manager" },
+        { "label": "Status", "value": "Running (1/1), 0 restarts" },
+        { "label": "Namespace", "value": "redhat-ods-applications" }
+      ]
+    },
+    {
+      "t": 100,
+      "target": { "x": 310, "y": 310, "w": 1560, "h": 85 },
+      "caption": "Model catalog stack healthy: model-catalog 2/2 + model-catalog-postgres 1/1",
+      "details": [
+        { "label": "model-catalog", "value": "Running (2/2)" },
+        { "label": "model-catalog-postgres", "value": "Running (1/1)" },
+        { "label": "Namespace", "value": "rhoai-model-registries" }
+      ]
+    },
+    {
+      "t": 145,
+      "target": { "x": 640, "y": 690, "w": 1230, "h": 340 },
+      "caption": "AI hub Models catalog loads the real validated-models grid — no source load errors",
+      "details": [
+        { "label": "Models", "value": "Apertus-8B, DeepSeek-R1, Devstral-Small-2, diffusiongemma-26B" },
+        { "label": "Badges", "value": "Validated (Red Hat AI)" },
+        { "label": "Catalog source", "value": "red_hat_ai_validated_models" }
+      ]
+    },
+    {
+      "t": 165,
+      "target": { "x": 890, "y": 280, "w": 440, "h": 280 },
+      "caption": "Registry tab before creation: no model registries are available to users",
+      "details": [
+        { "label": "Tab", "value": "Registry" },
+        { "label": "State", "value": "Create a model registry via Model registry settings" },
+        { "label": "Note", "value": "platform default-modelregistry is admin-scoped, not user-visible" }
+      ]
+    },
+    {
+      "t": 202,
+      "target": { "x": 540, "y": 145, "w": 840, "h": 790 },
+      "caption": "Create model registry: workshop-registry on the default (non-production) database",
+      "details": [
+        { "label": "Name", "value": "workshop-registry" },
+        { "label": "Resource name", "value": "workshop-registry (auto)" },
+        { "label": "Database", "value": "Default database (non-production)" }
+      ]
+    },
+    {
+      "t": 240,
+      "target": { "x": 300, "y": 395, "w": 1570, "h": 45 },
+      "caption": "workshop-registry created — status Unavailable while the operator provisions it",
+      "details": [
+        { "label": "Registry", "value": "workshop-registry" },
+        { "label": "Status", "value": "Unavailable (provisioning)" },
+        { "label": "Permissions", "value": "No project permissions" }
+      ]
+    },
+    {
+      "t": 278,
+      "target": { "x": 300, "y": 395, "w": 1570, "h": 45 },
+      "caption": "Status Available after provisioning — dashboard refreshed, cluster-side AVAILABLE True",
+      "details": [
+        { "label": "Registry", "value": "workshop-registry" },
+        { "label": "Status", "value": "Available" },
+        { "label": "Cluster check", "value": "oc: AVAILABLE True" }
+      ]
+    },
+    {
+      "t": 295,
+      "target": { "x": 300, "y": 290, "w": 1570, "h": 340 },
+      "caption": "Manage permissions: registry-users group auto-created; add system:authenticated for all users",
+      "details": [
+        { "label": "Group", "value": "workshop-registry-users (Default)" },
+        { "label": "Documented step", "value": "Add group system:authenticated (module-02)" },
+        { "label": "Honest note", "value": "group typeahead selection did not stick on this build" }
+      ]
+    },
+    {
+      "t": 315,
+      "target": { "x": 300, "y": 252, "w": 530, "h": 55 },
+      "caption": "Payoff: workshop-registry selectable in the AI hub Model registry dropdown",
+      "details": [
+        { "label": "Model registry", "value": "workshop-registry" },
+        { "label": "Models", "value": "No models in selected registry yet" },
+        { "label": "Next", "value": "Register model (module-02 exercise 2)" }
+      ]
+    }
+  ]
+}

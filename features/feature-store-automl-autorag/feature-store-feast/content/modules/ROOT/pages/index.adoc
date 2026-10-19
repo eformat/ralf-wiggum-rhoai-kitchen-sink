@@ -41,3 +41,5 @@ About 2 hours
 * xref:module-02-hands-on.adoc[Module 02: Hands-on Exercise]
 * xref:module-03-advanced.adoc[Module 03: Advanced Usage]
 * xref:conclusion.adoc[Conclusion]
+
+link:_attachments/feature-store-feast-demo.html[▶ Watch the demo — interactive walkthrough,window=_blank]

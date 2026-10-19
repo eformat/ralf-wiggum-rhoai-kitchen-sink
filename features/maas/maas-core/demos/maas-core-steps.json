@@ -1,0 +1,102 @@
+{
+  "title": "Models-as-a-Service (MaaS) core: access model and token mechanism",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 12.4,
+      "target": { "x": 314, "y": 329, "w": 1558, "h": 355 },
+      "caption": "The workshop model is deployed and published to MaaS: the deployment row shows Ready, and the details confirm Model-as-a-Service (MaaS) availability on a CPU-only cluster.",
+      "details": [
+        { "label": "Deployment", "value": "p2w12-maas-qwen25" },
+        { "label": "Serving", "value": "Distributed inference with llm-d" },
+        { "label": "Status", "value": "Ready" },
+        { "label": "Model availability", "value": "Model-as-a-Service (MaaS)" },
+        { "label": "Hardware", "value": "CPU-only - no hardware profile" }
+      ]
+    },
+    {
+      "t": 28.6,
+      "target": { "x": 314, "y": 383, "w": 1558, "h": 82 },
+      "caption": "Models published to MaaS appear on the AI asset endpoints page: each row shows the model ID, the use case, the operational status, and an Endpoints View button.",
+      "details": [
+        { "label": "Model", "value": "publishers/p2w12-maas-deploy/models/p2w12-maas-qwen25" },
+        { "label": "Use case", "value": "LLM" },
+        { "label": "Status", "value": "Ready" }
+      ]
+    },
+    {
+      "t": 47.2,
+      "target": { "x": 540, "y": 272, "w": 840, "h": 536 },
+      "caption": "The Endpoints dialog shows the Model as a Service badge, the external API endpoint URL for the MaaS gateway, and the subscription that governs this model.",
+      "details": [
+        { "label": "Badge", "value": "Model as a Service" },
+        { "label": "External endpoint", "value": "https://maas.apps.cluster-qn8tx.dyn.redhatworkshops.io/" },
+        { "label": "Subscription", "value": "p2w12-maas-demo" }
+      ]
+    },
+    {
+      "t": 61.0,
+      "target": { "x": 552, "y": 640, "w": 772, "h": 150 },
+      "caption": "Generate API key mints a 1-hour temporary key: it carries the sk-oai- prefix, is displayed only once (masked here), and never appears in your API keys list.",
+      "details": [
+        { "label": "Key prefix", "value": "sk-oai-" },
+        { "label": "Expires", "value": "1 hour" },
+        { "label": "Note", "value": "Ideal for a quick test" }
+      ]
+    },
+    {
+      "t": 84.3,
+      "target": { "x": 314, "y": 356, "w": 1558, "h": 117 },
+      "caption": "For a persistent key, open Gen AI studio > API keys. The table lists every key with its status, subscription, owner, and expiration.",
+      "details": [
+        { "label": "Page", "value": "Gen AI studio > API keys" },
+        { "label": "Action", "value": "Create API key" },
+        { "label": "Statuses", "value": "Active, Inactive, Expired" }
+      ]
+    },
+    {
+      "t": 93.7,
+      "target": { "x": 540, "y": 272, "w": 840, "h": 536 },
+      "caption": "Click Create API key: a persistent key needs a name, the subscription that scopes it, and an expiration between 1 and 365 days.",
+      "details": [
+        { "label": "Name", "value": "required" },
+        { "label": "Subscription", "value": "scopes the key to one subscription" },
+        { "label": "Expiration", "value": "1-365 days" }
+      ]
+    },
+    {
+      "t": 118.1,
+      "target": { "x": 540, "y": 139, "w": 840, "h": 802 },
+      "caption": "Name the key, select the p2w12-maas-demo subscription - the dialog lists the models it includes with their token limits - and set expiration to 90 days.",
+      "details": [
+        { "label": "Name", "value": "maas-workshop-key" },
+        { "label": "Subscription", "value": "p2w12-maas-demo" },
+        { "label": "Models", "value": "p2w12-maas-qwen25 - 100 tokens / 1 minute" },
+        { "label": "Expiration", "value": "90 days" }
+      ]
+    },
+    {
+      "t": 134.2,
+      "target": { "x": 560, "y": 450, "w": 800, "h": 130 },
+      "caption": "The plaintext key is displayed only during creation and cannot be retrieved later: copy it and store it securely before closing the dialog.",
+      "details": [
+        { "label": "Status", "value": "API key created" },
+        { "label": "Key", "value": "sk-oai-... (masked)" },
+        { "label": "Warning", "value": "Save your API key - shown only once" }
+      ]
+    },
+    {
+      "t": 150.6,
+      "target": { "x": 314, "y": 356, "w": 1558, "h": 213 },
+      "caption": "The key appears in the list with Status Active, bound to your subscription. A gateway call with it returns an OpenAI-compatible response whose usage object is the token mechanism made visible.",
+      "details": [
+        { "label": "Key", "value": "maas-workshop-key (Active)" },
+        { "label": "Subscription", "value": "p2w12-maas-demo" },
+        { "label": "Expires", "value": "Jul 17, 2027" },
+        { "label": "POST /v1/chat/completions", "value": "HTTP 200" },
+        { "label": "usage.total_tokens", "value": "49 (32 prompt + 17 completion)" },
+        { "label": "Invalid key", "value": "401 Unauthorized" }
+      ]
+    }
+  ]
+}
