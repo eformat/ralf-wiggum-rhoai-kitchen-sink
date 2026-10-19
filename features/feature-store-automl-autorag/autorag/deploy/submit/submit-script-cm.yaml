@@ -1,0 +1,63 @@
+# Submit-script ConfigMap for the AutoRAG stack re-triage (cluster-qn8tx, batch p2w13).
+#
+# Own file, NOT inside submit-pod.yaml (p2w13 gotcha: a ConfigMap defined inside
+# a Pod manifest reverts to the old content on every pod apply — split them).
+#
+# NOTEBOOK IMAGE (batch p2w14): submit-incluster.py pulls the cluster-internal
+# ImageStream image s2i-generic-data-science-notebook:3.5 — the upstream
+# registry.redhat.io/rhoai/odh-generic-data-science-notebook repo is not
+# authorized with this cluster's pull secret.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: p2w13-autorag-submit-script
+  namespace: p2w13-autorag
+data:
+  setup.sh: |
+    export REQUESTS_CA_BUNDLE=/tmp/ca/ca-bundle.crt
+    export SSL_CERT_FILE=/tmp/ca/ca-bundle.crt
+    pip install --no-cache-dir --quiet --cert /tmp/ca/ca-bundle.crt kfp==2.16.1
+    python3 /tmp/scripts/submit-incluster.py
+  submit-incluster.py: |
+    import kfp
+    from kfp import dsl, compiler
+
+    # Notebook image DELTA (batch p2w14, 2026-10-19): upstream
+    # registry.redhat.io/rhoai/odh-generic-data-science-notebook is NOT authorized
+    # with this cluster's pull secret ("unauthorized: access to the requested
+    # resource is not authorized" — pipelines repos ARE pullable, this notebook
+    # repo is not). The platform imports the workbench image into the
+    # CLUSTER-INTERNAL registry as ImageStream s2i-generic-data-science-notebook
+    # (redhat-ods-applications, tags 2025.1/2025.2/3.4/3.5) — pull that internal
+    # image instead (live-verified pullable from p2w13-autorag with the default SA).
+    @dsl.component(base_image="image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/s2i-generic-data-science-notebook:3.5")
+    def hello_mlflow():
+        import os
+        for k in sorted(os.environ):
+            if "MLFLOW" in k or "MLMD" in k or "KFP" in k:
+                print("ENV", k, "=", os.environ.get(k))
+        import mlflow
+        print("tracking uri:", os.environ.get("MLFLOW_TRACKING_URI"))
+        with mlflow.start_run():
+            mlflow.log_param("greeting", "hello")
+            mlflow.log_metric("metric1", 1.0)
+        print("mlflow logging done")
+
+    @dsl.pipeline(name="p2w13-autorag-hello")
+    def p2w13_autorag_hello():
+        hello_mlflow()
+
+    compiler.Compiler().compile(p2w13_autorag_hello, "/tmp/hello.yaml")
+    print("compiled")
+
+    kfp_client = kfp.Client(
+        host="https://ds-pipeline-p2w13-autorag.p2w13-autorag.svc.cluster.local:8443",
+        existing_token=open("/var/run/secrets/kubernetes.io/serviceaccount/token").read(),
+        verify_ssl=False,
+        namespace="p2w13-autorag",
+    )
+    run = kfp_client.create_run_from_pipeline_func(
+        p2w13_autorag_hello,
+        run_name="p2w13-autorag-hello",
+    )
+    print("run:", run.run_id)

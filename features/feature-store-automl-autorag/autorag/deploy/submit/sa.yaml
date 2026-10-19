@@ -1,0 +1,32 @@
+# Submit stack RBAC for the AutoRAG stack re-triage (cluster-qn8tx, batch p2w13).
+#
+# SA p2w13-autorag-submit + the `edit` ClusterRole bound in p2w13-autorag — the
+# SA submits KFP pipeline runs through the project DSPA (kfp.Client with the SA
+# token) and its `edit` RoleBinding lets the ARGO workflow pods it drives use
+# the project's resources.
+#
+# IMAGE-PULL NOTE (batch p2w14): the workflow step pods run with the ARGO
+# executor SA and pull from the CLUSTER-INTERNAL registry
+# (image-registry.openshift-image-registry.svc:5000). Cross-namespace internal
+# pulls work with the default SA (live-verified 2026-10-19: a test pod in
+# p2w13-autorag pulled the redhat-ods-applications notebook ImageStream image
+# and reached Running) — no extra image-puller RoleBinding was required.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: p2w13-autorag-submit
+  namespace: p2w13-autorag
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: p2w13-autorag-submit-edit
+  namespace: p2w13-autorag
+subjects:
+- kind: ServiceAccount
+  name: p2w13-autorag-submit
+  namespace: p2w13-autorag
+roleRef:
+  kind: ClusterRole
+  name: edit
+  apiGroup: rbac.authorization.k8s.io
