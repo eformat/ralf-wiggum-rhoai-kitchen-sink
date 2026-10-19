@@ -1,0 +1,120 @@
+# pgvector (PostgreSQL 16 with the pgvector extension) vector database for the
+# AutoRAG stack.
+#
+# Official AutoRAG contract: a remote vector database (Milvus or pgvector) is
+# registered as a vector I/O provider with the OGX instance — inline vector
+# databases are NOT supported. This instance is collision-free (p2w14- prefix)
+# in the p2w13-autorag project and is referenced by deploy/ogxserver.yaml
+# (spec.providers.vectorIo.remote.pgvector) and by the metadata store
+# (spec.storage.sql -> ogx_metadata database).
+#
+# The image creates the POSTGRES_DB database on startup; the init SQL adds the
+# ogx_metadata database for the OGXServer metadata store.
+#
+# Run order: this file, THEN deploy/ogxserver.yaml (it references the secret
+# and the service). Verify Running + DBs ready:
+#   oc wait sts/p2w14-pgvector -n p2w13-autorag --for=condition=Ready --timeout=300s
+#   oc exec -n p2w13-autorair sts/p2w14-pgvector -- psql -U ogx -d ogx -c "\l"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: p2w14-pgvector-secret
+  namespace: p2w13-autorag
+  labels:
+    ogx.io/watch: "true"
+type: Opaque
+stringData:
+  password: p2w14-pgvector-demo-pw
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: p2w14-pgvector-init
+  namespace: p2w13-autorag
+data:
+  01-create-metadata-db.sql: |
+    CREATE DATABASE ogx_metadata;
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: p2w14-pgvector
+  namespace: p2w13-autorag
+spec:
+  serviceName: p2w14-pgvector
+  replicas: 1
+  selector:
+    matchLabels:
+      app: p2w14-pgvector
+  template:
+    metadata:
+      labels:
+        app: p2w14-pgvector
+    spec:
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg16
+          env:
+            - name: POSTGRES_USER
+              value: ogx
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: p2w14-pgvector-secret
+                  key: password
+            - name: POSTGRES_DB
+              value: ogx
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+              name: pg
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 1Gi
+            limits:
+              cpu: "4"
+              memory: 4Gi
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "ogx", "-d", "ogx"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "ogx", "-d", "ogx"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+      volumes:
+        - name: init
+          configMap:
+            name: p2w14-pgvector-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: p2w14-pgvector
+  namespace: p2w13-autorag
+spec:
+  selector:
+    app: p2w14-pgvector
+  ports:
+    - name: pg
+      port: 5432
+      targetPort: 5432

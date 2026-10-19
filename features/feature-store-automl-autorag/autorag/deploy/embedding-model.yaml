@@ -1,0 +1,56 @@
+# Embedding model for the AutoRAG stack (CPU-only cluster).
+#
+# Official AutoRAG 3.5 section 7.6 embedding candidates for CPU-only
+# deployments are nomic-embed-text-v1.5 and BAAI/bge-m3 — NEITHER has a modelcar
+# tag in quay.io/redhat-ai-services/modelcar-catalog (catalog checked first).
+# The deployed model is the closest available embedding modelcar:
+#
+#   granite-embedding-english-r2 — IBM granite embedding, 768-dim, ~303 MB
+#   (the sibling ogx demo used a 768-dim embedding model, same dimensionality).
+#
+# vLLM serves it as a pooling model on the CPU runtime (--runner pooling).
+# Honest note: this is a substitution for the section 7.6 candidates — it is
+# reported as-is, not as a nomic/bge-m3 deployment.
+#
+# Run order: setup-runtime.sh, THEN this file, THEN verify Ready:
+#   oc wait inferenceservice/p2w14-granite-embedding -n p2w13-autorag --for=condition=Ready --timeout=600s
+---
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: p2w14-granite-embedding
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
+    opendatahub.io/template-name: vllm-cpu-x86-runtime-template
+    opendatahub.io/template-display-name: vLLM CPU (x86) ServingRuntime for KServe
+    openshift.io/display-name: Granite Embedding English R2 (CPU)
+    security.opendatahub.io/enable-auth: "false"
+  labels:
+    networking.kserve.io/visibility: exposed
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/genai-asset: "true"
+spec:
+  predictor:
+    minReplicas: 1
+    maxReplicas: 1
+    model:
+      modelFormat:
+        name: vLLM
+      runtime: vllm-cpu-x86-runtime
+      storageUri: oci://quay.io/redhat-ai-services/modelcar-catalog:granite-embedding-english-r2
+      args:
+        - "--runner"
+        - "pooling"
+        - "--max-model-len=512"
+        - "--enforce-eager"
+        - "--gpu-memory-utilization=0.5"
+      env:
+        - name: OMP_NUM_THREADS
+          value: "4"
+      resources:
+        requests:
+          cpu: "1"
+          memory: 1Gi
+        limits:
+          cpu: "4"
+          memory: 4Gi

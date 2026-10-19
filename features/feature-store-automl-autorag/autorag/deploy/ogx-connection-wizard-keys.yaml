@@ -1,0 +1,53 @@
+# OGX connection WIZARD KEYS (batch p2w14, session arcade-p2w14-wizard) — the
+# shape the AutoRAG wizard's OGX-connection dropdown actually matches.
+#
+# Found live (2026-10-19): with only the base template (deploy/ogx-connection.yaml)
+# the wizard typeahead rendered "There are no secrets in the selected namespace"
+# and its menu said "No options are available". Two additive fixes applied to the
+# existing p2w14-ogx-connection Secret:
+#
+# 1. Annotation `opendatahub.io/connection-type: ogx` — the wizard queries
+#    /autorag/api/v1/secrets?namespace=<project>&type=ogx and the BFF derives a
+#    secret's wizard type from this annotation (the s3 connection matches
+#    type=storage via the same annotation style with value s3; the older
+#    `opendatahub.io/connection-type-ref` annotation alone is NOT read).
+#    Apply: oc annotate secret p2w14-ogx-connection -n p2w13-autorag \
+#             opendatahub.io/connection-type=ogx --overwrite
+# 2. Data key `OGX_CLIENT_API_KEY` — the BFF's ogx path requires it; with only
+#    OGX_API_KEY the secret is excluded from the type=ogx result (BFF binary
+#    strings: "secret '%s' is missing for required key: ogx_client_api_key",
+#    "invalid ogx_client_base_url in secret %q: %w" — the ogx contract is
+#    OGX_CLIENT_BASE_URL + OGX_CLIENT_API_KEY).
+#    Apply: oc patch secret p2w14-ogx-connection -n p2w13-autorag --type=merge \
+#             -p '{"stringData":{"OGX_CLIENT_API_KEY":"p2w14-ogx-demo-key"}}'
+#
+# Verified after both: the BFF returns the connection for type=ogx and the
+# wizard dropdown lists "p2w14-ogx-connection" for selection.
+#
+# OGX_API_KEY (legacy) and OGX_HOSTNAME (helper) are kept for backwards
+# compatibility with the documented notebook/snippet paths; neither is required
+# by the wizard.
+# Verify:
+#   oc get secret p2w14-ogx-connection -n p2w13-autorag \
+#     -o jsonpath='{.metadata.annotations.opendatahub\.io/connection-type}{"\n"}'
+#   oc get secret p2w14-ogx-connection -n p2w13-autorag \
+#     -o jsonpath='{.data}' | grep -o OGX_CLIENT_API_KEY
+#   (wizard): reload /gen-ai-studio/autorag/configure/p2w13-autorag, expand the
+#   Open GenAI Stack connection typeahead -> "p2w14-ogx-connection" listed.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: p2w14-ogx-connection
+  namespace: p2w13-autorag
+  labels:
+    opendatahub.io/dashboard: "true"
+  annotations:
+    opendatahub.io/connection-type-ref: ogx
+    opendatahub.io/connection-type: ogx
+type: Opaque
+stringData:
+  OGX_CLIENT_BASE_URL: http://p2w14-ogx-service.p2w13-autorag.svc.cluster.local:8321/v1
+  OGX_CLIENT_API_KEY: p2w14-ogx-demo-key
+  OGX_API_KEY: p2w14-ogx-demo-key
+  OGX_HOSTNAME: http://p2w14-ogx-service.p2w13-autorag.svc.cluster.local:8321

@@ -1,0 +1,191 @@
+# OGXServer instance for the AutoRAG stack (project p2w13-autorag).
+#
+# apiVersion/kind verified from the live CRD: ogxservers.ogx.io, v1beta1
+# (oc get crd | grep ogx). Fields verified against the live CRD schema:
+# spec.distribution{name,image}, spec.workload{replicas,resources,storage},
+# spec.storage{sql{type,connectionString{key,name}}},
+# spec.providers{inference{remote{vllm[]}},vectorIo{remote{pgvector[]}}},
+# spec.responses{inline{builtin{vectorStoresConfig{defaultEmbeddingModel}}}}.
+#
+# Official AutoRAG contract wiring:
+#   - foundation + embedding models registered as vllm inference providers —
+#     the wizard DISCOVERS models from this OGX instance;
+#   - the pgvector vector database registered as a vector I/O provider
+#     (spec.providers.vectorIo.remote.pgvector) — remote vector DBs only,
+#     inline not supported;
+#   - PostgreSQL metadata store via spec.storage.sql (the connectionString
+#     Secret carries the ogx.io/watch: "true" label; ogx_metadata database).
+#
+# distribution.name: rh-dev is an internal image reference resolved by the
+# OpenShift AI operator (operator note: rh-dev is deprecated, use "rh" instead —
+# kept for consistency with the documented sibling precedent; switch to "rh" if
+# rh-dev stops resolving).
+#
+# baseConfig: this build CANNOT fetch the base OGX config from
+# registry.redhat.io/rhoai/odh-ogx-core-rhel9 — the operator's config
+# generation fails with "failed to fetch OCI labels ... HTTP 401" (same
+# registry auth gap the sibling ogx demo hit). spec.baseConfig is the
+# documented escape hatch: it references a ConfigMap key with a base config.yaml
+# and TAKES PRECEDENCE over OCI label resolution, while the declarative
+# spec.providers wiring is still merged on top.
+#
+# Run order: pgvector.yaml + setup-runtime.sh + models + embedding FIRST (the
+# providers reference their endpoints). Then this file. Verify:
+#   oc wait ogxserver/p2w14-ogx -n p2w13-autorag --for=condition=Ready --timeout=600s
+#   oc get ogxserver p2w14-ogx -n p2w13-autorag -o jsonpath='{.status.phase}'
+#
+# NOTE: KServe RawDeployment predictor services are HEADLESS (ClusterIP None) —
+# headless services do not translate ports and podIP:80 is REFUSED (the runtime
+# listens on 8080). The endpoints point at the ClusterIP connection services
+# from deploy/model-conn-services.yaml (:8080/v1) — live-verified.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: p2w14-ogx-postgres-conn
+  namespace: p2w13-autorag
+  labels:
+    ogx.io/watch: "true"
+type: Opaque
+stringData:
+  connection: postgresql://ogx:p2w14-pgvector-demo-pw@p2w14-pgvector.p2w13-autorag.svc.cluster.local:5432/ogx_metadata
+---
+# Base OGX config — the starting point for declarative config generation.
+# spec.baseConfig takes precedence over OCI label resolution; the operator
+# merges the declarative spec.providers wiring on top of this config.
+#
+# WIZARD-CRITICAL (batch p2w14, session arcade-p2w14-wizard, found live): the
+# AutoRAG wizard's Vector I/O provider dropdown lists vector_io providers from
+# OGX /v1/providers — the provider must be declared under `providers.vector_io`
+# (a top-level `vector_io:` key is IGNORED by the runtime, so the dropdown was
+# empty). The pgvector config's persistence must be FLAT
+# {backend, namespace} — the nested persistence.reference.{backend, namespace}
+# shape fails startup with "ValidationError for PGVectorVectorIOConfig:
+# persistence.namespace Field required / persistence.backend Field required".
+# GOTCHA: if you `oc replace` this ConfigMap, the ogx.io/watch: "true" label
+# is dropped and the operator reports "failed to find referenced base
+# ConfigMap" — re-apply the label (or `oc apply` which preserves it).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: p2w14-ogx-base-config
+  namespace: p2w13-autorag
+  labels:
+    ogx.io/watch: "true"
+data:
+  config.yaml: |-
+    version: '2'
+    image_name: p2w14
+    apis:
+      - inference
+      - models
+      - vector_io
+    storage:
+      backends:
+        kv_default:
+          db_path: ${env.SQLITE_STORE_DIR:=/.ogx}/kvstore.db
+          type: kv_sqlite
+        sql_default:
+          connection_string: ${env.OGX_STORAGE_SQL_CONNECTION_STRING}
+          type: sql_postgres
+          user: ogx
+          host: p2w14-pgvector.p2w13-autorag.svc.cluster.local
+          port: 5432
+          db: ogx_metadata
+          password: ${env.POSTGRES_PASSWORD:=}
+      stores:
+        conversations:
+          backend: sql_default
+          table_name: openai_conversations
+        inference:
+          backend: sql_default
+          table_name: inference_store
+        metadata:
+          backend: kv_default
+          namespace: registry
+        prompts:
+          backend: kv_default
+          namespace: prompts
+    persistence:
+      reference:
+        backend: kv_default
+        namespace: registry
+    providers:
+      vector_io:
+        - config:
+            db: ogx
+            host: p2w14-pgvector.p2w13-autorag.svc.cluster.local
+            password: ${env.OGX_PGVECTOR_PASSWORD}
+            port: 5432
+            user: ogx
+            persistence:
+              backend: kv_default
+              namespace: pgvector
+          provider_id: pgvector
+          provider_type: remote::pgvector
+---
+apiVersion: ogx.io/v1beta1
+kind: OGXServer
+metadata:
+  name: p2w14-ogx
+  namespace: p2w13-autorag
+spec:
+  baseConfig:
+    name: p2w14-ogx-base-config
+    key: config.yaml
+  distribution:
+    name: rh-dev
+  workload:
+    replicas: 1
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "4"
+        memory: 8Gi
+    storage:
+      size: 5Gi
+    overrides:
+      env:
+        - name: OGX_STORAGE_SQL_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: p2w14-ogx-postgres-conn
+              key: connection
+        - name: OGX_PGVECTOR_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: p2w14-pgvector-secret
+              key: password
+        - name: POSTGRES_HOST
+          value: p2w14-pgvector.p2w13-autorag.svc.cluster.local
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_DB
+          value: ogx_metadata
+        - name: POSTGRES_USER
+          value: ogx
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: p2w14-pgvector-secret
+              key: password
+  providers:
+    inference:
+      remote:
+        vllm:
+          - id: vllm-inference
+            endpoint: http://p2w14-llama32-3b-conn.p2w13-autorag.svc.cluster.local:8080/v1
+          - id: vllm-inference-2
+            endpoint: http://p2w14-qwen3-4b-conn.p2w13-autorag.svc.cluster.local:8080/v1
+          - id: vllm-embedding
+            endpoint: http://p2w14-granite-embedding-conn.p2w13-autorag.svc.cluster.local:8080/v1
+  responses:
+    inline:
+      builtin:
+        vectorStoresConfig:
+          defaultEmbeddingModel:
+            modelId: granite-embedding-english-r2
+            providerId: vllm-embedding
+            embeddingDimensions: 768

@@ -1,0 +1,44 @@
+# OGX connection in the AutoRAG project (p2w13-autorag).
+#
+# Official AutoRAG contract: "An OGX connection is configured in your project.
+# The connection must include the OGX base URL and API key." The wizard's
+# OGX-connection dropdown lists this connection for selection.
+#
+# Kind note (honest): this build has NO DataScienceConnection/DataConnection
+# CRD (oc get data-science-connection -A -> "the server doesn't have a resource
+# type"). RHOAI project connections are Secrets with the
+# opendatahub.io/dashboard: "true" label — the dashboard's Connections page
+# creates exactly this shape. The connection-type-ref value `ogx` follows the
+# dashboard's OGX connection type; verify the entry renders in the wizard
+# dropdown.
+#
+# The base URL points at the OGXServer service (<ogxserver-name>-service,
+# port 8321). WIZARD-CORRECT SHAPE (batch p2w14, session arcade-p2w14-wizard,
+# found live): the AutoRAG wizard's OGX connection routes (ogx/models,
+# ogx/vector-stores) expect the base URL WITHOUT the /v1 suffix — the BFF
+# appends /v1/models + /v1/providers itself; with /v1 the doubled path 404s
+# ("ensure Open GenAI Stack version supports /v1/models") and the model
+# configuration card renders "No foundation models / No embedding models".
+# The OpenAI-SDK convention (base_url WITH /v1) does NOT apply to the BFF's
+# own OGX routes. The API key is a demo placeholder (this stack has no OGX
+# auth configured); the wizard additionally requires the OGX_CLIENT_API_KEY
+# data key + the opendatahub.io/connection-type: ogx annotation — see
+# deploy/ogx-connection-wizard-keys.yaml for the full wizard-correct shape.
+#
+# Run order: deploy/ogxserver.yaml FIRST (the base URL references its service).
+# Verify:
+#   oc get secret p2w14-ogx-connection -n p2w13-autorag
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: p2w14-ogx-connection
+  namespace: p2w13-autorag
+  labels:
+    opendatahub.io/dashboard: "true"
+  annotations:
+    opendatahub.io/connection-type-ref: ogx
+type: Opaque
+stringData:
+  OGX_CLIENT_BASE_URL: http://p2w14-ogx-service.p2w13-autorag.svc.cluster.local:8321/v1
+  OGX_API_KEY: p2w14-ogx-demo-key

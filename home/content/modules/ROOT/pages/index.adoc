@@ -107,7 +107,7 @@ the kustomize `cluster/` config and which overlays each lab needs.
 
 |xref:automl::index.adoc[AutoML] |TP |xref:automl::index.adoc[Start →] |link:../automl/_attachments/automl-demo.html[▶ Walkthrough,window=_blank]
 
-|xref:autorag::index.adoc[AutoRAG] |TP |xref:autorag::index.adoc[Start →] |—
+|xref:autorag::index.adoc[AutoRAG] |TP |xref:autorag::index.adoc[Start →] |link:../autorag/_attachments/autorag-demo.html[▶ Walkthrough,window=_blank]
 
 |===
 

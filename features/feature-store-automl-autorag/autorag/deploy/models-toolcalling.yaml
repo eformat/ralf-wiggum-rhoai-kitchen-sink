@@ -1,0 +1,132 @@
+# Tool-calling vLLM foundation models for the AutoRAG stack (CPU-only cluster).
+#
+# Official AutoRAG contract: foundation models deployed with vLLM MUST have tool
+# calling enabled, including the --enable-auto-tool-choice and
+# --tool-call-parser model server arguments. The --tool-call-parser value
+# depends on the model family.
+#
+# Models are patterned on the CPU modelcar precedent (RawDeployment +
+# oci://quay.io/redhat-ai-services/modelcar-catalog). Catalog availability was
+# checked first: the official 3.5 section 7.6 CPU candidates Phi-4-mini-instruct,
+# Qwen3.5-4B-Instruct, and Qwen2.5-3B-Instruct have NO modelcar tags; the
+# deployed pair is the closest available official/compatible set:
+#
+#   - llama-3.2-3b-instruct  — officially listed in section 7.6 as a CPU-only
+#     candidate. Llama 3.x family -> --tool-call-parser=llama3_json.
+#   - qwen3-4b               — Qwen family stand-in for Qwen3.5-4B-Instruct.
+#     Qwen3 Hermes-style tool calls -> --tool-call-parser=hermes.
+#
+# AutoRAG wizard limit: max 3 foundation + 2 embedding models per run — this
+# pair (2 foundation) leaves headroom. Models must be DISCOVERED FROM OGX: the
+# OGXServer instance (deploy/ogxserver.yaml) registers both endpoints as vllm
+# inference providers, and the wizard lists foundation models from the OGX
+# instance.
+#
+# NOTE (honest): these are CPU deployments of bf16 modelcars (~6-8 GB weights),
+# not the Q4_K_M quantizations named in the docs — no Q4_K_M modelcars ship in
+# the catalog. Expect 7-26 tok/s per section 7.6, and slower without it.
+#
+# GOTCHA (live-verified on this build, vLLM v0.24.0+rhaiv.13 in
+# vllm-cpu-rhel9): the CPU backend startup check fails with a small container
+# memory limit — "ValueError: Available memory on node 0 (0.35/2.0 GiB) on
+# startup is less than desired CPU memory utilization (0.92, 1.84 GiB)" —
+# because `--gpu-memory-utilization` (default 0.92) controls the fraction of
+# the CONTAINER memory limit reserved on the CPU backend despite its name.
+# Fix: set --gpu-memory-utilization explicitly (0.7 here) or raise the limit.
+#
+# Run order: setup-runtime.sh, THEN this file, THEN verify Ready (~105s/model
+# on CPU):
+#   oc wait inferenceservice/p2w14-llama32-3b -n p2w13-autorag --for=condition=Ready --timeout=600s
+#   oc wait inferenceservice/p2w14-qwen3-4b -n p2w13-autorag --for=condition=Ready --timeout=600s
+---
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: p2w14-llama32-3b
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
+    opendatahub.io/template-name: vllm-cpu-x86-runtime-template
+    opendatahub.io/template-display-name: vLLM CPU (x86) ServingRuntime for KServe
+    openshift.io/display-name: Llama-3.2-3B-Instruct (CPU)
+    security.opendatahub.io/enable-auth: "false"
+  labels:
+    networking.kserve.io/visibility: exposed
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/genai-asset: "true"
+spec:
+  predictor:
+    minReplicas: 1
+    maxReplicas: 1
+    model:
+      modelFormat:
+        name: vLLM
+      runtime: vllm-cpu-x86-runtime
+      storageUri: oci://quay.io/redhat-ai-services/modelcar-catalog:llama-3.2-3b-instruct
+      args:
+        - "--enable-auto-tool-choice"
+        - "--tool-call-parser=llama3_json"
+        - "--dtype=bfloat16"
+        - "--max-model-len=8192"
+        - "--max-num-seqs=8"
+        - "--enforce-eager"
+        - "--gpu-memory-utilization=0.7"
+      env:
+        - name: VLLM_CPU_KVCACHE_SPACE
+          value: "4"
+        - name: OMP_NUM_THREADS
+          value: "8"
+        - name: VLLM_CPU_OMP_THREADS_BIND
+          value: "0-7"
+      resources:
+        requests:
+          cpu: "2"
+          memory: 2Gi
+        limits:
+          cpu: "8"
+          memory: 16Gi
+---
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: p2w14-qwen3-4b
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
+    opendatahub.io/template-name: vllm-cpu-x86-runtime-template
+    opendatahub.io/template-display-name: vLLM CPU (x86) ServingRuntime for KServe
+    openshift.io/display-name: Qwen3-4B (CPU)
+    security.opendatahub.io/enable-auth: "false"
+  labels:
+    networking.kserve.io/visibility: exposed
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/genai-asset: "true"
+spec:
+  predictor:
+    minReplicas: 1
+    maxReplicas: 1
+    model:
+      modelFormat:
+        name: vLLM
+      runtime: vllm-cpu-x86-runtime
+      storageUri: oci://quay.io/redhat-ai-services/modelcar-catalog:qwen3-4b
+      args:
+        - "--enable-auto-tool-choice"
+        - "--tool-call-parser=hermes"
+        - "--dtype=bfloat16"
+        - "--max-model-len=8192"
+        - "--max-num-seqs=8"
+        - "--enforce-eager"
+        - "--gpu-memory-utilization=0.7"
+      env:
+        - name: VLLM_CPU_KVCACHE_SPACE
+          value: "4"
+        - name: OMP_NUM_THREADS
+          value: "8"
+        - name: VLLM_CPU_OMP_THREADS_BIND
+          value: "0-7"
+      resources:
+        requests:
+          cpu: "2"
+          memory: 2Gi
+        limits:
+          cpu: "8"
+          memory: 16Gi

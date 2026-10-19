@@ -1,0 +1,44 @@
+# DataScienceCluster component patches for the OGX side of the AutoRAG stack.
+#
+# IMPORTANT — DSC cluster rules: DataScienceCluster changes must be applied with
+# `oc patch --type=merge` PER COMPONENT. NEVER `oc apply -f` this file on a
+# shared cluster: a client-side 3-way merge (or SSA on atomic maps) of a full
+# DataScienceCluster manifest can remove every component key absent from the
+# file, which triggers "not in spec = Removed" teardowns on the next reconcile.
+#
+# Commands actually run on this build (cluster-qn8tx, batch p2w14):
+#
+#   # 1. ogx = Managed (applied by the parent batch session; recorded here)
+#   oc patch dsc default-dsc --type=merge \
+#     -p '{"spec":{"components":{"ogx":{"managementState":"Managed"}}}}'
+#
+#   # 2. llamastackoperator = Removed — REQUIRED before OGX can be enabled.
+#   #    The rhods-operator refuses to build the ogx module CR while the
+#   #    deprecated Llama Stack operator is Managed:
+#   #    "BuildModuleCR failed ... module ogx ... LlamaStackOperator is set to
+#   #    Managed; it has been deprecated, set it to Removed before enabling OGX"
+#   #    (the two components are mutually exclusive; OGX supersedes Llama Stack).
+#   oc patch dsc default-dsc --type=merge \
+#     -p '{"spec":{"components":{"llamastackoperator":{"managementState":"Removed"}}}}'
+#
+# Verification after any DSC write — the components map must still hold all 17
+# keys and OGXReady must go True:
+#
+#   oc get dsc default-dsc -o jsonpath='{range .spec.components[*]}{.metadata.name}{"\n"}{end}' | sort
+#   oc get dsc default-dsc -o jsonpath='{.status.conditions[?(@.type=="OGXReady")]}' && echo
+#
+# After the patch: the operator registers ogxservers.ogx.io +
+# ogxs.components.platform.opendatahub.io CRDs and starts the OGX operator
+# pods (ogx-k8s-operator-controller-manager + opendatahub-ogx-operator) in
+# redhat-ods-applications.
+---
+apiVersion: datasciencecluster.opendatahub.io/v1
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+spec:
+  components:
+    ogx:
+      managementState: Managed
+    llamastackoperator:
+      managementState: Removed

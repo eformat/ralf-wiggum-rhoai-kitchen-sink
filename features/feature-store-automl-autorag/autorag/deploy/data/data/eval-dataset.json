@@ -1,0 +1,227 @@
+[
+  {
+    "question": "What are the mandatory contractual clauses required under DORA Article 30 for third-party ICT provider contracts supporting critical functions?",
+    "correct_answers": [
+      "Contracts must include: (a) service level descriptions with minimum 99.95% availability for critical functions, (b) data location specification requiring data to remain within the EEA unless Board-approved, (c) audit rights with 10 business days' notice (5 for urgency), (d) sub-outsourcing notification 60 days in advance with right to object, (e) exit strategy with minimum 12-month transition for critical functions and data portability in non-proprietary format, (f) incident notification within 4 hours of detection, and (g) business continuity testing at least annually with results shared within 30 days."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "Can we offer a crypto custody service to retail clients in our Frankfurt branch?",
+    "correct_answers": [
+      "Yes. Crypto custody is permitted for retail clients in Germany (BaFin jurisdiction) through the subsidiary Fed Aura Digital Assets GmbH, which holds a BaFin crypto custody license (Kryptoverwahrgeschaeft) under Section 1(1a) sentence 2 no. 6 KWG. However, retail clients must pass an enhanced suitability assessment including: a minimum score of 70% on the Bank's Crypto Knowledge Assessment, a maximum allocation of 10% of investable assets (unless a written waiver is provided after enhanced risk disclosure), and a 48-hour cooling-off period before executing the first crypto-asset transaction. The Bank's risk appetite permits crypto custody through a licensed subsidiary but caps total crypto-asset exposure on balance sheet at EUR 50 million."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What ESG data do we need to collect from SME loan applicants under CSRD?",
+    "correct_answers": [
+      "For non-listed SMEs not subject to CSRD, use the Voluntary SME Sustainability Reporting Standard (VSME). Collect at minimum: (a) sector classification by NACE code, (b) Scope 1 and 2 GHG emissions (estimates acceptable using sector-average emission factors if primary data is unavailable), (c) primary energy source (grid electricity, natural gas, renewable), (d) employee count and basic workforce data, (e) environmental certifications such as ISO 14001 or EMAS, and (f) a climate risk exposure self-assessment of physical and transition risk using the Bank's simplified questionnaire in Annex B."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What is our current concentration risk with AWS and what mitigation steps are required?",
+    "correct_answers": [
+      "AWS (eu-central-1) supports 3 critical business functions (Core Banking, Payments, Online Banking) and accounts for 34% of total ICT expenditure. The risk level is assessed as High with a mitigation plan active. This exceeds the Bank's concentration risk threshold of 30% of ICT spend for a single provider (Part V, Section 2.5) and also triggers the DORA concentration risk criteria since a single provider supports more than 3 critical business functions and accounts for more than 30% of total ICT expenditure. Concentration risk must be assessed quarterly and reported to the Board Risk Committee."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What are the Travel Rule requirements for crypto-asset transfers above EUR 1,000?",
+    "correct_answers": [
+      "Under Regulation (EU) 2023/1113, the Bank must: (a) for all crypto-asset transfers regardless of amount, transmit originator and beneficiary information; (b) before executing a transfer above EUR 1,000, verify the originator's identity against CDD records; (c) for incoming transfers missing required information, hold and request missing data within 2 business days, and if not received within 5 business days, reject the transfer; (d) use the TRUST protocol or compatible messaging layer for Travel Rule compliance. Additionally, crypto-asset customers require Enhanced Due Diligence including enhanced source of funds verification for deposits above EUR 10,000 and blockchain analytics for incoming crypto transactions."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What is the bank's risk appetite for financing oil and gas sector borrowers?",
+    "correct_answers": [
+      "Oil and gas sector lending is permitted with enhanced due diligence, and a transition plan is required from borrowers. However, new financing for thermal coal mining or coal-fired power generation is not permitted, with a full phase-out by 2030. The Bank has set a financed emissions reduction target of -40% by 2030 versus the 2020 baseline using PCAF methodology, and a Taxonomy-aligned lending target of more than 30% of new origination by 2027. Maximum portfolio exposure to high physical risk zones is capped at 8% of the total loan book."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "How quickly must a major ICT-related incident be reported to the competent authority under DORA?",
+    "correct_answers": [
+      "Major ICT-related incidents must be reported in three stages: (1) initial notification within 4 hours of classification as major, and no later than 24 hours after detection; (2) intermediate report within 72 hours of the initial notification, providing root cause analysis and impact assessment; (3) final report within 1 month of the incident, providing full post-incident review, lessons learned, and remediation actions. Reports are submitted via the standardised DORA ITS templates using the ECB's IMAS portal."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What defines a major ICT incident under DORA?",
+    "correct_answers": [
+      "An ICT-related incident is classified as major if it meets any of the following thresholds from DORA Article 18: (1) more than 10,000 clients affected or more than 10% of total clients; (2) duration exceeding 2 hours for critical functions; (3) any loss of confidential or strictly confidential data; (4) more than 2 Member States affected; or (5) estimated direct/indirect economic impact exceeding EUR 500,000."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What are the Recovery Time Objectives for the core banking platform and payments processing?",
+    "correct_answers": [
+      "The Core Banking Platform has an RTO of 2 hours and an RPO of 15 minutes. Payments Processing (SEPA, TARGET2) has an RTO of 1 hour and an RPO of 0 (synchronous replication), reflecting its classification as a critical business function."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "Can we offer crypto custody to retail clients in the Netherlands?",
+    "correct_answers": [
+      "Retail crypto custody in the Netherlands is currently restricted and under review. The Bank is awaiting AFM guidance on MiCA transitional measures. Professional crypto custody is permitted. This is different from Germany (BaFin) and France (ACPR/AMF), where both retail and professional crypto custody are permitted."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What is the minimum CET1 ratio and at what level does Board escalation trigger?",
+    "correct_answers": [
+      "The regulatory minimum CET1 ratio including buffers is 10.5%. The Bank's internal target is 13.0%. Board escalation is triggered when the CET1 ratio falls below 12.0%."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What enhanced due diligence measures are required for Politically Exposed Persons?",
+    "correct_answers": [
+      "For Politically Exposed Persons (PEPs), whether domestic, foreign, or from international organisations, the Bank must apply: senior management approval for onboarding, enhanced source of wealth verification, and ongoing enhanced monitoring. PEP relationships must be reviewed at least annually. Simplified Due Diligence is never appropriate for PEP relationships."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "How many ICT third-party providers does the Bank have and what is the annual spend breakdown by classification?",
+    "correct_answers": [
+      "The Bank maintains relationships with 247 ICT third-party providers as of Q1 2025. Breakdown: 12 Critical providers with EUR 89.3 million annual spend, 38 Important providers with EUR 34.7 million annual spend, and 197 Standard providers with EUR 21.4 million annual spend."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What security certifications are required for onboarding a critical ICT third-party provider?",
+    "correct_answers": [
+      "For Critical ICT third-party providers, both SOC 2 Type II and ISO 27001 certification are mandatory. For Important providers, either SOC 2 Type II or ISO 27001 is required. For Standard providers, a self-assessment questionnaire (SAQ) based on the Bank's ICT security checklist is sufficient. Additionally, an independent vulnerability assessment of the provider's internet-facing infrastructure and a review of the provider's incident history for the last 3 years must be completed."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What interest rate discount does a borrower get for Taxonomy-aligned loans?",
+    "correct_answers": [
+      "Under the Bank's Green Lending Framework: borrowers with more than 90% aligned revenue receive -15 basis points, borrowers with 50-90% aligned revenue receive -10 basis points, borrowers with less than 50% aligned revenue receive standard pricing, and borrowers with a credible transition plan plus sustainability-linked loans may receive -5 to -10 basis points on a case-by-case basis."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What is the process for handling a sanctions screening true positive against the EU or SDN list?",
+    "correct_answers": [
+      "For a true positive match against the SDN or EU sanctions list, the Bank must immediately freeze the account and/or transaction and notify the competent authority within 24 hours. The SLA for this action is immediate. For sectoral sanctions true positives, restrictions are applied per the sanctions programme and legal review is conducted within a 4-hour SLA. For potential matches requiring investigation, the transaction is held and must be investigated within 2 business hours."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "How often must threat-led penetration testing be conducted and under what framework?",
+    "correct_answers": [
+      "In accordance with DORA Article 26, threat-led penetration testing (TLPT) must be conducted at least every 3 years, and more frequently if required by the competent authority. TLPT must be conducted in accordance with the TIBER-EU framework. Tests must cover live production systems, including systems operated by critical ICT third-party providers. The scope must be agreed with the ECB/BaFin in advance, testing teams must be independent and certified, results must be reported to the Board Risk Committee within 30 days, and remediation of critical findings must commence within 5 business days of the final report."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What data quality tiers does the Bank use for ESG data and when are estimates acceptable?",
+    "correct_answers": [
+      "The Bank uses four data quality tiers: Tier 1 (Verified) is data from the borrower's CSRD report with auditor assurance, acceptable for all disclosures and preferred for GAR calculation. Tier 2 (Reported) is self-reported data without independent assurance, acceptable during the transitional period. Tier 3 (Estimated) uses sector averages, proxies, or models, acceptable for SMEs only with documented methodology and flagged as estimated. Tier 4 (Unavailable) is when the borrower cannot provide data, requiring conservative assumptions that assume non-alignment. Estimates (Tier 3) are only acceptable for SMEs not subject to CSRD."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "Is the Bank permitted to engage in proprietary trading of crypto-assets or DeFi protocol exposure?",
+    "correct_answers": [
+      "No. The Bank's risk appetite explicitly prohibits both proprietary trading in crypto-assets and DeFi protocol exposure. Crypto lending is also not permitted. The Bank's crypto-asset activities are limited to: crypto custody services through a licensed subsidiary, crypto-asset exposure on balance sheet capped at maximum EUR 50 million (less than 0.1% of total assets), and stablecoin reserves management for regulated e-money tokens only."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What is the exit plan requirement for critical ICT third-party providers?",
+    "correct_answers": [
+      "Every critical ICT third-party provider must have a documented exit plan that is created during onboarding before contract signing, reviewed and updated at least annually, and tested at least every 2 years through tabletop exercises or partial dry runs. Each exit plan must include: at least 2 identified alternative providers with preliminary commercial terms, a migration timeline (4-8 weeks data extraction, 8-12 weeks parallel running, 2-4 weeks cutover), resource requirements, data handling procedures, a communication plan, and risk mitigation controls. The contractual exit strategy must provide a minimum 12-month transition period for critical functions with data returned in a machine-readable non-proprietary format."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What EPC requirements apply to commercial real estate loans under the EU Taxonomy?",
+    "correct_answers": [
+      "For Taxonomy alignment of buildings under the EU Taxonomy Climate Delegated Act (Commission Delegated Regulation (EU) 2021/2139): new buildings must have primary energy demand at least 10% below the NZEB threshold; existing buildings must have EPC class A or be within the top 15% of national building stock by primary energy demand; and renovations must achieve at least 30% improvement in primary energy demand. At origination and annually, the Bank must collect the EPC rating, primary energy demand in kWh/m2/year, CO2 emissions intensity in kgCO2/m2/year, NZEB compliance status, and renovation plans."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What AML training is required for client-facing staff versus the AML/CFT team?",
+    "correct_answers": [
+      "Client-facing staff must complete AML/CFT training specific to their role including red flag recognition, for 2 hours annually. The AML/CFT team must complete advanced training covering typologies, investigation techniques, and regulatory updates for 4 hours quarterly. By comparison, all employees receive 1-hour annual general AML/CFT awareness training, the Management Board receives 1-hour semi-annual strategic AML/CFT briefings, and the MLRO and deputies undergo ongoing continuing professional development."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What is the ICT security budget for 2025 and who is accountable for it?",
+    "correct_answers": [
+      "The ICT security budget for 2025 is EUR 47 million across the Group. The Management Board bears ultimate responsibility for the ICT risk management framework under DORA Article 5, including allocating and periodically reviewing this budget. The CISO, CTO, and Head of ICT Operations have operational roles and responsibilities set by the Management Board. All Management Board members must complete a DORA awareness programme of minimum 8 hours annually by 31 March each year."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "What are the Taxonomy technical screening criteria for lending to natural gas electricity generation?",
+    "correct_answers": [
+      "For natural gas electricity generation, the substantial contribution criterion requires life-cycle emissions below 270g CO2e/kWh (transitional, until 2030) and direct emissions below 550kg CO2e/kW. The DNSH criteria require that the plant must replace a more carbon-intensive plant and a transition plan is required. This is a transitional activity classification under the EU Taxonomy."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  },
+  {
+    "question": "How does the customer risk scoring model work for AML and what factors carry the most weight?",
+    "correct_answers": [
+      "The AML customer risk scoring model uses 7 weighted factors: country of residence/incorporation carries the highest weight at 20%, followed by customer type, country of business activity, industry/sector, and product type each at 15%, PEP status at 10%, and source of funds and wealth at 10%. Each factor is rated Low, Medium, High, or Prohibited. The overall risk rating is: Low (score 1-30), Medium (31-60), High (61-80), Very High (81-100). Review frequency ranges from every 3 years for Low to every 6 months for Very High. PEP customers are reviewed at least annually regardless of score."
+    ],
+    "correct_answer_document_ids": [
+      "fed-aura-capital-bank-policy-compendium.md"
+    ]
+  }
+]

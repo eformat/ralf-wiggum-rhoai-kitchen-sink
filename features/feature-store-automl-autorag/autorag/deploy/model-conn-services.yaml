@@ -1,0 +1,56 @@
+# ClusterIP connection services for the deployed models (part of the OGXServer
+# wiring — deploy/ogxserver.yaml references these endpoints).
+#
+# WHY (live-verified): KServe RawDeployment predictor services are HEADLESS
+# (rawDeploymentServiceConfig: Headless, ClusterIP None) — headless services do
+# not translate ports, so a client connecting to <isvc>-predictor...:80 lands on
+# podIP:80 and is REFUSED (the vLLM runtime listens on 8080). Verified live:
+#   curl http://p2w14-llama32-3b-predictor.<ns>.svc.cluster.local:80/v1/models
+#     -> curl: (7) ... Connection refused
+# These ClusterIP services translate port 8080 -> pod 8080 so the OGX server can
+# reach the models via stable service DNS.
+#
+# Run order: models-toolcalling.yaml + embedding-model.yaml (these reference the
+# predictor pods), THEN this file, THEN deploy/ogxserver.yaml.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: p2w14-llama32-3b-conn
+  namespace: p2w13-autorag
+spec:
+  selector:
+    app: isvc.p2w14-llama32-3b-predictor
+    component: predictor
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: p2w14-qwen3-4b-conn
+  namespace: p2w13-autorag
+spec:
+  selector:
+    app: isvc.p2w14-qwen3-4b-predictor
+    component: predictor
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: p2w14-granite-embedding-conn
+  namespace: p2w13-autorag
+spec:
+  selector:
+    app: isvc.p2w14-granite-embedding-predictor
+    component: predictor
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

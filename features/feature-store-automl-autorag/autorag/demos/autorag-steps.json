@@ -1,0 +1,109 @@
+{
+  "title": "AutoRAG — create an optimization run (batch p2w14, cluster-qn8tx)",
+  "dwell": 4.2,
+  "steps": [
+    {
+      "t": 32,
+      "target": { "x": 300, "y": 100, "w": 920, "h": 940 },
+      "caption": "Create AutoRAG optimization run — two-step wizard",
+      "details": [
+        { "label": "Step 1", "value": "Run name, description, and the OGX connection" },
+        { "label": "Name", "value": "p2w14-autorag-run" },
+        { "label": "OGX connection", "value": "p2w14-ogx-connection (OGX base URL + API key)" },
+        { "label": "Next", "value": "Enables once the connection is selected" }
+      ]
+    },
+    {
+      "t": 45,
+      "target": { "x": 250, "y": 200, "w": 380, "h": 400 },
+      "caption": "Step 2 — Knowledge setup",
+      "details": [
+        { "label": "Step 2", "value": "S3 connection, vector database, evaluation dataset" },
+        { "label": "Configure details", "value": "Empty until a file is selected in Knowledge setup" },
+        { "label": "Create run", "value": "Disabled until the wizard is complete" }
+      ]
+    },
+    {
+      "t": 68,
+      "target": { "x": 330, "y": 280, "w": 510, "h": 630 },
+      "caption": "S3 connection selected — browse the bucket",
+      "details": [
+        { "label": "S3 connection", "value": "p2w14-data-s3-connection (compliance document bucket)" },
+        { "label": "Select file or folder", "value": "Browse bucket or Upload file" },
+        { "label": "S3 documents", "value": "Selected via the file browser without upload size restrictions" }
+      ]
+    },
+    {
+      "t": 85,
+      "target": { "x": 410, "y": 140, "w": 1110, "h": 840 },
+      "caption": "Browse bucket — the fed-aura folder",
+      "details": [
+        { "label": "Modal", "value": "Select 1 file or folder from this bucket" },
+        { "label": "fed-aura", "value": "Folder with the compliance knowledge (6 European banking policies)" },
+        { "label": "Single folder", "value": "Multiple S3 documents live in one folder in the bucket" }
+      ]
+    },
+    {
+      "t": 105,
+      "target": { "x": 860, "y": 290, "w": 1030, "h": 490 },
+      "caption": "fed-aura compendium selected — Configure details opens",
+      "details": [
+        { "label": "Input data file", "value": "fed-aura (folder)" },
+        { "label": "Configure details", "value": "Vector I/O provider, Evaluation dataset, Optimization metric" },
+        { "label": "Maximum RAG patterns", "value": "8 (default)" }
+      ]
+    },
+    {
+      "t": 125,
+      "target": { "x": 850, "y": 280, "w": 980, "h": 660 },
+      "caption": "Vector I/O provider — pgvector (remote)",
+      "details": [
+        { "label": "Provider", "value": "pgvector (remote Pgvector)" },
+        { "label": "Role", "value": "Registered as a vector I/O provider with the OGX instance" },
+        { "label": "Stores", "value": "The vector index AutoRAG builds from the documents" }
+      ]
+    },
+    {
+      "t": 160,
+      "target": { "x": 310, "y": 40, "w": 850, "h": 740 },
+      "caption": "Evaluation dataset — eval-dataset.json",
+      "details": [
+        { "label": "eval-dataset.json", "value": "25 question-answer pairs (JSON)" },
+        { "label": "Input compendium", "value": "fed-aura-capital-bank-policy-compendium.md (10,138 words)" },
+        { "label": "Format", "value": "JSON array of question / correct_answers / correct_answer_document_ids" }
+      ]
+    },
+    {
+      "t": 185,
+      "target": { "x": 860, "y": 640, "w": 990, "h": 160 },
+      "caption": "Optimization metric — Answer faithfulness",
+      "details": [
+        { "label": "Answer faithfulness", "value": "Answers grounded in the retrieved context" },
+        { "label": "Answer correctness", "value": "Answers that match the test data" },
+        { "label": "Context correctness", "value": "Retrieval of relevant documents" }
+      ]
+    },
+    {
+      "t": 192,
+      "target": { "x": 850, "y": 280, "w": 980, "h": 760 },
+      "caption": "Run preset Faster + Create run",
+      "details": [
+        { "label": "Configuration", "value": "Answer faithfulness · pgvector · fed-aura/eval-dataset.json" },
+        { "label": "Run preset", "value": "Faster (4 vCPU + 16 GiB, recursive chunking — the default)" },
+        { "label": "Models", "value": "2 foundation + 1 embedding discovered from OGX" },
+        { "label": "Note", "value": "Optimization runs cannot be edited after creation" }
+      ]
+    },
+    {
+      "t": 205,
+      "target": { "x": 380, "y": 160, "w": 1000, "h": 120 },
+      "caption": "Run created — AutoRAG optimization in progress",
+      "details": [
+        { "label": "Results", "value": "\" p2w14-autorag-run \" results" },
+        { "label": "AutoRAG pipeline run", "value": "Preparing" },
+        { "label": "Starting evaluation", "value": "Runs take some time to complete" },
+        { "label": "Underlying KFP pipeline", "value": "documents-rag-optimization-pipeline Running" }
+      ]
+    }
+  ]
+}

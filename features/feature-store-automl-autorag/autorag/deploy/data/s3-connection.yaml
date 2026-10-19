@@ -1,0 +1,37 @@
+# AutoRAG Knowledge-setup S3 connection for project p2w13-autorag (cluster-qn8tx, p2w14-data wave).
+#
+# WHY A SECRET (honest kind note): neither `data-science-connection` nor `DataConnection`
+# exists on this build (RHOAI 3.5.1, only cephconnections.csi.ceph.io). The RHOAI
+# "Data Connection" on this build is a Secret annotated opendatahub.io/connection-type:
+# s3 — verified against the autorag-ui BFF binary, which references that annotation and
+# the AWS_S3_ENDPOINT / AWS_S3_BUCKET / AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY fields.
+# This is the connection the wizard's Knowledge setup "S3 connection" dropdown selects.
+#
+# TEMPLATE: credentials are substituted at apply time by setup-data.sh (envsubst from
+# secret noobaa-creds-p2w13) — no S3 credential values are ever stored in this file.
+# Apply (from setup-data.sh step 3):
+#   env AK=<...> SK=<...> envsubst '$AK $SK' < s3-connection.yaml | oc apply -n p2w13-autorag -f -
+#
+# ENDPOINT DELTA (honest): the DSPA's external storage uses https://s3.openshift-storage.svc:443
+# (scheme https, secure true, cABundle empty). This connection uses the same NooBaa S3
+# service over http://s3.openshift-storage.svc:80 to avoid self-signed-TLS/CA issues for
+# the wizard's bucket browse from any project pod.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: p2w14-data-s3-connection
+  namespace: p2w13-autorag
+  labels:
+    opendatahub.io/dashboard: "true"
+  annotations:
+    opendatahub.io/connection-type: s3
+type: Opaque
+stringData:
+  AWS_ACCESS_KEY_ID: "${AK}"
+  AWS_SECRET_ACCESS_KEY: "${SK}"
+  AWS_S3_ENDPOINT: "http://s3.openshift-storage.svc:80"
+  AWS_S3_BUCKET: "p2w13-autorag-pipelines"
+  # Required by the AutoRAG wizard's storage filter (batch p2w14, found live):
+  # without it the Knowledge setup step renders 'Required key "AWS_DEFAULT_REGION"
+  # is not set in this secret : error status' and Create run stays disabled.
+  AWS_DEFAULT_REGION: "us-east-1"
